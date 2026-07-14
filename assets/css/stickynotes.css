@@ -1,0 +1,100 @@
+/*-------------------------
+	Simple reset
+--------------------------*/
+
+
+*{
+	margin:0;
+	padding:0;
+}
+
+
+/*-------------------------
+	General Styles
+--------------------------*/
+
+
+.notebg{ 
+
+	background:url('../images/background.jpg') no-repeat center center;
+
+	/* Ensure the html element always takes up the full height of the browser window */
+	min-height:100%;
+
+	/* Display the background fullscreen */
+	background-size:cover;
+}
+
+body{
+	font:14px/1.3 'Segoe UI',Arial, sans-serif;
+	color:#444;
+	min-height:100%;
+}
+
+a, a:visited {
+	outline:none;
+	color:#43819b;
+}
+
+a:hover{
+	text-decoration:none;
+}
+
+section, footer, header{
+	display: block;
+}
+
+.credit{
+	font-size:11px;
+	color:#ddd;
+	text-align:center;
+	font-weight:bold;
+	margin-bottom:60px;
+}
+
+
+/*-------------------------
+	The note
+--------------------------*/
+
+
+#pad{
+	position:relative;
+	width: 100%;
+	margin: 0px auto 40px;
+}
+
+#note{
+	font: normal 15px 'Courgette', cursive;
+	line-height: 17px;
+	color:#444;
+	background: url('../images/mid.png') repeat-y;
+	display: block;
+	border: none;
+	width: 100%;
+	min-height: 420px;
+	overflow: hidden;
+	resize: none;
+	outline: 0px;
+	padding: 0 80px 0 35px;
+	text-align:justify;
+	margin-top:-10px;
+}
+
+#pad h2{
+	background: url('../images/header.png') no-repeat;
+	overflow: hidden;
+	text-indent: -9999px;
+	height: 69px;
+	position: relative;
+}
+
+#pad:after{
+	position:absolute;
+	content:'';
+	background:url('../images/footer.png') no-repeat;
+	width:100%;
+	height:40px;
+}
+
+

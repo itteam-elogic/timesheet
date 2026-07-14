@@ -1,0 +1,22 @@
+<select class="form-control" id="department" name="department">
+                    <option value="" selected="selected">Choose Department</option>
+                    <option value="Architectural" <?php if($getEmpDetails->department == "Architectural") echo 'selected="selected"'; ?>>Architectural</option>
+                    <option value="Structural" <?php if($getEmpDetails->department == "Structural") echo 'selected="selected"'; ?>>Structural</option>
+                    <option value="MEP" <?php if($getEmpDetails->department == "MEP") echo 'selected="selected"'; ?>>MEP</option>
+                    <option value="3D Visualization" <?php if($getEmpDetails->department == "3D Visualization") echo 'selected="selected"'; ?>>3D Visualization</option>
+                    <option value="2D Auto CAD" <?php if($getEmpDetails->department == "2D Auto CAD") echo 'selected="selected"'; ?>>2D Auto CAD</option>
+                    <option value="HR" <?php if($getEmpDetails->department == "HR") echo 'selected="selected"'; ?>>HR</option>
+                    <option value="Software" <?php if($getEmpDetails->department == "Software") echo 'selected="selected"'; ?>>Software</option>
+                    <option value="IT" <?php if($getEmpDetails->department == "IT") echo 'selected="selected"'; ?>>IT</option>
+                    <option value="Operations" <?php if($getEmpDetails->department == "Operations") echo 'selected="selected"'; ?>>Operations</option>
+                    <option value="Marketing" <?php if($getEmpDetails->department == "Marketing") echo 'selected="selected"'; ?>>Marketing</option>
+                    <option value="Accounting" <?php if($getEmpDetails->department == "Accounting") echo 'selected="selected"'; ?>>Accounting</option>                
+                    <option value="Business Development" <?php if($getEmpDetails->department == "Business Development") echo 'selected="selected"'; ?>>Business Development</option>
+                    <option value="Others" <?php if($getEmpDetails->department == "Others") echo 'selected="selected"'; ?>>Others</option>
+							 </select>
+
+
+                             Architectural , Structural ,3D Visualization,2D Auto CAD , MEP , Software , IT, Operations , Marketing , Accounting ,Business Development,Others
+
+
+                             perk_emp_code,perk_emp_name,perk_emp_absent_days,perk_emp_late_in,perk_emp_early_out,from_date,to_date

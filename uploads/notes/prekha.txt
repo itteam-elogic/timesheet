@@ -1,0 +1,20 @@
+19/12/2018:-8.5hrs spent on wellington model review understanding the wall condition details(wall specifications) and roof condition details,coping details,roof gutter detials. 
+
+20/12/2018:-8.5hrs spent on reviewing the model wall types,linking the truss structure model into the main model in bim 360.
+
+22/12/2018:-8.5hrs spent on reviewing the model.
+
+only on 14th worked on suberry street topography site model,but included hrs on 17th also.
+
+From 18th to till date worked in wellington street.(only clarifications,QC)
+
+28/12/2018 Review of  Hyde vale model(updating markups dated  on 27/12/2018)
+
+9/1/2019 Review of Hyde vale model.(2.5hrs)and 6hrs in SFCS Model:2 sheets I101C-GR(FIRST FLOOR FINISH PLAN-NEIGHBORHOOD),
+                                                                                                                 1400C-SEM(ENLARGE FINISH FLOOR PLANS)
+
+16/1/2019 Working on Library (Updating the window families to 2016 version and segregating parametric and non parametric windows).
+
+23/1/2019  Creating the Sheets for core plan sections (A708,A703,A704,A707,A708)
+
+14/2/2019 Updated interior layout for unit 1 and unit 5 in Floor plans as per the received markups(2.5hrs worked)

@@ -1,0 +1,2155 @@
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400&display=swap" rel="stylesheet">
+    <style>
+        .highlighted-project {
+            background-color: #d4edda !important;
+        }
+    </style>
+</head>
+
+<!-- Include ExcelJS Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+/* Datepicker styling */
+.ui-datepicker {
+    font-size: 14px;
+    background: #ffffff;
+    border: 2px solid #014b88;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 260px;
+    padding: 0;
+    z-index: 9999;
+}
+
+.ui-datepicker-header {
+    background: linear-gradient(to bottom, #014b88 0%, #003366 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 4px 4px 0 0;
+    padding: 10px 8px;
+    margin: 0;
+    position: relative;
+}
+
+.ui-datepicker-title {
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+}
+
+.ui-datepicker-prev,
+.ui-datepicker-next {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    position: absolute;
+}
+
+.ui-datepicker-prev {
+    left: 8px;
+}
+
+.ui-datepicker-next {
+    right: 8px;
+}
+
+.ui-datepicker-prev .ui-icon,
+.ui-datepicker-next .ui-icon {
+    background-image: none !important;
+    background: none !important;
+    text-indent: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Hide any default jQuery UI icon content */
+.ui-datepicker-prev .ui-icon:before,
+.ui-datepicker-next .ui-icon:before,
+.ui-datepicker-prev .ui-icon:after,
+.ui-datepicker-next .ui-icon:after {
+    display: none !important;
+    content: none !important;
+}
+
+.ui-datepicker-prev .ui-icon .arrow-content,
+.ui-datepicker-next .ui-icon .arrow-content {
+    color: #000000;
+    font-size: 12px;
+    font-weight: bold;
+    display: block !important;
+    line-height: 30px;
+    text-align: center;
+    white-space: nowrap;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.ui-datepicker .ui-datepicker-prev span, 
+.ui-datepicker .ui-datepicker-next span {
+    display: block;
+    position: absolute;
+    left: 8%;
+    margin-left: -8px;
+    top: 34%;
+    margin-top: -8px;
+    font-size: 11px !important;
+}
+
+/* Ensure only arrow-content is shown, hide everything else */
+.ui-datepicker-prev .ui-icon > *:not(.arrow-content),
+.ui-datepicker-next .ui-icon > *:not(.arrow-content) {
+    display: none !important;
+}
+
+.ui-datepicker-prev .ui-icon:empty:before,
+.ui-datepicker-next .ui-icon:empty:before {
+    display: none !important;
+}
+
+.ui-datepicker-prev:hover,
+.ui-datepicker-next:hover {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.ui-datepicker select.ui-datepicker-month,
+.ui-datepicker select.ui-datepicker-year {
+    font-size: 11px;
+    padding: 2px 4px;
+    margin: 0 2px;
+    background-color: #ffffff;
+    border: 1px solid #bdbdbd;
+    border-radius: 3px;
+    color: #014b88;
+    font-weight: bold;
+}
+
+.ui-datepicker table {
+    background-color: #ffffff;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    margin: 0;
+    padding: 8px;
+}
+
+.ui-datepicker td {
+    padding: 1px;
+    width: 14.28%;
+    text-align: center;
+}
+
+.ui-datepicker td a {
+    color: #333333;
+    text-align: center;
+    padding: 8px 4px;
+    display: block;
+    min-height: 26px;
+    line-height: 26px;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.ui-datepicker td a:hover {
+    background-color: #e6f2ff;
+    color: #014b88;
+}
+
+.ui-datepicker td.ui-datepicker-today a {
+    background-color: #fff9e6;
+    color: #014b88;
+    font-weight: bold;
+    border: 2px solid #ff9e79;
+}
+
+.ui-datepicker td.ui-datepicker-current-day a {
+    background-color: #014b88;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.ui-datepicker td.ui-datepicker-other-month a {
+    color: #cccccc !important;
+}
+
+.ui-datepicker th {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+    color: #014b88;
+    font-weight: bold;
+    border-bottom: 2px solid #014b88;
+    padding: 8px 4px;
+    text-align: center;
+    width: 14.28%;
+    font-size: 12px;
+}
+
+.ui-datepicker th:nth-child(n),
+.ui-datepicker td:nth-child(n) {
+    min-width: 24px;
+    max-width: 24px;
+}
+    
+</style>
+
+<?php $this->load->view('includes/cRMHeader');
+$createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
+?>
+
+<?php
+if (!empty($_REQUEST['empId'])) {
+    $getempId = implode(' ,', $_REQUEST['empId']);
+} else {
+    $getempId = 'all';
+}
+
+if (!empty($_REQUEST['repId'])) {
+    $getrepId = implode(' ,', $_REQUEST['repId']);
+} else {
+    $getrepId = 'all';
+}
+
+$getListOfEmployees = $this->timesheet_login->getListOfEmpInformation();
+$getListOfManagers = $this->timesheet_login->getReportingManagers(null);
+?>
+
+<link href="<?php echo HTTP_CSS_PATH; ?>kpi-style.css" rel="stylesheet" />
+<body id="kpiPage">
+<div class="content-wrapper">
+    <div class="page-title">
+        <div>
+            <h1>Manage KPI</h1>
+        </div>
+        <div class="generate-report-btn" style="margin-left: -45px;">
+            <button id="generateBtn" onclick="downloadExcel()" class="btn btn-primary">
+                <span id="btnText">Generate Report</span>
+                <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+        </div>
+    </div>
+
+<script>
+// Shared filter prep for Search and Generate Report (year ALL clears month, etc.)
+function prepareClientReportFilterFormForSubmit() {
+    if (typeof $ === 'undefined' || !$('#filterForm').length) {
+        return;
+    }
+    var vals = $("#department").val() || [];
+    if (vals.indexOf("__all__") >= 0 && vals.length > 1) {
+        vals = vals.filter(function(x) { return x !== "__all__"; });
+        $("#department").val(vals).trigger("change");
+    }
+    if ($("#filter_project").length) {
+        var projVals = $("#filter_project").val() || [];
+        if (!$.isArray(projVals)) {
+            projVals = projVals ? [projVals] : [];
+        }
+        projVals = $.grep(projVals, function(v) { return v && String(v).trim() !== ""; });
+        if (projVals.length > 1) {
+            projVals = [projVals[projVals.length - 1]];
+        }
+        if (projVals.length) {
+            if (typeof ensureSelectOption === 'function') {
+                ensureSelectOption($("#filter_project"), projVals[0], projVals[0]);
+            }
+            $("#filter_project").val(projVals);
+        }
+    }
+    if ($("#from_year").length) {
+        var fy = $("#from_year").val();
+        if (fy && String(fy).toUpperCase() === "ALL") {
+            $("#from_month").val("").prop("disabled", true);
+        } else {
+            $("#from_month").prop("disabled", false);
+        }
+    }
+    if ($("#to_year").length) {
+        var ty = $("#to_year").val();
+        if (ty && String(ty).toUpperCase() === "ALL") {
+            $("#to_month").val("").prop("disabled", true);
+        } else {
+            $("#to_month").prop("disabled", false);
+        }
+    }
+}
+
+// Generate Report Excel - use same filters as the on-screen grid (current URL or form)
+function downloadExcel() {
+    const btn = document.getElementById('generateBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    btnText.textContent = 'Downloading...';
+
+    let url = '<?php echo base_url('kpi_reports/generateClientReportExcel'); ?>';
+    // Prefer current page query string so Excel matches the searched grid exactly
+    if (window.location.search && window.location.search.length > 1) {
+        url += window.location.search;
+    } else if (typeof $ !== 'undefined' && $('#filterForm').length) {
+        prepareClientReportFilterFormForSubmit();
+        var qs = $('#filterForm').serialize();
+        if (qs) {
+            url += '?' + qs;
+        }
+    }
+
+    setTimeout(function() {
+        window.location.href = url;
+        setTimeout(function() {
+            spinner.classList.add('d-none');
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+            btn.disabled = false;
+            btnText.textContent = 'Generate Report';
+        }, 19000);
+    }, 300);
+}
+
+function clearAllFilters() {
+    window.location.href = "<?= base_url('kpi_reports/clientReport') ?>";
+}
+</script>
+
+<div class="card">
+    <h3 class="card-title"></h3>
+    <div class="card-body">
+        <div class="four-report-btn " style="margin-left: 9px;">
+            <button onclick="redirectToClient()" class="btn btn-primary" style="background-color: #014b88; font-weight: bold; border: 2px solid white;">Client Report</button>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3 id="kpiReportHeading"></h3>
+            </div>
+            <script>
+            $(document).ready(function() {
+                if (typeof updateClientReportHeading === 'function') {
+                    updateClientReportHeading();
+                }
+            });
+            </script>
+        </div>
+
+<?php
+$userType = $this->session->userdata['logged_in_timesheet']['user_type'];
+if (!is_array($getempId)) {
+    $getempId = [$getempId];
+}
+?>
+
+<?php if (in_array($userType, ['admin', 'business_head', 'manager'])): ?>
+<?php
+    $clients_filter = isset($clients_filter) ? $clients_filter : array();
+    $pms_filter = isset($pms_filter) ? $pms_filter : array();
+    $project_filter = isset($project_filter) ? $project_filter : '';
+    if ($project_filter === '' && isset($_GET['project'])) {
+        $projectRaw = $_GET['project'];
+        if (is_array($projectRaw)) {
+            foreach ($projectRaw as $p) {
+                $p = trim((string) $p);
+                if ($p !== '') {
+                    $project_filter = $p;
+                    break;
+                }
+            }
+        } elseif (trim((string) $projectRaw) !== '') {
+            $project_filter = trim((string) $projectRaw);
+        }
+    }
+    if (!is_array($clients_filter)) {
+        $clients_filter = array();
+    }
+    if (!is_array($pms_filter)) {
+        $pms_filter = array();
+    }
+?>
+<style>
+.client-report-filter-bar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 22px 24px 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 14px rgba(1, 75, 136, 0.07), 0 2px 6px rgba(15, 23, 42, 0.04);
+    border-top: 3px solid #014b88;
+}
+.client-report-filter-grid .crf-grid-top {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px 16px;
+    margin-bottom: 16px;
+}
+@media (max-width: 1100px) {
+    .client-report-filter-grid .crf-grid-top {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 560px) {
+    .client-report-filter-grid .crf-grid-top {
+        grid-template-columns: 1fr;
+    }
+}
+.client-report-filter-grid .crf-field {
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f9 100%);
+    border: 1px solid #e8ecf1;
+    border-radius: 10px;
+    padding: 12px 14px 14px;
+    min-height: 0;
+}
+.client-report-filter-grid .crf-field-label {
+    display: block;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #014b88;
+    margin-bottom: 8px;
+}
+.client-report-filter-grid .crf-dates-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 20px;
+    margin-top: 2px;
+}
+.client-report-filter-grid .crf-dates-compact {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+}
+.client-report-filter-grid .kpi-ym-range-panels {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+.client-report-filter-grid .kpi-ym-panel {
+    background: #ffffff;
+    border: 1px solid #d8dee6;
+    border-radius: 10px;
+    padding: 10px 14px 12px;
+    min-width: 280px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.client-report-filter-grid .kpi-ym-panel-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    line-height: 1.2;
+    margin-bottom: 10px;
+}
+.client-report-filter-grid .kpi-ym-panel-fields {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.client-report-filter-grid .kpi-ym-select-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+.client-report-filter-grid .kpi-ym-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #ffffff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 8px;
+    border: 1px solid #cfd6df;
+    color: #4a5568;
+    font-weight: 500;
+    font-size: 14px;
+    height: 38px;
+    padding: 6px 32px 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.client-report-filter-grid .kpi-ym-select:focus {
+    border-color: #014b88;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(1, 75, 136, 0.12);
+}
+.client-report-filter-grid .kpi-ym-select option {
+    background-color: #ffffff;
+    color: #333333;
+    font-weight: normal;
+}
+.client-report-filter-grid .kpi-ym-select-wrap.kpi-ym-wrap-selected {
+    background-color: #673ab7;
+    border-radius: 8px;
+    border: 2px solid #e2e2e2;
+}
+.client-report-filter-grid .kpi-ym-select-wrap.kpi-ym-wrap-selected .kpi-ym-select {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding-right: 52px;
+    box-shadow: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+}
+.client-report-filter-grid .kpi-ym-select-wrap.kpi-ym-wrap-selected .kpi-ym-select:focus {
+    border-color: transparent !important;
+    box-shadow: none;
+}
+.client-report-filter-grid .kpi-ym-clear-icon {
+    position: absolute;
+    right: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+    z-index: 2;
+    user-select: none;
+}
+.client-report-filter-grid .kpi-ym-year-select {
+    width: 128px;
+    min-width: 128px;
+}
+.client-report-filter-grid .kpi-ym-month-select {
+    width: 128px;
+    min-width: 128px;
+}
+.client-report-filter-grid .crf-dates-actions-row .crf-btn-row {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding-top: 0;
+}
+@media (max-width: 720px) {
+    .client-report-filter-grid .crf-dates-actions-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .client-report-filter-grid .crf-dates-actions-row .crf-btn-row {
+        margin-left: 0;
+        justify-content: flex-start;
+    }
+}
+@media (max-width: 900px) {
+    .client-report-filter-grid .crf-dates-compact {
+        flex-wrap: wrap;
+    }
+    .client-report-filter-grid .kpi-ym-range-panels {
+        flex-direction: column;
+        width: 100%;
+    }
+    .client-report-filter-grid .kpi-ym-panel {
+        width: 100%;
+        min-width: 0;
+    }
+}
+.client-report-filter-grid .crf-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 4px;
+    border-top: none;
+}
+.client-report-filter-grid .btn-crf-apply {
+    background: linear-gradient(180deg, #015a9e 0%, #014b88 100%) !important;
+    color: #fff !important;
+    font-weight: 700;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(1, 75, 136, 0.25);
+    min-width: 120px;
+}
+.client-report-filter-grid .btn-crf-apply:hover {
+    filter: brightness(1.05);
+    color: #fff !important;
+}
+.client-report-filter-grid .btn-crf-clear {
+    background: #fff !important;
+    color: #c2410c !important;
+    font-weight: 700;
+    padding: 10px 18px;
+    border: 2px solid #fdba74 !important;
+    border-radius: 8px;
+}
+.client-report-filter-grid .btn-crf-clear:hover {
+    background: #fff7ed !important;
+    color: #9a3412 !important;
+}
+.client-report-filter-grid .select2-container {
+    width: 100% !important;
+    max-width: 100%;
+}
+.client-report-filter-grid .select2-container .select2-selection--multiple,
+.client-report-filter-grid .select2-container .select2-selection--single {
+    min-height: 40px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+}
+.client-report-filter-grid .select2-container--default.select2-container--focus .select2-selection--multiple,
+.client-report-filter-grid .select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #014b88 !important;
+    box-shadow: 0 0 0 3px rgba(1, 75, 136, 0.12);
+}
+.client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice,
+.client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    background-color: #6d28d9 !important;
+    border-color: #5b21b6 !important;
+    color: #fff !important;
+}
+.client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #f5f3ff !important;
+}
+.client-report-filter-grid #filter_project + .select2-container .select2-selection--multiple {
+    background: #fff !important;
+    border-color: #d1d5db !important;
+}
+.client-report-filter-grid #filter_project + .select2-container .select2-selection--multiple .select2-selection__rendered {
+    padding: 4px 8px !important;
+}
+</style>
+<form method="get" action="<?= base_url('kpi_reports/clientReport') ?>" id="filterForm">
+    <div class="client-report-filter-bar client-report-filter-grid">
+        <div class="crf-grid-top">
+            <div class="crf-field">
+                <span class="crf-field-label"><label for="department">Department</label></span>
+                <?php
+                    $clientReportDepartments = function_exists('ts_primary_delivery_departments')
+                        ? ts_primary_delivery_departments()
+                        : array('Architectural', 'Structural', '3D Visualization', '2D Auto CAD', 'MEP');
+                    $selectedDepartmentValues = array();
+                    if (isset($department)) {
+                        if (is_array($department)) {
+                            $selectedDepartmentValues = array_map('strval', $department);
+                        } elseif (is_string($department) && trim($department) !== '') {
+                            $selectedDepartmentValues = array(trim($department));
+                        }
+                    }
+                ?>
+                <select name="department[]" id="department" class="form-control" multiple="multiple" style="width: 100%;">
+                    <option value="__all__" <?= empty($selectedDepartmentValues) ? 'selected' : '' ?>>All departments</option>
+                    <?php foreach ($clientReportDepartments as $deptOption): ?>
+                        <?php $deptOption = trim((string)$deptOption); if ($deptOption === '') { continue; } ?>
+                        <option value="<?= htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>" <?= in_array($deptOption, $selectedDepartmentValues, true) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="crf-field">
+                <span class="crf-field-label"><label for="filter_clients">Client's</label></span>
+                <select name="clients[]" id="filter_clients" class="form-control" multiple="multiple" style="width: 100%;" data-placeholder="All clients">
+                    <?php foreach ($clients_filter as $cf): ?>
+                        <?php $cf = trim((string)$cf); if ($cf === '') { continue; } ?>
+                        <option value="<?= htmlspecialchars($cf, ENT_QUOTES, 'UTF-8'); ?>" selected><?= htmlspecialchars($cf, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="crf-field">
+                <span class="crf-field-label"><label for="filter_project">Project's</label></span>
+                <select name="project[]" id="filter_project" class="form-control" multiple="multiple" style="width: 100%;" data-placeholder="All projects">
+                    <?php if (!empty($project_filter)): ?>
+                        <option value="<?= htmlspecialchars($project_filter, ENT_QUOTES, 'UTF-8'); ?>" selected><?= htmlspecialchars($project_filter, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <div class="crf-field">
+                <span class="crf-field-label"><label for="filter_pms">Project Manager</label></span>
+                <select name="pms[]" id="filter_pms" class="form-control" multiple="multiple" style="width: 100%;" data-placeholder="All project managers">
+                    <?php foreach ($pms_filter as $pf): ?>
+                        <?php $pf = trim((string)$pf); if ($pf === '') { continue; } ?>
+                        <option value="<?= htmlspecialchars($pf, ENT_QUOTES, 'UTF-8'); ?>" selected><?= htmlspecialchars($pf, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <?php
+        $kpiStartYear = 2010;
+        $kpiEndYear = (int) date('Y');
+        
+        // Calculate previous month for default values
+        $prevMonthTime = strtotime('first day of previous month');
+        $prevMonth = (int) date('n', $prevMonthTime);
+        $prevYear = (int) date('Y', $prevMonthTime);
+        
+        // UI dropdown state: only default year/month on fresh load (no date params submitted)
+        $hasExplicitFromYear = isset($_GET['from_year']) && $_GET['from_year'] !== '';
+        $hasExplicitToYear = isset($_GET['to_year']) && $_GET['to_year'] !== '';
+        $hasExplicitFromMonth = isset($_GET['from_month']) && $_GET['from_month'] !== '';
+        $hasExplicitToMonth = isset($_GET['to_month']) && $_GET['to_month'] !== '';
+        $noDateParams = !$hasExplicitFromYear && !$hasExplicitFromMonth && !$hasExplicitToYear && !$hasExplicitToMonth;
+
+        $uiFromYear = $hasExplicitFromYear ? trim((string) $_GET['from_year']) : '';
+        $uiToYear = $hasExplicitToYear ? trim((string) $_GET['to_year']) : '';
+        $uiFromMonth = $hasExplicitFromMonth ? (int) $_GET['from_month'] : 0;
+        $uiToMonth = $hasExplicitToMonth ? (int) $_GET['to_month'] : 0;
+        if ($uiFromYear === '' && $noDateParams) {
+            $uiFromYear = (string) $prevYear;
+        }
+        if ($uiToYear === '' && $noDateParams) {
+            $uiToYear = (string) $prevYear;
+        }
+        if ($uiFromMonth === 0 && $noDateParams) {
+            $uiFromMonth = $prevMonth;
+        }
+        if ($uiToMonth === 0 && $noDateParams) {
+            $uiToMonth = $prevMonth;
+        }
+        $uiFromYearIsAll = (strtoupper($uiFromYear) === 'ALL');
+        $uiToYearIsAll = (strtoupper($uiToYear) === 'ALL');
+        if ($uiFromYearIsAll) {
+            $uiFromMonth = 0;
+        }
+        if ($uiToYearIsAll) {
+            $uiToMonth = 0;
+        }
+        $kpiMonthLabels = array(
+            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+            5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+            9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+        );
+        ?>
+        <div class="crf-dates-actions-row">
+            <div class="crf-dates-compact">
+                <div class="kpi-ym-range-panels">
+                    <div class="kpi-ym-panel">
+                        <div class="kpi-ym-panel-title">From</div>
+                        <div class="kpi-ym-panel-fields">
+                            <div class="kpi-ym-select-wrap">
+                                <select name="from_year" id="from_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="From year">
+                                    <option value="">Year</option>
+                                    <option value="ALL" <?= $uiFromYearIsAll ? 'selected' : '' ?>>ALL</option>
+                                    <?php for ($y = $kpiEndYear; $y >= $kpiStartYear; $y--): ?>
+                                    <option value="<?= $y ?>" <?= (!$uiFromYearIsAll && (int) $uiFromYear === $y) ? 'selected' : '' ?>><?= $y ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <span class="kpi-ym-clear-icon" onclick="clearClientReportYmSelect('from_year')">&times;</span>
+                            </div>
+                            <div class="kpi-ym-select-wrap">
+                                <select name="from_month" id="from_month" class="form-control kpi-ym-select kpi-ym-month-select kpi-ym-clearable" title="From month">
+                                    <option value="">Month</option>
+                                    <?php foreach ($kpiMonthLabels as $num => $label): ?>
+                                    <option value="<?= $num ?>" <?= ($uiFromMonth > 0 && (int) $num === $uiFromMonth) ? 'selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <span class="kpi-ym-clear-icon" onclick="clearClientReportYmSelect('from_month')">&times;</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kpi-ym-panel">
+                        <div class="kpi-ym-panel-title">To</div>
+                        <div class="kpi-ym-panel-fields">
+                            <div class="kpi-ym-select-wrap">
+                                <select name="to_year" id="to_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="To year">
+                                    <option value="">Year</option>
+                                    <option value="ALL" <?= $uiToYearIsAll ? 'selected' : '' ?>>ALL</option>
+                                    <?php for ($y = $kpiEndYear; $y >= $kpiStartYear; $y--): ?>
+                                    <option value="<?= $y ?>" <?= (!$uiToYearIsAll && (int) $uiToYear === $y) ? 'selected' : '' ?>><?= $y ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <span class="kpi-ym-clear-icon" onclick="clearClientReportYmSelect('to_year')">&times;</span>
+                            </div>
+                            <div class="kpi-ym-select-wrap">
+                                <select name="to_month" id="to_month" class="form-control kpi-ym-select kpi-ym-month-select kpi-ym-clearable" title="To month">
+                                    <option value="">Month</option>
+                                    <?php foreach ($kpiMonthLabels as $num => $label): ?>
+                                    <option value="<?= $num ?>" <?= ($uiToMonth > 0 && (int) $num === $uiToMonth) ? 'selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <span class="kpi-ym-clear-icon" onclick="clearClientReportYmSelect('to_month')">&times;</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="crf-btn-row">
+                <button type="submit" class="btn btn-crf-apply"><i class="fa fa-search"></i> Search</button>
+                <button type="button" class="btn btn-crf-clear" onclick="clearAllFilters();"><i class="fa fa-times-circle"></i> Clear all filters</button>
+            </div>
+        </div>
+    </div>
+</form>
+<?php endif; ?>
+
+<?php // Search is handled server-side, no client-side filtering needed ?>
+
+<script>
+function syncClientReportYmSelect($select) {
+    var val = $select.val();
+    var $wrap = $select.closest('.kpi-ym-select-wrap');
+    var $clear = $select.siblings('.kpi-ym-clear-icon');
+    if (val !== null && String(val).trim() !== '') {
+        $wrap.addClass('kpi-ym-wrap-selected');
+        $clear.show();
+    } else {
+        $wrap.removeClass('kpi-ym-wrap-selected');
+        $clear.hide();
+    }
+}
+function clearClientReportYmSelect(id) {
+    var $select = $('#' + id);
+    $select.val('');
+    syncClientReportYmSelect($select);
+    if (id === 'from_year') {
+        clearClientReportYmSelect('from_month');
+    } else if (id === 'to_year') {
+        clearClientReportYmSelect('to_month');
+    }
+    updateClientReportHeading();
+}
+function clearClientReportMonthIfYearAll(yearSelectId, monthSelectId) {
+    var yearVal = $('#' + yearSelectId).val();
+    if (yearVal && String(yearVal).toUpperCase() === 'ALL') {
+        var $month = $('#' + monthSelectId);
+        $month.val('');
+        syncClientReportYmSelect($month);
+    }
+}
+function updateClientReportHeading() {
+    var fromYear = $('#from_year').val();
+    var toYear = $('#to_year').val();
+    var fromMonthVal = $('#from_month').val();
+    var toMonthVal = $('#to_month').val();
+    var fromMonthText = fromMonthVal ? $('#from_month option:selected').text() : '';
+    var toMonthText = toMonthVal ? $('#to_month option:selected').text() : '';
+    if (fromYear && toYear) {
+        var fromLabel = (fromMonthText ? fromMonthText + ' ' : '') + fromYear;
+        var toLabel = (toMonthText ? toMonthText + ' ' : '') + toYear;
+        $('#kpiReportHeading').text('Client Report (' + fromLabel + ' to ' + toLabel + ')');
+    } else {
+        $('#kpiReportHeading').text('Client Report');
+    }
+}
+$(document).ready(function() {
+    $('.kpi-ym-clearable').each(function() {
+        syncClientReportYmSelect($(this));
+    });
+    clearClientReportMonthIfYearAll('from_year', 'from_month');
+    clearClientReportMonthIfYearAll('to_year', 'to_month');
+    updateClientReportHeading();
+    $('#from_year').on('change', function() {
+        clearClientReportMonthIfYearAll('from_year', 'from_month');
+        syncClientReportYmSelect($(this));
+        updateClientReportHeading();
+    });
+    $('#to_year').on('change', function() {
+        clearClientReportMonthIfYearAll('to_year', 'to_month');
+        syncClientReportYmSelect($(this));
+        updateClientReportHeading();
+    });
+    $('#from_month, #to_month').on('change', function() {
+        syncClientReportYmSelect($(this));
+        updateClientReportHeading();
+    });
+});
+</script>
+
+<script>
+function applySearchFilter() {
+    function collectStructuredFilters() {
+        var clientTerms = [];
+        var pmTerms = [];
+        var projectTerms = [];
+        if (typeof $ !== "undefined" && $("#filter_clients").length) {
+            var c = $("#filter_clients").val();
+            if (c && c.length) {
+                $.each(c, function(_, v) {
+                    if (v && String(v).trim() !== "" && String(v) !== "__all__") {
+                        clientTerms.push(String(v).trim().toLowerCase());
+                    }
+                });
+            }
+        }
+        if (typeof $ !== "undefined" && $("#filter_pms").length) {
+            var p = $("#filter_pms").val();
+            if (p && p.length) {
+                $.each(p, function(_, v) {
+                    if (v && String(v).trim() !== "") {
+                        pmTerms.push(String(v).trim().toLowerCase());
+                    }
+                });
+            }
+        }
+        if (typeof $ !== "undefined" && $("#filter_project").length) {
+            var pr = $("#filter_project").val();
+            if ($.isArray(pr) && pr.length) {
+                $.each(pr, function(_, v) {
+                    if (v && String(v).trim() !== "") {
+                        projectTerms.push(String(v).trim().toLowerCase());
+                    }
+                });
+            } else if (pr && String(pr).trim() !== "") {
+                projectTerms.push(String(pr).trim().toLowerCase());
+            }
+        }
+        return {
+            clientTerms: clientTerms.filter(function(t, i, a) { return t && a.indexOf(t) === i; }),
+            pmTerms: pmTerms.filter(function(t, i, a) { return t && a.indexOf(t) === i; }),
+            projectTerms: projectTerms.filter(function(t, i, a) { return t && a.indexOf(t) === i; })
+        };
+    }
+
+    function matchesAny(haystack, terms) {
+        haystack = (haystack || "").trim().toLowerCase();
+        if (!haystack || !terms.length) {
+            return false;
+        }
+        return terms.some(function(term) {
+            return term && haystack.indexOf(term) !== -1;
+        });
+    }
+
+    var filters = collectStructuredFilters();
+    var hasStructured = filters.clientTerms.length || filters.pmTerms.length || filters.projectTerms.length;
+    var projectTerm = filters.projectTerms.length ? filters.projectTerms[0] : "";
+
+    document.querySelectorAll(".client-row").forEach(function(clientRow) {
+        var clientName = (clientRow.getAttribute("data-client") || "").trim().toLowerCase();
+        var managerName = (clientRow.getAttribute("data-manager") || "").trim().toLowerCase();
+        var clientHash = clientRow.querySelector(".toggle-projects")
+            ? clientRow.querySelector(".toggle-projects").getAttribute("data-client")
+            : null;
+        var projectRows = clientHash
+            ? document.querySelectorAll(".project-" + clientHash)
+            : [];
+
+        var matchingProjects = [];
+        var hasVisibleProjects = false;
+
+        projectRows.forEach(function(projectRow) {
+            var projectName = (projectRow.getAttribute("data-project") || "").trim().toLowerCase();
+            var projectPM = (projectRow.getAttribute("data-manager") || "").trim().toLowerCase();
+            var include = true;
+
+            if (hasStructured) {
+                if (projectTerm) {
+                    include = projectName.indexOf(projectTerm) !== -1;
+                    if (include && filters.clientTerms.length) {
+                        include = matchesAny(clientName, filters.clientTerms);
+                    }
+                    if (include && filters.pmTerms.length) {
+                        include = matchesAny(managerName, filters.pmTerms) || matchesAny(projectPM, filters.pmTerms);
+                    }
+                } else {
+                    var passesClient = !filters.clientTerms.length || matchesAny(clientName, filters.clientTerms);
+                    var clientPmMatches = filters.pmTerms.length && matchesAny(managerName, filters.pmTerms);
+                    if (passesClient && !filters.pmTerms.length) {
+                        include = true;
+                    } else if (passesClient && clientPmMatches) {
+                        include = true;
+                    } else if (passesClient && filters.pmTerms.length) {
+                        include = matchesAny(projectPM, filters.pmTerms);
+                    } else if (!filters.clientTerms.length && clientPmMatches) {
+                        include = true;
+                    } else if (!filters.clientTerms.length && filters.pmTerms.length) {
+                        include = matchesAny(projectPM, filters.pmTerms);
+                    } else {
+                        include = false;
+                    }
+                }
+            }
+
+            projectRow.style.display = "none";
+            projectRow.classList.remove("highlighted-project");
+
+            if (include) {
+                matchingProjects.push(projectRow);
+                if (projectTerm) {
+                    projectRow.style.display = "";
+                    projectRow.classList.add("highlighted-project");
+                    hasVisibleProjects = true;
+                }
+            }
+        });
+
+        var shouldShowClient = false;
+        if (!hasStructured) {
+            shouldShowClient = true;
+        } else if (projectTerm) {
+            shouldShowClient = matchingProjects.length > 0;
+        } else {
+            var passesClient = !filters.clientTerms.length || matchesAny(clientName, filters.clientTerms);
+            var clientPmMatches = filters.pmTerms.length && matchesAny(managerName, filters.pmTerms);
+            shouldShowClient = (passesClient && !filters.pmTerms.length)
+                || (passesClient && clientPmMatches)
+                || (!filters.clientTerms.length && clientPmMatches)
+                || matchingProjects.length > 0;
+        }
+
+        clientRow.style.display = shouldShowClient ? "" : "none";
+        clientRow.classList.toggle("expanded", hasVisibleProjects);
+
+        var toggleBtn = clientRow.querySelector(".toggle-projects");
+        if (toggleBtn) {
+            var icon = toggleBtn.querySelector("i");
+            if (icon) {
+                icon.className = hasVisibleProjects ? "fa fa-minus" : "fa fa-plus";
+            }
+        }
+
+        clientRow.dataset.matchingProjects = matchingProjects
+            .map(function(r) { return r.getAttribute("data-project"); })
+            .join(",");
+    });
+
+    document.querySelectorAll(".toggle-projects").forEach(toggle => {
+        toggle.addEventListener("click", function () {
+            const clientRow  = this.closest(".client-row");
+            const clientHash = this.getAttribute("data-client");
+            const rows       = document.querySelectorAll(`.project-${clientHash}`);
+            const isOpen     = clientRow.classList.contains("expanded");
+
+            if (isOpen) {
+                clientRow.classList.remove("expanded");
+                rows.forEach(r => r.style.display = "none");
+                var icon = this.querySelector("i");
+                if (icon) icon.className = "fa fa-plus";
+            } else {
+                clientRow.classList.add("expanded");
+                const allowed = (clientRow.dataset.matchingProjects || "")
+                    .split(",")
+                    .map(s => s.trim());
+
+                rows.forEach(r => {
+                    const name = r.getAttribute("data-project")?.trim() || "";
+                    if (allowed.length === 0 || allowed.includes(name)) {
+                        r.style.display = "";
+                    } else {
+                        r.style.display = "none";
+                    }
+                });
+                var icon = this.querySelector("i");
+                if (icon) icon.className = "fa fa-minus";
+            }
+        });
+    });
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".toggle-projects").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var clientId = this.getAttribute("data-client");
+            var isHidden = false;
+            document.querySelectorAll(".project-" + clientId).forEach(function (row) {
+                isHidden = row.style.display === "none";
+                row.style.display = isHidden ? "" : "none";
+            });
+            var icon = this.querySelector("i");
+            if (icon) icon.className = isHidden ? "fa fa-minus" : "fa fa-plus";
+        });
+    });
+    // Apply client-side filter on load when search has value (matches server-filtered results)
+    if (typeof applySearchFilter === 'function') {
+        var hasFilter = false;
+        if (typeof $ !== 'undefined') {
+            var fc = $('#filter_clients').val();
+            var fp = $('#filter_pms').val();
+            var fpr = $('#filter_project').val();
+            if ((fc && fc.length) || (fp && fp.length)
+                || ($.isArray(fpr) && fpr.length)
+                || (fpr && String(fpr).trim() !== '')) {
+                hasFilter = true;
+            }
+        }
+        if (hasFilter) {
+            applySearchFilter();
+        }
+    }
+});
+</script>
+
+<script>
+$(function() {
+    var suggestUrl = "<?php echo base_url('kpi_reports/autosuggest_project_names'); ?>";
+    var cachedActiveClientsCount = null;
+    var departmentFilterPrevSerialized = null;
+
+    function buildGrouped(data) {
+        var rows = (data && data.suggestions) ? data.suggestions : (Array.isArray(data) ? data : []);
+        if (data && typeof data.active_clients_count === "number") {
+            cachedActiveClientsCount = data.active_clients_count;
+        }
+        var clientTotal = (cachedActiveClientsCount !== null) ? cachedActiveClientsCount : null;
+        var grouped = {};
+        $.each(rows, function(i, item) {
+            var label = (item.label || item.value || "").trim();
+            var value = (item.value || item.label || "").trim();
+            var cat = item.category || "Other";
+            if (!value) return;
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push({ id: value, text: label });
+        });
+        return { grouped: grouped, clientTotal: clientTotal };
+    }
+
+    function processResultsForCategory(data, only) {
+        var r = buildGrouped(data);
+        var grouped = r.grouped;
+        var clientTotal = r.clientTotal;
+        var results = [];
+        if (only === "Clients") {
+            if (grouped["Clients"] && grouped["Clients"].length) {
+                var clientHeader = (clientTotal !== null) ? ("Clients (" + clientTotal + " active)") : "Clients";
+                results.push({ text: clientHeader, children: grouped["Clients"] });
+            }
+        } else if (only === "Projects") {
+            if (grouped["Projects"] && grouped["Projects"].length) {
+                results.push({ text: "Projects", children: grouped["Projects"] });
+            }
+        } else if (only === "Managers") {
+            if (grouped["Managers"] && grouped["Managers"].length) {
+                results.push({ text: "Managers", children: grouped["Managers"] });
+            }
+        }
+        return { results: results };
+    }
+
+    function ajaxContextParam(onlyCat) {
+        if (onlyCat === "Clients") {
+            return "clients";
+        }
+        if (onlyCat === "Projects") {
+            return "projects";
+        }
+        return "managers";
+    }
+
+    function ajaxConfig(onlyCat, placeholder, multiple, extraDataFn) {
+        extraDataFn = extraDataFn || function() { return {}; };
+        var ctx = ajaxContextParam(onlyCat);
+        return {
+            ajax: {
+                url: suggestUrl,
+                dataType: "json",
+                delay: 320,
+                // Do not use traditional: true — it sends department=A&department=B and PHP keeps only
+                // the last value, so multi-department filters break (client/project suggests go empty).
+                data: function(params) {
+                    var payload = { term: params.term || "", context: ctx };
+                    var extra = extraDataFn();
+                    if (extra.department && extra.department.length) {
+                        payload.department = extra.department;
+                    }
+                    if (extra.clients && extra.clients.length) {
+                        payload.clients = extra.clients;
+                    }
+                    return payload;
+                },
+                processResults: function(data) {
+                    return processResultsForCategory(data, onlyCat);
+                },
+                cache: false
+            },
+            placeholder: placeholder,
+            allowClear: true,
+            multiple: multiple,
+            width: "100%",
+            minimumInputLength: 0,
+            language: { inputTooShort: function() { return "Type to search"; }, searching: function() { return "Searching…"; } }
+        };
+    }
+
+    function ensureSelectOption($select, value, text) {
+        value = value == null ? "" : String(value).trim();
+        if (value === "") {
+            return;
+        }
+        text = text == null || String(text).trim() === "" ? value : String(text).trim();
+        var exists = false;
+        $select.find("option").each(function() {
+            if (String($(this).val()) === value) {
+                exists = true;
+                return false;
+            }
+        });
+        if (!exists) {
+            $select.append(new Option(text, value, true, true));
+        }
+    }
+
+    function syncProjectFilterSelect($select) {
+        // Chip styling comes from shared multi-select CSS; keep at most one project.
+        var vals = $select.val() || [];
+        if ($.isArray(vals) && vals.length > 1) {
+            vals = [vals[vals.length - 1]];
+            $select.val(vals).trigger("change");
+        }
+    }
+
+    if ($("#filter_clients").length) {
+        $("#filter_clients").select2(ajaxConfig("Clients", "All clients", true, function() {
+            var d = $("#department").val() || [];
+            d = $.grep($.makeArray(d), function(x) { return x && String(x) !== "__all__"; });
+            return { department: d };
+        }));
+        $("#filter_clients").on("change", function() {
+            if ($("#filter_project").length) {
+                $("#filter_project").val(null).trigger("change");
+            }
+        });
+    }
+    if ($("#filter_pms").length) {
+        $("#filter_pms").select2(ajaxConfig("Managers", "All project managers", true, function() { return {}; }));
+    }
+    if ($("#filter_project").length) {
+        var $projSel = $("#filter_project");
+        var savedProject = ($projSel.val() || [])[0];
+        if (!savedProject && $projSel.find("option:selected").length) {
+            savedProject = $projSel.find("option:selected").first().val();
+        }
+        if (savedProject && String(savedProject).trim() !== "") {
+            ensureSelectOption($projSel, savedProject, savedProject);
+        }
+        var projectCfg = ajaxConfig("Projects", "All projects", true, function() {
+            var c = $("#filter_clients").val() || [];
+            c = $.grep($.makeArray(c), function(x) { return x && String(x).trim() !== ""; });
+            return { clients: c };
+        });
+        projectCfg.maximumSelectionLength = 1;
+        $projSel.select2(projectCfg);
+        if (savedProject && String(savedProject).trim() !== "") {
+            ensureSelectOption($projSel, savedProject, savedProject);
+            $projSel.val([savedProject]).trigger("change");
+        }
+        $projSel.on("select2:select", function(e) {
+            if (e.params && e.params.data) {
+                ensureSelectOption($projSel, e.params.data.id, e.params.data.text);
+                $projSel.val([e.params.data.id]).trigger("change");
+            }
+            syncProjectFilterSelect($projSel);
+        });
+        $projSel.on("change select2:clear", function() {
+            syncProjectFilterSelect($projSel);
+        });
+        syncProjectFilterSelect($projSel);
+    }
+
+    if ($("#department").length) {
+        $("#department").select2({
+            placeholder: "Select departments",
+            allowClear: true,
+            multiple: true,
+            width: "100%"
+        });
+        var deptInit = $("#department").val() || [];
+        if (!deptInit.length) {
+            $("#department").val(["__all__"]).trigger("change");
+        }
+        $("#department").on("select2:select", function(e) {
+            if (e.params && e.params.data && e.params.data.id === "__all__") {
+                $("#department").val(["__all__"]).trigger("change");
+            } else {
+                var vals = $("#department").val() || [];
+                if (vals.indexOf("__all__") >= 0) {
+                    vals = vals.filter(function(x) { return x !== "__all__"; });
+                    $("#department").val(vals).trigger("change");
+                }
+            }
+        });
+        $("#department").on("change", function() {
+            var cur = JSON.stringify((($("#department").val() || []).slice().sort()));
+            if (departmentFilterPrevSerialized === null) {
+                departmentFilterPrevSerialized = cur;
+                return;
+            }
+            if (departmentFilterPrevSerialized === cur) {
+                return;
+            }
+            departmentFilterPrevSerialized = cur;
+            if ($("#filter_clients").length) {
+                $("#filter_clients").val(null).trigger("change");
+            }
+            if ($("#filter_project").length) {
+                $("#filter_project").val(null).trigger("change");
+            }
+        });
+        setTimeout(function() {
+            departmentFilterPrevSerialized = JSON.stringify((($("#department").val() || []).slice().sort()));
+        }, 0);
+    }
+
+    $("#filterForm").on("submit", function() {
+        prepareClientReportFilterFormForSubmit();
+    });
+});
+</script>
+
+
+<script>
+function updateFormAction() {
+    var selectedMonth = document.getElementById('month_id').value;
+    var form = document.getElementById('monthForm');
+    form.action = "<?php echo site_url('kpi_reports/monthWiseKpiReport'); ?>";
+    form.submit();
+}
+</script>
+
+    </div>
+</div>
+
+<div class="row">
+    <div class="card">
+        <div class="card-body">
+            <div id="content-wrapper" class="d-flex flex-column">
+                <div class="container-fluid">
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h3 id="kpiReportHeading"></h3>
+    </div>
+</div>
+
+<?php
+// Display month-wise summary at the top (for both single and multiple months)
+$monthsDisplayText = isset($monthsDisplayText) ? $monthsDisplayText : '';
+$monthsCovered = isset($monthsCovered) ? $monthsCovered : [];
+if (!empty($monthsDisplayText)): 
+    $monthCount = count($monthsCovered);
+    $monthLabel = $monthCount == 1 ? 'Month' : 'Months';
+?>
+<div class="row mt-3 mb-3">
+    <div class="col-md-12">
+        <div class="alert alert-info" style="background-color: #5B9BD5; color: white; border: none; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;">
+            <i class="fa fa-calendar" style="margin-right: 8px;"></i>
+            <strong>Month-wise Report:</strong> <?php echo htmlspecialchars($monthsDisplayText); ?>
+            <?php if ($monthCount > 1): ?>
+                (<?php echo $monthCount; ?> <?php echo $monthLabel; ?>)
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php
+$grouped = isset($grouped) && is_array($grouped) ? $grouped : [];
+$monthWiseData = isset($monthWiseData) ? $monthWiseData : [];
+
+// Check if we have month-wise data or regular grouped data
+if (!empty($monthWiseData)) {
+    // Month-wise data is already grouped by month in controller
+    $hasMonthWiseData = true;
+} else {
+    // Use pre-grouped data from controller, or build from flat rows (legacy)
+    if (empty($grouped) && !empty($clientInfo)) {
+        foreach ($clientInfo as $row) {
+            $grouped[$row->client_Id]['client_name'] = $row->client_name;
+            $grouped[$row->client_Id]['department'] = $row->department;
+            $grouped[$row->client_Id]['clientpm'] = $row->clientpm;
+            $grouped[$row->client_Id]['client_pm_name'] = isset($row->client_pm_name) ? $row->client_pm_name : '';
+            $grouped[$row->client_Id]['projects'][] = $row;
+        }
+        uasort($grouped, function($a, $b) {
+            $nameA = isset($a['client_name']) ? (string)$a['client_name'] : '';
+            $nameB = isset($b['client_name']) ? (string)$b['client_name'] : '';
+            return strcasecmp($nameA, $nameB);
+        });
+    }
+    $hasMonthWiseData = false;
+}
+?>
+
+<?php
+$deptKpiSummary = isset($deptKpiSummary) && is_array($deptKpiSummary) ? $deptKpiSummary : array('has_data' => false, 'rows' => array());
+$deptKpiRows = (!empty($deptKpiSummary['has_data']) && !empty($deptKpiSummary['rows']) && is_array($deptKpiSummary['rows']))
+    ? $deptKpiSummary['rows']
+    : array();
+$thStyle = 'text-align:center;font-weight:bold;color:white;padding:12px 8px;border:1px solid #0a3d66;';
+$thDeptStyle = 'text-align:left;font-weight:bold;color:white;padding:12px 14px;border:1px solid #0a3d66;';
+$tdBase = 'text-align:center;padding:12px 8px;font-weight:bold;border:1px solid #cccccc;';
+?>
+<?php if (!empty($deptKpiRows)): ?>
+<div class="row mt-3 mb-2 client-report-dept-kpi-wrap">
+    <div class="col-md-12">
+        <h4 class="client-report-dept-kpi-heading">Department &amp; Project Manager Client Summary Report</h4>
+        <div style="display:flex;justify-content:center;overflow-x:auto;">
+            <table class="table table-bordered client-report-dept-kpi-table" style="width:100%;max-width:1200px;border-collapse:collapse;margin:0 auto;">
+                <thead>
+                    <tr style="background-color:#014b88;">
+                        <th style="<?= $thDeptStyle ?>">Departments</th>
+                        <th style="<?= $thStyle ?>">Prod Hours</th>
+                        <th style="<?= $thStyle ?>">PG Hours</th>
+                        <th style="<?= $thStyle ?>">Utilization Hours</th>
+                        <th style="<?= $thStyle ?>">Productivity%</th>
+                        <th style="<?= $thStyle ?>">Project General%</th>
+                        <th style="<?= $thStyle ?>">Utilization%</th>
+                        <th style="<?= $thStyle ?>">Quality %</th>
+                        <th style="<?= $thStyle ?>">Invoiced hours</th>
+                        <th style="<?= $thStyle ?>">Difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($deptKpiRows as $deptRow): ?>
+                    <tr>
+                        <td style="text-align:left;font-weight:bold;background:#fff;padding:12px 14px;border:1px solid #ccc;"><?= htmlspecialchars(isset($deptRow['label']) ? $deptRow['label'] : '', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['prod_hours']) ? $deptRow['prod_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['pg_hours']) ? $deptRow['pg_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['utilization_hours']) ? $deptRow['utilization_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#d4edda;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['productivity_pct']) ? $deptRow['productivity_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff3cd;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['project_general_pct']) ? $deptRow['project_general_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#e2d5f3;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['utilization_pct']) ? $deptRow['utilization_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['quality_pct']) ? $deptRow['quality_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_num_cell(isset($deptRow['invoiced_hours']) ? $deptRow['invoiced_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="<?= $tdBase ?>background:#fff;"><?= client_report_dept_kpi_diff_cell(isset($deptRow['difference']) ? $deptRow['difference'] : null) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+<style>
+.client-report-dept-kpi-heading {
+    text-align: center;
+    font-weight: 700;
+    color: #014b88;
+    margin-bottom: 14px;
+    font-size: 18px;
+}
+.client-report-dept-kpi-wrap {
+    margin-bottom: 20px;
+}
+</style>
+
+<?php if (empty($grouped) && empty($monthWiseData)): ?>
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="alert alert-info" role="alert">
+            <strong>No data found</strong> for the selected month(s).
+        </div>
+    </div>
+</div>
+<?php else: ?>
+<div class="client-report-table-wrap">
+<table id="employeeTable" class="table table-bordered client-report-table">
+    <thead>
+        <tr>
+            <th title="Client Name">Client Name</th>
+            <th title="Project Manager">Project Manager</th>
+            <th title="Department">Department</th>
+            <th title="Start Date">Start Date</th>
+            <th title="End Date">End Date</th>
+            <th title="Billing" style="text-align: center !important;">Billing</th>
+            <th title="Production Hours" style="text-align: center !important;">Production Hours</th>
+            <th title="Project General Hours" style="text-align: center !important;">Project General Hours</th>
+            <th title="Total Hours" style="text-align: center !important;">Total Hours</th>
+            <th title="Invoiced" style="text-align: center !important;">Invoiced</th>
+            <th title="Quality Errors" style="text-align: center !important;">Quality Errors</th>
+            <th title="Productivity%" style="text-align: center !important;">Productivity %</th>
+            <th title="Project General%" style="text-align: center !important;">Project General %</th>
+            <th title="Difference" style="text-align: center !important;">Difference</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php 
+        // Get date range from controller
+        $from_date = isset($from_date) ? $from_date : '';
+        $to_date = isset($to_date) ? $to_date : '';
+        
+        // Function to render client and project rows (reusable)
+        function renderClientProjects($data, $clientId, $from_date, $to_date, $monthLabel = '') {
+            $clientPmName = '--';
+            if (!empty($data['client_pm_name'])) {
+                $clientPmName = $data['client_pm_name'];
+            }
+            
+            // Calculate totals for the date range
+            $totalProductionHours = 0;
+            $totalGeneralHours = 0;
+            $totalProjectQualityErrors = 0;
+            $totalProjects = count($data['projects']);
+            $projectQualityErrors = [];
+            
+            foreach ($data['projects'] as $proj) {
+                // Get production hours from the project data (already filtered by date range)
+                $projectProductionHours = isset($proj->total_hours) ? $proj->total_hours : 0;
+                $totalProductionHours += $projectProductionHours;
+                
+                // Get general hours from the project data
+                $generalHours = isset($proj->general_hours) ? $proj->general_hours : 0;
+                $totalGeneralHours += $generalHours;
+                
+                // Calculate quality errors - only if date matches date range (if date range is provided)
+                $hasValidQualityError = false;
+                if (!empty($from_date) && !empty($to_date)) {
+                    // If date range is provided, check if quality error log date matches
+                    if (!empty($proj->analyzer_report_date)) {
+                        $errorDate = strtotime($proj->analyzer_report_date);
+                        $fromDate = strtotime($from_date);
+                        $toDate = strtotime($to_date);
+                        if ($errorDate >= $fromDate && $errorDate <= $toDate) {
+                            $hasValidQualityError = true;
+                        }
+                    }
+                } else {
+                    // If no date range, consider quality error valid if it exists
+                    $hasValidQualityError = !empty($proj->analyzer_num_of_errors) || !empty($proj->reviewer_num_of_errors);
+                }
+                
+                if ($hasValidQualityError) {
+                    $analyzerErrors = isset($proj->analyzer_num_of_errors) ? $proj->analyzer_num_of_errors : 0;
+                    $reviewerErrors = isset($proj->reviewer_num_of_errors) ? $proj->reviewer_num_of_errors : 0;
+                    $projectTotalErrors = $analyzerErrors + $reviewerErrors;
+                    $projectQualityErrors[$proj->project_Id] = $projectTotalErrors;
+                    $totalProjectQualityErrors += $projectTotalErrors;
+                } else {
+                    // Mark as empty/null for this project
+                    $projectQualityErrors[$proj->project_Id] = null;
+                }
+            }
+            
+            $k_QualityErrorPercentage = '--';
+            $projectsWithValidErrors = 0;
+            $sumPercentages = 0;
+            foreach ($projectQualityErrors as $projId => $projErrors) {
+                if ($projErrors !== null) {
+                    $sumPercentages += (100 - $projErrors);
+                    $projectsWithValidErrors++;
+                }
+            }
+            if ($projectsWithValidErrors > 0) {
+                $avgPercentage = $sumPercentages / $projectsWithValidErrors;
+                $k_QualityErrorPercentage = round($avgPercentage) . '%';
+            }
+            
+            $totalCombined = $totalProductionHours + $totalGeneralHours;
+            $totalproductivityPercentage = $totalCombined > 0 ? ($totalProductionHours / $totalCombined) * 100 : 0;
+            $totalprojectgeneralPercentage = $totalCombined > 0 ? ($totalGeneralHours / $totalCombined) * 100 : 0;
+            
+            // Calculate total invoice amount for all projects
+            $totalInvoiceAmount = 0;
+            foreach ($data['projects'] as $proj) {
+                if (isset($proj->project_invoice_amt) && !empty($proj->project_invoice_amt)) {
+                    $totalInvoiceAmount += (float)$proj->project_invoice_amt;
+                }
+            }
+            
+            // Calculate difference in hours for client row
+           // $clientDifference = $totalCombined - $totalInvoiceAmount;
+
+            $clientDifference = $totalInvoiceAmount - $totalCombined;
+            
+            $billable = '';
+            foreach ($data['projects'] as $proj) {
+                if (!empty($proj->man_days)) {
+                    $billable = $proj->man_days;
+                    break;
+                }
+            }
+            
+            // Helper function to validate and format date
+            $isValidDate = function($dateStr) {
+                if (empty($dateStr) || $dateStr == '0000-00-00' || $dateStr == '0000-00-00 00:00:00') {
+                    return false;
+                }
+                $timestamp = strtotime($dateStr);
+                if ($timestamp === false || $timestamp < 0) {
+                    return false;
+                }
+                // Check if date is not 1970-01-01 (invalid date fallback)
+                $formatted = date('Y-m-d', $timestamp);
+                if ($formatted == '1970-01-01') {
+                    return false;
+                }
+                return $timestamp;
+            };
+            
+            // Calculate earliest start date and latest end date from all projects
+            // Use project_end_date from project_details table for end date
+            $earliestStartDate = null;
+            $latestEndDate = null;
+            foreach ($data['projects'] as $proj) {
+                if (!empty($proj->project_start_date)) {
+                    $projStartDate = $isValidDate($proj->project_start_date);
+                    if ($projStartDate !== false && ($earliestStartDate === null || $projStartDate < $earliestStartDate)) {
+                        $earliestStartDate = $projStartDate;
+                    }
+                }
+                // Use project_end_date from project_details table
+                if (!empty($proj->project_end_date)) {
+                    $projEndDate = $isValidDate($proj->project_end_date);
+                    if ($projEndDate !== false && ($latestEndDate === null || $projEndDate > $latestEndDate)) {
+                        $latestEndDate = $projEndDate;
+                    }
+                }
+            }
+            
+            // Calculate month abbreviation from date range or project dates
+            $monthDisplay = '--';
+            if (!empty($from_date)) {
+                $monthTimestamp = $isValidDate($from_date);
+                if ($monthTimestamp !== false) {
+                    $monthDisplay = date('M', $monthTimestamp);
+                }
+            } elseif ($earliestStartDate !== null) {
+                $monthDisplay = date('M', $earliestStartDate);
+            }
+            
+            // Format dates separately for Start Date and End Date based on projects
+            $startDateDisplay = '';
+            $endDateDisplay = '';
+            if ($earliestStartDate !== null) {
+                $formattedDate = date('d-M-Y', $earliestStartDate);
+                // Check if formatted date is not 01-Jan-1970
+                if ($formattedDate != '01-Jan-1970') {
+                    $startDateDisplay = $formattedDate;
+                }
+            }
+            if ($latestEndDate !== null) {
+                $formattedDate = date('d-M-Y', $latestEndDate);
+                // Check if formatted date is not 01-Jan-1970
+                if ($formattedDate != '01-Jan-1970') {
+                    $endDateDisplay = $formattedDate;
+                }
+            }
+            $clientMonthId = md5($clientId . '_' . (isset($from_date) ? $from_date : '') . '_' . (isset($to_date) ? $to_date : '') . '_' . $monthLabel);
+            ?>
+            <tr class="client-row"
+                data-client="<?php echo $data['client_name']; ?>"
+                data-project=""
+                data-manager="<?php echo $clientPmName; ?>"
+                data-department="<?php echo $data['department']; ?>">
+                <td title="Client Name" class="client-name-cell">
+                    <?php echo htmlspecialchars($data['client_name']); ?>
+                    <button type="button" class="toggle-projects toggle-projects-inline" data-client="<?php echo $clientMonthId; ?>" title="Click to view projects" aria-label="Toggle projects">
+                        <i class="fa fa-plus"></i>
+                    </button>
+                </td>
+                <td title="Project Manager">
+                    <?php echo explode(' ', trim($clientPmName))[0]; ?>
+                </td>
+                <td title="Department"><?php echo $data['department']; ?></td>
+                <td title="Start Date"><?php echo $startDateDisplay; ?></td>
+                <td title="End Date"><?php echo $endDateDisplay; ?></td>
+                <td title="Billable" style="text-align: center !important;"><?php echo ucfirst($billable); ?></td>
+                <td title="Production Hours"  style="text-align: center !important; font-weight: bold !important;"><?php echo $totalProductionHours; ?></td>
+                <td title="Project General Hours"  style="text-align: center !important; font-weight: bold !important;"><?php echo $totalGeneralHours; ?></td>
+                <td title="Total Hours"  style="text-align: center !important; font-weight: bold !important;"><?php echo $totalCombined; ?></td>
+                <td title="Invoiced"  style="text-align: center !important;font-weight: bold !important;"><?php echo !empty($totalInvoiceAmount) ? number_format($totalInvoiceAmount, 2) : ''; ?></td>
+                <td title="Quality Errors"  style="text-align: center !important;font-weight: bold !important;"><?php echo $k_QualityErrorPercentage;?></td>
+                <td title="Productivity%"  style="text-align: center !important;font-weight: bold !important;"><?php echo round($totalproductivityPercentage). '%';?></td>
+                <td title="Project General%"  style="text-align: center !important;font-weight: bold !important;"><?php echo round($totalprojectgeneralPercentage). '%';?></td>
+                <td title="Difference" style="color: <?php echo $clientDifference >= 0 ? '#28a745' : '#dc3545'; ?>; font-weight: bold !important; text-align: center !important;" ><?php echo number_format($clientDifference, 2); ?></td>
+            </tr>
+            <?php foreach ($data['projects'] as $proj): ?>
+                <?php
+                // Get production hours from project data (already filtered by date range)
+                $productionHours = isset($proj->total_hours) ? $proj->total_hours : 0;
+                
+                // Get general hours from project data
+                $generalHours = isset($proj->general_hours) ? $proj->general_hours : 0;
+                
+                $combinedHours = $productionHours + $generalHours;
+                $productivityPercentage = $combinedHours > 0 ? ($productionHours / $combinedHours) * 100 : 0;
+                $projectgeneralPercentage = $combinedHours > 0 ? ($generalHours / $combinedHours) * 100 : 0;
+                
+                // Calculate difference in hours for project row
+                $projectInvoiceAmount = isset($proj->project_invoice_amt) && !empty($proj->project_invoice_amt) ? (float)$proj->project_invoice_amt : 0;
+                $projectDifference = $combinedHours - $projectInvoiceAmount;
+                
+                // Calculate individual project QA percentage - only if date matches date range (if date range is provided)
+                $k_QualityErrorPercentage_22 = '--';
+                if (!empty($from_date) && !empty($to_date)) {
+                    // If date range is provided, check if quality error log date matches
+                    if (!empty($proj->analyzer_report_date)) {
+                        $errorDate = strtotime($proj->analyzer_report_date);
+                        $fromDate = strtotime($from_date);
+                        $toDate = strtotime($to_date);
+                        if ($errorDate >= $fromDate && $errorDate <= $toDate) {
+                            $analyzerErrors = isset($proj->analyzer_num_of_errors) ? $proj->analyzer_num_of_errors : 0;
+                            $reviewerErrors = isset($proj->reviewer_num_of_errors) ? $proj->reviewer_num_of_errors : 0;
+                            $projectTotalErrors = $analyzerErrors + $reviewerErrors;
+                            $k_QualityErrorPercentage_22 = (100 - $projectTotalErrors) . '%';
+                        }
+                    }
+                } else {
+                    // If no date range, show quality error if it exists
+                    $analyzerErrors = isset($proj->analyzer_num_of_errors) ? $proj->analyzer_num_of_errors : 0;
+                    $reviewerErrors = isset($proj->reviewer_num_of_errors) ? $proj->reviewer_num_of_errors : 0;
+                    $projectTotalErrors = $analyzerErrors + $reviewerErrors;
+                    $k_QualityErrorPercentage_22 = (100 - $projectTotalErrors) . '%';
+                }
+                ?>
+                <tr class="project-row project-<?php echo $clientMonthId; ?>" style="display: none;"
+                    data-client="<?php echo $data['client_name']; ?>"
+                    data-project="<?php echo $proj->project_name; ?>"
+                    data-manager="<?php echo $proj->pm_name; ?>"
+                    data-department="<?php echo $proj->department; ?>">
+                    <td title="Project Name" class="project-name-cell"><?php echo htmlspecialchars($proj->project_name); ?></td>
+                    <td title="Project Manager">
+                        <?php echo explode(' ', trim($proj->pm_name))[0]; ?>
+                    </td>
+                    <td title="Department"><?php echo $proj->department; ?></td>
+                    <td title="Start Date">
+                        <?php 
+                        $projStartDate = '';
+                        if (!empty($proj->project_start_date) && $proj->project_start_date != '0000-00-00' && $proj->project_start_date != '0000-00-00 00:00:00') {
+                            $startTimestamp = strtotime($proj->project_start_date);
+                            if ($startTimestamp !== false && $startTimestamp > 0) {
+                                $formattedDate = date('d-M-Y', $startTimestamp);
+                                // Check if formatted date is not 01-Jan-1970
+                                if ($formattedDate != '01-Jan-1970') {
+                                    $projStartDate = $formattedDate;
+                                }
+                            }
+                        }
+                        echo $projStartDate;
+                        ?>
+                    </td>
+                    <td title="End Date">
+                        <?php 
+                        $projEndDate = '';
+                        // Use project_end_date from project_details table
+                        if (!empty($proj->project_end_date) && $proj->project_end_date != '0000-00-00' && $proj->project_end_date != '0000-00-00 00:00:00') {
+                            $endTimestamp = strtotime($proj->project_end_date);
+                            if ($endTimestamp !== false && $endTimestamp > 0) {
+                                $formattedDate = date('d-M-Y', $endTimestamp);
+                                // Check if formatted date is not 01-Jan-1970
+                                if ($formattedDate != '01-Jan-1970') {
+                                    $projEndDate = $formattedDate;
+                                }
+                            }
+                        }
+                        echo $projEndDate;
+                        ?>
+                    </td>
+                    <td title="Billable"><?php echo $proj->man_days; ?></td>
+                    <td title="Productive Hours"><?php echo $productionHours; ?></td>
+                    <td title="Project General"><?php echo $generalHours; ?></td>
+                    <td title="Total Hours"><?php echo $combinedHours; ?></td>
+                    <td title="Invoiced"><?php echo isset($proj->project_invoice_amt) && !empty($proj->project_invoice_amt) ? number_format($proj->project_invoice_amt, 2) : ''; ?></td>
+                    <td title="Quality Errors"><?php echo $k_QualityErrorPercentage_22; ?></td>
+                    <td title="Productivity%"><?php echo round($productivityPercentage). '%';?></td>
+                    <td title="Project General%"><?php echo round($projectgeneralPercentage). '%';?></td>
+                    <td title="Difference" style="color: <?php echo $projectDifference >= 0 ? '#28a745' : '#dc3545'; ?>; font-weight: bold;"><?php echo number_format($projectDifference, 2); ?></td>
+                </tr>
+            <?php endforeach;
+        }
+        
+        // Display month-wise data or regular grouped data
+        if ($hasMonthWiseData && !empty($monthWiseData)) {
+            // Display month-wise (without month header row)
+            foreach ($monthWiseData as $monthKey => $monthData):
+                $monthLabel = $monthData['label'];
+                $monthFromDate = $monthData['from_date'];
+                $monthToDate = $monthData['to_date'];
+                $sortedMonthData = isset($monthData['data']) && is_array($monthData['data']) ? $monthData['data'] : array();
+                uasort($sortedMonthData, function($a, $b) {
+                    $nameA = isset($a['client_name']) ? (string)$a['client_name'] : '';
+                    $nameB = isset($b['client_name']) ? (string)$b['client_name'] : '';
+                    return strcasecmp($nameA, $nameB);
+                });
+                foreach ($sortedMonthData as $clientId => $data):
+                    renderClientProjects($data, $clientId, $monthFromDate, $monthToDate, $monthLabel);
+                endforeach;
+            endforeach;
+        } else {
+            // Display regular grouped data
+            foreach ($grouped as $clientId => $data):
+                renderClientProjects($data, $clientId, $from_date, $to_date);
+            endforeach;
+        }
+        ?> 
+    </tbody>
+</table>
+</div>
+<?php endif; ?>
+
+<div class="pagination-container">
+    <?php echo $pagination_links; ?>
+</div>
+
+<style>
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+.pagination a {
+    text-decoration: none;
+    padding: 8px 12px;
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.page-link {
+    padding: 8px 12px;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #007bff;
+    transition: 0.3s;
+}
+.pagination a:hover {
+    background-color: #ddd;
+}
+.pagination a.active {
+    background-color: #ddd;
+    color: white;
+    border-color: #ddd;
+}
+.pagination a.disabled {
+    color: #ccc;
+    border-color: #ddd;
+    pointer-events: none;
+}
+</style>
+
+<script>
+$(document).ready(function () {
+    if (typeof updateKPIReportHeading === 'function') {
+        updateKPIReportHeading();
+    }
+    if ($('#month_id').length) {
+        $('#month_id').select2();
+        $('#month_id').on('change', function () {
+            if (typeof updateKPIReportHeading === 'function') {
+                updateKPIReportHeading();
+            }
+        });
+    }
+});
+</script>
+<script>
+function redirectToClient() {
+    const button = document.querySelector('.four-report-btn');
+    button.classList.add('active');
+    setTimeout(function() {
+        window.location.href = "<?php echo base_url('kpi_reports/clientReport');?>";
+    }, 300);
+}
+</script>
+
+<style>
+/* Table wrapper */
+.client-report-table-wrap {
+    overflow-x: auto;
+    margin-top: 10px;
+    margin-bottom: 30px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(1, 75, 136, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+}
+
+/* Table styling improvements */
+#employeeTable.client-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin-bottom: 0;
+    background-color: #ffffff;
+    border: none;
+}
+
+#employeeTable thead {
+    background: linear-gradient(180deg, #015a9e 0%, #014b88 50%, #003366 100%);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+#employeeTable thead tr {
+    border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+#employeeTable thead th {
+    color: #ffffff;
+    letter-spacing: 0.2px;
+    padding: 14px 14px;
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.25);
+    vertical-align: middle;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+#employeeTable thead th:last-child {
+    border-right: none;
+}
+
+#employeeTable thead th:first-child {
+    text-align: left;
+    padding-left: 20px;
+}
+
+/* Header column min-widths to prevent awkward word breaks */
+#employeeTable thead th:nth-child(2) { min-width: 110px; }
+#employeeTable thead th:nth-child(8) { min-width: 115px; }  /* Project General Hours */
+#employeeTable thead th:nth-child(11) { min-width: 105px; } /* Quality Errors */
+#employeeTable thead th:nth-child(12) { min-width: 95px; }  /* Productivity % */
+#employeeTable thead th:nth-child(13) { min-width: 115px; } /* Project General % */
+#employeeTable thead th:nth-child(14) { min-width: 95px; }  /* Difference */
+
+#employeeTable tbody td {
+    padding: 14px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #e8ecf0;
+    border-right: 1px solid #eef2f6;
+    white-space: nowrap;
+    background-color: #ffffff;
+}
+
+#employeeTable tbody td:last-child {
+    border-right: none;
+}
+
+#employeeTable tbody tr:hover {
+    background-color: #f0f7ff;
+}
+
+#employeeTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Client row styling */
+#employeeTable tbody tr.client-row {
+    background-color: #FFF;
+    
+}
+
+#employeeTable tbody tr.client-row td {
+    
+    font-weight: 600;
+}
+
+#employeeTable tbody tr.client-row:hover {
+    background-color: #d6e9ff;
+}
+
+#employeeTable tbody tr.client-row:hover td {
+    background-color: transparent;
+}
+
+/* Project row styling */
+#employeeTable tbody tr.project-row {
+    background-color: #ffffff;
+}
+
+#employeeTable tbody tr.project-row:nth-child(even) {
+    background-color: #fafafa;
+}
+
+#employeeTable tbody tr.project-row:nth-child(even) td {
+    background-color: #fafafa;
+}
+
+#employeeTable tbody tr.project-row:hover {
+    background-color: #f3f4f6;
+}
+
+#employeeTable tbody tr.project-row:hover td {
+    background-color: #f3f4f6;
+}
+
+/* Column widths - adjusted to show full text */
+/* Client Name - Left aligned, allow wrap so long names show fully */
+#employeeTable th:nth-child(1) {
+    min-width: 220px;
+    width: 220px;
+}
+
+#employeeTable td:nth-child(1) {
+    min-width: 220px;
+    width: 220px;
+    text-align: left;
+    font-weight: 600;
+    color: #014b88;
+    font-size: 16px;
+}
+
+/* Project Manager - Center aligned */
+#employeeTable th:nth-child(2), #employeeTable td:nth-child(2) {
+    width: 100px;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Department - Center aligned */
+#employeeTable th:nth-child(3), #employeeTable td:nth-child(3) {
+    width: 120px;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* Start Date - Center aligned */
+#employeeTable th:nth-child(4), #employeeTable td:nth-child(4) {
+    width: 115px;
+    min-width: 115px;
+    text-align: center;
+}
+
+/* End Date - Center aligned */
+#employeeTable th:nth-child(5), #employeeTable td:nth-child(5) {
+    width: 115px;
+    min-width: 115px;
+    text-align: center;
+}
+
+/* Billing - Right aligned */
+#employeeTable th:nth-child(6), #employeeTable td:nth-child(6) {
+    width: 90px;
+    min-width: 90px;
+    text-align: right;
+    padding-right: 15px;
+}
+
+/* Production Hours, Project General, Total Hours, Invoiced - Right aligned */
+#employeeTable th:nth-child(7), #employeeTable th:nth-child(8), #employeeTable th:nth-child(9), #employeeTable th:nth-child(10),
+#employeeTable td:nth-child(7), #employeeTable td:nth-child(8), #employeeTable td:nth-child(9), #employeeTable td:nth-child(10) {
+    width: 85px;
+    min-width: 85px;
+    text-align: right;
+    padding-right: 15px;
+    font-weight: 500;
+}
+
+/* Quality Errors, Productivity %, Project General %, Difference - Right aligned */
+#employeeTable th:nth-child(11), #employeeTable th:nth-child(12), #employeeTable th:nth-child(13), #employeeTable th:nth-child(14),
+#employeeTable td:nth-child(11), #employeeTable td:nth-child(12), #employeeTable td:nth-child(13), #employeeTable td:nth-child(14) {
+    width: 95px;
+    min-width: 95px;
+    text-align: right;
+    padding-right: 15px;
+}
+
+/* Client name cell - block design: light blue block, client name + (+) symbol */
+#employeeTable tbody tr.client-row td.client-name-cell {
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 280px;
+    line-height: 1.4;
+    background: linear-gradient(to right, #dceefc 0%, #e8f4fc 100%) !important;
+    color: #4c0bce;
+    font-weight: 600;
+    padding: 14px 16px;
+    border-left: 4px solid #014b88;
+    border-bottom: 1px solid #c5dcee;
+    box-shadow: inset 0 0 0 1px rgba(1, 75, 136, 0.08);
+}
+/* (+) toggle - only the + symbol, no background */
+.toggle-projects-inline {
+    margin-left: 10px;
+    padding: 0;
+    font-size: 16px;
+    border: none;
+    background: transparent;
+    color: #2C5AA0;
+    cursor: pointer;
+    vertical-align: middle;
+    display: inline-block;
+    transition: color 0.2s;
+    min-width: 24px;
+    text-align: center;
+}
+.toggle-projects-inline:hover {
+    background: transparent;
+    color: #2C5AA0;
+}
+.toggle-projects-inline i {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2C5AA0;
+}
+
+/* Project name cell - bg #FFF, project name text #000 */
+#employeeTable tbody tr.project-row td.project-name-cell {
+    background: #FFF !important;
+    border-left: 4px solid #014b88;
+    padding: 12px 14px 12px 22px;
+    font-weight: 600;
+    font-size: 16px;
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 280px;
+    line-height: 1.4;
+    color: #000;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Date columns styling */
+#employeeTable tbody td:nth-child(4),
+#employeeTable tbody td:nth-child(5) {
+    font-family: 'Roboto Condensed', sans-serif;
+    color: #374151;
+    font-size: 16px;
+}
+
+/* Percentage columns styling */
+#employeeTable tbody td:nth-child(11),
+#employeeTable tbody td:nth-child(12),
+#employeeTable tbody td:nth-child(13) {
+    font-weight: 600;
+    color: #014b88;
+}
+
+/* Number columns styling */
+#employeeTable tbody td:nth-child(6),
+#employeeTable tbody td:nth-child(7),
+#employeeTable tbody td:nth-child(8),
+#employeeTable tbody td:nth-child(9),
+#employeeTable tbody td:nth-child(10) {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.ui-datepicker .ui-datepicker-prev span, .ui-datepicker .ui-datepicker-next span{
+
+    left: 8% !important;
+    top:34% !important;
+
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+    #employeeTable thead th {
+        font-size: 14px;
+        padding: 12px 8px;
+    }
+    
+    #employeeTable tbody td {
+        font-size: 15px;
+        padding: 12px 8px;
+    }
+    
+    .toggle-projects-inline {
+        font-size: 14px;
+        padding: 3px 8px;
+    }
+}
+</style>
+
+<?php $this->load->view('includes/cRMFooter'); ?>
+<!-- Inlude Footer here END-->
+</body>

@@ -1,0 +1,631 @@
+/**
+ * KPI reports shared styles (#kpiPage)
+ * Table typography: headers 20px bold, data cells 18px normal
+ * Hours display: numeric only (no "hrs" suffix) — see kpi_display_helper.php
+ */
+/* Apply styles only within the #kpi page */
+#kpiPage .row {
+  display: flex;
+  justify-content: space-between; /* Optionally adjust spacing between dropdowns */
+  align-items: center; /* Align items vertically in the center */
+  flex-wrap: wrap; /* Ensures responsiveness */
+}
+
+/* Set each column's width to 30% or any specific width you prefer */
+#kpiPage .col-md-3 {
+  flex: 1 1 30%; /* This will make each dropdown take about 30% of the row */
+  margin-right: 15px; /* Optional: adds space between the columns */
+}
+
+#kpiPage .col-md-3:last-child {
+  margin-right: 0; /* Removes right margin for the last column */
+}
+
+/* Control the width and increase the height of the select inputs */
+#kpiPage .form-control {
+  width: 100%; /* Ensures select takes full width of its parent */
+  height: 40px; /* Increase height of the dropdown */
+  padding: 10px; /* Optional: Adjust padding to make it look better */
+  font-size: 14px; /* Optional: Adjust font size for better readability */
+  border-radius: 5px; /* Optional: Adds rounded corners */
+}
+
+/* Styling for the label - make it dark */
+#kpiPage label {
+  font-size: 14px;
+  color: #555; /* Dark color for labels */
+  margin-bottom: 5px;
+  display: block;
+}
+
+
+
+/* Light color for the placeholder option (for "Select an Employee") */
+#kpiPage .col-md-3 .form-control option:first-child {
+  color: #b0b0b0; /* Light gray color for the 'Select an Employee' placeholder */
+}
+
+/* Light color for the placeholder option (for "Select an Employee") */
+#kpiPage .col-md-3 .form-control {
+  max-height: 200px; /* Restrict the height of the dropdown */
+    
+    padding-right: 20px; /* Space for the scrollbar */
+    position: relative; /* Ensures the dropdown doesn't go above its container */
+}
+
+
+
+#kpipage .form-group select.form-control {
+    max-height: 200px; /* Restrict the height of the dropdown */
+    
+    padding-right: 20px; /* Space for the scrollbar */
+    position: relative; /* Ensures the dropdown doesn't go above its container */
+}
+
+#kpipage .form-group select.form-control option {
+    padding: 8px; /* Optional padding inside each option */
+}
+
+/* Optional: Style the dropdown to make it stand out */
+#kpipage .form-group select.form-control:focus {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Light shadow on focus */
+    border-color: #007bff; /* Optional border color change */
+}
+
+
+
+/* Optional: Add light background color for the dropdown */
+#kpiPage .form-control {
+  background-color: #f9f9f9; /* Light background for select inputs */
+}
+
+/* Optional: Make the placeholder text in the select box lighter */
+#kpiPage .form-control option:disabled {
+  color: #b0b0b0; /* Light gray color for the placeholder text */
+}
+
+
+
+/* Apply styles only within the #kpiPage page */
+#kpiPage .row.mt-3 {
+  display: flex;
+  justify-content: center; /* Center the items horizontally */
+  gap: 10px; /* Reduced space between the boxes */
+  margin: 0; /* Remove any margins from the row */
+}
+
+#kpiPage .col-md-6 {
+  padding-left: 5px; /* Reduce padding on left */
+  padding-right: 5px; /* Reduce padding on right */
+  flex: 0 0 48%; /* Set the columns to take up 48% of the row's width, keeping them centered */
+}
+
+#kpiPage .info-box {
+  background-color: #f0f0f0; /* Light background for the boxes */
+  border-radius: 5px; /* Rounded corners */
+  padding: 5px; /* Increased padding inside the box */
+  text-align: center; /* Center the content */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: Add a shadow for a nice effect */
+  margin: 0; /* Remove any margin from around the boxes */
+  height: 100%; /* Ensure the box takes full height */
+}
+
+#kpiPage .info-box h4 {
+  font-size: 22px; /* Bigger heading */
+  margin-bottom: 8px; /* Reduced space between heading and content */
+  color: #333; /* Darker color for the heading */
+}
+
+#kpiPage .info-box p {
+  font-size: 18px; /* Larger text for the content */
+  font-weight: bold; /* Optional: Make the text bold */
+  color: #555; /* Slightly lighter color for the content */
+}
+
+#kpiPage .kpi-dept-summary-box {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+#kpiPage .kpi-dept-summary-box h4 {
+  font-size: 22px;
+  margin: 0 0 14px;
+  color: #333;
+  text-align: center;
+  font-weight: 700;
+}
+
+#kpiPage .kpi-dept-summary-scroll {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+#kpiPage .kpi-dept-summary-table,
+#kpiPage #departmentTable.kpi-dept-summary-table,
+#kpiPage table#departmentTable.kpi-dept-summary-table {
+  width: 100%;
+  min-width: 1380px;
+  border-collapse: collapse;
+  border-spacing: 0;
+  table-layout: fixed;
+  margin: 0;
+  background: #fff;
+}
+
+#kpiPage .kpi-dept-summary-table thead th {
+  background-color: #014b88;
+  color: #fff;
+  text-align: center;
+  vertical-align: middle;
+  padding: 10px 6px;
+  border: 1px solid #0a3d66;
+  font-size: 15px !important;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: normal !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+#kpiPage .kpi-dept-summary-table thead th .kpi-th-line {
+  display: block;
+  line-height: 1.2;
+}
+
+/* Beat generic .table thead rules when summary also has .table class */
+#kpiPage table#departmentTable.kpi-dept-summary-table thead th,
+#kpiPage .kpi-dept-summary-table.table thead th {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.25 !important;
+  padding: 10px 6px !important;
+}
+
+#kpiPage .kpi-dept-summary-table tbody td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 12px 8px;
+  border: 1px solid #d9d9d9;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-col-dept {
+  width: 145px !important;
+  min-width: 145px !important;
+  max-width: 145px !important;
+  text-align: left !important;
+  padding-left: 12px !important;
+  background-color: #ffffff !important;
+  font-weight: 400;
+  color: #333;
+  white-space: normal !important;
+  overflow: visible !important;
+  vertical-align: middle !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-col-mgr {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+  text-align: left !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  background-color: #ffffff !important;
+  font-weight: 400;
+  color: #333;
+  white-space: normal !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: visible !important;
+  text-overflow: clip;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-col-pct {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-col-hrs {
+  width: 108px !important;
+  min-width: 108px !important;
+  max-width: 108px !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-col-total {
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+}
+
+/* Consolidated report: extra Reporting Manager column */
+#kpiPage .kpi-dept-summary-table.kpi-dept-summary-with-mgr,
+#kpiPage #departmentTable.kpi-dept-summary-with-mgr {
+  min-width: 1580px;
+}
+
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-dept,
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-mgr {
+  text-align: left !important;
+  padding-left: 12px !important;
+}
+
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-dept,
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-mgr,
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-pct,
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-hrs,
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-col-total {
+  background-color: #014b88 !important;
+  color: #fff !important;
+}
+
+#kpiPage .kpi-dept-summary-table tbody tr.kpi-dept-group-start td.kpi-dept-col-dept {
+  border-top: 2px solid #b8c5d0;
+}
+
+#kpiPage .kpi-dept-summary-table tbody tr.kpi-dept-group-start:first-child td.kpi-dept-col-dept {
+  border-top: 1px solid #d9d9d9;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-prod {
+  background-color: #d4edda !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-proj {
+  background-color: #fff3cd !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-elog {
+  background-color: #ffd7a3 !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-avail {
+  background-color: #d1ecf1 !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-util {
+  background-color: #e2d5f3 !important;
+}
+
+#kpiPage .kpi-dept-summary-table .kpi-dept-bg-total {
+  background-color: #ececec !important;
+}
+
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-hrs-group-start,
+#kpiPage .kpi-dept-summary-table tbody td.kpi-dept-hrs-group-start {
+  border-left: 2px solid #014b88 !important;
+}
+
+#kpiPage .kpi-dept-summary-table thead th.kpi-dept-pct-group-start,
+#kpiPage .kpi-dept-summary-table tbody td.kpi-dept-pct-group-start {
+  border-left: 2px solid #014b88 !important;
+}
+
+#kpiPage .kpi-dept-summary-table tbody tr:hover td:not(.kpi-dept-col-dept) {
+  filter: brightness(0.97);
+}
+
+/* Unified KPI table typography (employee / client grids — not dept summary) */
+#kpiPage #employeeTable thead th,
+#kpiPage #employeeTable.client-report-table thead th,
+#kpiPage .table thead th {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  padding: 12px 10px !important;
+  line-height: 1.35 !important;
+}
+
+#kpiPage #employeeTable tbody td,
+#kpiPage #employeeTable.client-report-table tbody td,
+#kpiPage .table tbody td {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  padding: 12px 10px !important;
+  line-height: 1.35 !important;
+}
+
+#kpiPage #employeeTable tbody td strong,
+#kpiPage #departmentTable tbody td strong,
+#kpiPage .kpi-dept-summary-table tbody td strong,
+#kpiPage .table tbody td strong {
+  font-weight: 400 !important;
+  font-size: inherit !important;
+}
+
+#kpiPage #employeeTable tbody td:first-child,
+#kpiPage .table:not(.kpi-dept-summary-table) tbody td:first-child {
+  font-weight: 400 !important;
+}
+
+#kpiPage .kpi-dept-summary-table tbody td:first-child,
+#kpiPage table#departmentTable.kpi-dept-summary-table tbody td:first-child {
+  font-weight: 700 !important;
+}
+
+
+
+
+
+/* Target the div with inline margin-left */
+#kpiPage .generate-report-btn {
+    margin-left: -45px; /* Adjust the button's position to the left */
+}
+
+/* Style the button itself */
+#kpiPage .generate-report-btn .btn {
+    padding: 8px 20px; /* Make the button slightly larger */
+    font-size: 16px; /* Adjust font size */
+    color: aliceblue;
+    text-decoration-color: #014b88;
+   border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Optional: add a subtle shadow */
+    display: inline-flex;
+    align-items: center;
+    background-color: #014b88;
+}
+
+/* Icon styling inside the button */
+#kpiPage .generate-report-btn .btn i {
+    margin-right: 5px; /* Add some space between the icon and the text */
+}
+
+/* Optional: Hover effect for the button */
+#kpiPage .generate-report-btn .btn:hover {
+    background-color: #014b88; /* Darken the background on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Increase shadow on hover */
+}
+
+/* Consolidated report export button - green with download icon */
+#kpiPage .consolidated-export-report-btn .btn {
+    background-color: #5cb85c;
+    border-color: #4cae4c;
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    gap: 8px;
+}
+
+#kpiPage .consolidated-export-report-btn .btn i {
+    margin-right: 0;
+    font-size: 15px;
+}
+
+#kpiPage .consolidated-export-report-btn .btn:hover,
+#kpiPage .consolidated-export-report-btn .btn:focus {
+    background-color: #449d44;
+    border-color: #398439;
+    color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+#kpiPage .consolidated-export-report-btn .btn:disabled {
+    background-color: #5cb85c;
+    border-color: #4cae4c;
+    opacity: 0.85;
+}
+
+
+
+
+
+
+
+
+/* Custom styles to match the dashboard theme */
+#kpiPage {
+    font-family: sans-serif;
+    background-color: #f8f9fc;
+    color: #5a5c69;
+}
+
+#kpiPage .container-fluid {
+    padding: 0px !important ;
+}
+
+#kpiPage .form-control {
+    background-color: #f0f3f7;
+    border: 1px solid #d1d3e2;
+    border-radius: .35rem;
+}
+
+#kpiPage .form-control:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+#kpiPage .row {
+    margin-bottom: 20px;
+}
+
+
+
+#kpiPage .table {
+    margin-top: 20px;
+    background-color: #ffffff;
+    border-radius: .35rem;
+    border: 1px solid #ddd;
+}
+
+#kpiPage .table th,
+#kpiPage .table td {
+    padding: 12px 10px;
+    text-align: center;
+}
+
+#kpiPage .table th {
+    background-color: #014b88;
+    color: #fff;
+}
+
+#kpiPage .table tbody tr:hover {
+    background-color: #f1f4f8;
+}
+
+#kpiPage .btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+#kpiPage .btn-primary:hover {
+    background-color: #2e59d9;
+    border-color: #2e59d9;
+}
+
+#kpiPage .col-md-4, #kpiPage .col-md-6 {
+    margin-bottom: 20px;
+}
+
+/* Adjust width of dropdowns in rows */
+#kpiPage .col-md-4 select {
+    width: 100%;  /* Adjust width to 100% or modify as needed */
+    
+}
+
+#kpiPage .row .col-md-4 select {
+    width: calc(33% - 10px);  /* Adjust width for 3 dropdowns in each row */
+    
+}
+
+/* Add spacing between dropdowns in second row */
+#kpiPage .row:nth-child(2) .col-md-4 select {
+    margin-right: 15px; /* Adjust the space between dropdowns */
+}
+
+/* Make the January KPI heading bold, bigger, and styled as requested */
+#kpiPage .row.mt-4 h3 {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Font family */
+    font-size: 30px !important;  /* Increase font size */
+    font-weight: 800;  /* Make it bolder */
+    color: #014b88;  /* Soft text color */
+    text-transform: uppercase;  /* Uppercase text */
+    letter-spacing: 1px;  /* Increase letter spacing for a more spaced-out look */
+    text-align: left;  /* Left alignment */
+    font-style: normal; /* Ensure it’s not italicized */
+    margin-left: 0px;  /* Optional: Adjust margin for a bit of spacing */
+}
+
+/* Make the January KPI heading bold, bigger, and styled as requested */
+#kpiPage .row.mt-4 h5 {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Font family */
+    font-size: 30px !important;  /* Increase font size */
+    font-weight: 800;  /* Make it bolder */
+    color: #014b88;  /* Soft text color */
+    text-transform: uppercase;  /* Uppercase text */
+    letter-spacing: 1px;  /* Increase letter spacing for a more spaced-out look */
+    font-style: normal; /* Ensure it’s not italicized */
+   
+}
+
+
+/* Styling for the table of dummy data */
+
+#kpiPage .table {
+    width: 100%;              /* Ensures the table takes full width */
+    table-layout: fixed;      /* Ensures columns are evenly distributed */
+    border-collapse: collapse;
+    margin-top: 20px;
+    
+}
+
+#kpiPage .table td, #kpiPage .table th {
+    text-align: center;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+   /* word-wrap: break-word; *//* Prevents text overflow */
+    color: #333333; /* font text color */
+}
+
+/* Header row background and text color */
+#kpiPage .table thead th {
+    background-color: #014b88 !important;
+    color: #fff !important;
+}
+
+/* Alternating row background colors */
+#kpiPage .table tbody tr:nth-child(even) {
+    background-color: #f1f4f8; /* Light gray for even rows */
+}
+
+#kpiPage .table tbody tr:nth-child(odd) {
+    background-color: #ffffff; /* White for odd rows */
+}
+
+/* Styling for the table rows with smooth transition */
+#kpiPage .table tbody tr {
+    transition: background-color 0.5s ease; /* Smooth transition */
+}
+
+/* Hover effect for all rows */
+#kpiPage .table tbody tr:hover {
+    background-color: #d1e7dd; /* Light greenish color for all rows on hover */
+    transition-delay: 0.3s; /* Delay before hover effect starts */
+}
+
+/* First column: normal weight (overridden per-table above if needed) */
+#kpiPage .table tbody td:first-child {
+    font-weight: 400 !important;
+}
+
+/* Target the div with inline margin-left */
+#kpiPage .four-report-btn {
+    margin-left: -45px; /* Adjust the button's position to the left */
+}
+
+/* Style the button itself */
+#kpiPage .four-report-btn .btn {
+    padding: 8px 20px; /* Make the button slightly larger */
+    font-size: 14px; /* Adjust font size */
+    color: aliceblue;
+    text-decoration-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Optional: add a subtle shadow */
+    display: inline-flex;
+    align-items: center;
+    background-color: slategray;
+}
+
+/* Icon styling inside the button */
+#kpiPage .four-report-btn .btn i {
+    margin-right: 5px; /* Add some space between the icon and the text */
+}
+
+/* Optional: Hover effect for the button */
+#kpiPage .four-report-btn .btn:hover {
+    background-color: #014b88; /* Darken the background on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Increase shadow on hover */
+}
+
+.wrapper {
+    min-height: 100vh;
+    position: static;
+    overflow-x: visible !important;
+}
+
+.ui-datepicker .ui-datepicker-header {
+    position: relative;
+    padding: .5em 0 !important;
+    background: linear-gradient(to bottom, #014b88 0%, #003366 100%) !important; 
+}
+
+.ui-datepicker-prev .ui-icon .arrow-content, .ui-datepicker-next .ui-icon .arrow-content {
+
+    color: #ffffff !important;
+}
+
