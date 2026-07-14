@@ -235,7 +235,7 @@ $getListOfManagers = $this->timesheet_login->getReportingManagers(null);
         <div>
             <h1>Manage KPI</h1>
         </div>
-        <div class="generate-report-btn" style="margin-left: -45px;">
+        <div class="generate-report-btn consolidated-export-report-btn" style="margin-left: -45px;">
             <button id="generateBtn" onclick="downloadExcel()" class="btn btn-success">
                 <i class="fa fa-download"></i>
                 <span id="btnText">Export Report</span>
