@@ -236,8 +236,9 @@ $getListOfManagers = $this->timesheet_login->getReportingManagers(null);
             <h1>Manage KPI</h1>
         </div>
         <div class="generate-report-btn" style="margin-left: -45px;">
-            <button id="generateBtn" onclick="downloadExcel()" class="btn btn-primary">
-                <span id="btnText">Generate Report</span>
+            <button id="generateBtn" onclick="downloadExcel()" class="btn btn-success">
+                <i class="fa fa-download"></i>
+                <span id="btnText">Export Report</span>
                 <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
             </button>
         </div>
@@ -294,7 +295,6 @@ function downloadExcel() {
     const btnText = document.getElementById('btnText');
     const spinner = document.getElementById('spinner');
 
-    btn.classList.remove('btn-primary');
     btn.classList.add('btn-success');
     btn.disabled = true;
     spinner.classList.remove('d-none');
@@ -316,10 +316,8 @@ function downloadExcel() {
         window.location.href = url;
         setTimeout(function() {
             spinner.classList.add('d-none');
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-primary');
             btn.disabled = false;
-            btnText.textContent = 'Generate Report';
+            btnText.textContent = 'Export Report';
         }, 19000);
     }, 300);
 }
