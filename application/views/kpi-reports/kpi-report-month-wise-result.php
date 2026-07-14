@@ -73,9 +73,10 @@ $getListOfManagers		= $this->timesheet_login->getListOfEmpInformationForKpiSearc
     <div>
       <h1>Manage KPI</h1>
     </div>
-<div class="generate-report-btn" style="margin-left: -45px;">
+<div class="generate-report-btn consolidated-export-report-btn" style="margin-left: -45px;">
     <?php if (isset($datesMatch) && $datesMatch): ?>
-    <button id="generateBtnArch" onclick="downloadExcelArch()" class="btn btn-primary">
+    <button id="generateBtnArch" onclick="downloadExcelArch()" class="btn btn-success">
+        <i class="fa fa-download"></i>
         <span id="btnTextArch">Export Report</span>
         <span id="spinnerArch" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
     </button>
@@ -92,7 +93,6 @@ function downloadExcelArch() {
     const btnText = document.getElementById('btnTextArch');
     const spinner = document.getElementById('spinnerArch');
 
-    btn.classList.remove('btn-primary');
     btn.classList.add('btn-success');
     btn.disabled = true;
     spinner.classList.remove('d-none');
@@ -141,8 +141,6 @@ function downloadExcelArch() {
         window.location.href = url;
         setTimeout(() => {
             spinner.classList.add('d-none');
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-primary');
             btn.disabled = false;
             btnText.textContent = 'Export Report';
         }, 4000);
