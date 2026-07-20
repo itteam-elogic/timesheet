@@ -16,45 +16,11 @@
 						}
 					}
 				}
-				$baseFilterQuery = array(
-					'department' => (array)$department,
-					'client_Id' => (array)$client_Id,
-					'project_Id' => (array)$project_Id,
-					'project_manager' => (array)$project_manager,
-					'project_status' => (array)$project_status,
-					'from_year' => !empty($from_year) ? reset($from_year) : '',
-					'from_month' => !empty($from_month) ? reset($from_month) : '',
-					'to_year' => !empty($to_year) ? reset($to_year) : '',
-					'to_month' => !empty($to_month) ? reset($to_month) : ''
-				);
-				$hourlyTabQuery = http_build_query(array_merge($baseFilterQuery, array('man_days' => 'hourly')));
-				$monthlyTabQuery = http_build_query(array_merge($baseFilterQuery, array('man_days' => 'monthly')));
 			?>
-			<div class="ep-billing-tabs-wrap">
-				<a class="btn ep-billing-tab <?php echo $selectedBillingType === 'hourly' ? 'active' : ''; ?>" href="<?php echo base_url('execution_plan') . (!empty($hourlyTabQuery) ? ('?' . $hourlyTabQuery) : ''); ?>">Hourly</a>
-				<a class="btn ep-billing-tab <?php echo $selectedBillingType === 'monthly' ? 'active' : ''; ?>" href="<?php echo base_url('execution_plan') . (!empty($monthlyTabQuery) ? ('?' . $monthlyTabQuery) : ''); ?>">Monthly</a>
-			</div>
-			<a class="btn btn-primary btn-flat" href="<?php echo base_url('execution_plan'); ?>"><i class="fa fa-refresh"></i> Refresh</a>
-			<?php
-				$exportQueryParams = array(
-					'department' => (array)$department,
-					'client_Id' => (array)$client_Id,
-					'project_Id' => (array)$project_Id,
-					'project_manager' => (array)$project_manager,
-					'project_status' => (array)$project_status,
-					'from_year' => !empty($from_year) ? reset($from_year) : '',
-					'from_month' => !empty($from_month) ? reset($from_month) : '',
-					'to_year' => !empty($to_year) ? reset($to_year) : '',
-					'to_month' => !empty($to_month) ? reset($to_month) : ''
-				);
-				if ($selectedBillingType !== '') {
-					$exportQueryParams['man_days'] = $selectedBillingType;
-				}
-				$exportQuery = http_build_query($exportQueryParams);
-			?>
-			<a class="btn btn-success btn-flat" href="<?php echo base_url('execution_plan/export_report') . (!empty($exportQuery) ? ('?' . $exportQuery) : ''); ?>">
+			<a class="btn btn-primary btn-flat" href="<?php echo base_url('execution_plan'); ?>"><i class="fa fa-refresh"></i> Reset</a>
+			<button type="button" class="btn btn-success btn-flat" id="ep_export_report_btn">
 				<i class="fa fa-download"></i> Export Report
-			</a>
+			</button>
 		</div>
 	</div>
 
@@ -137,6 +103,7 @@
 				</div>
 				<input type="hidden" name="man_days" id="man_days" value="<?php echo htmlspecialchars($selectedBillingType, ENT_QUOTES, 'UTF-8'); ?>">
 				<input type="hidden" name="project_status" id="project_status" value="<?php echo !empty($project_status) ? htmlspecialchars(reset($project_status), ENT_QUOTES, 'UTF-8') : ''; ?>">
+				<input type="hidden" name="ep_default_year" id="ep_default_year" value="">
 				<div class="row ep-ym-row">
 					<div class="col-md-6">
 						<div class="form-group ep-ym-group">
@@ -212,9 +179,10 @@
 						$isCurrentYearSelected = ($fromYearValue === $currentYearValue && $toYearValue === $currentYearValue && $fromMonthValue === '' && $toMonthValue === '');
 					?>
 					<div class="ep-status-buttons-wrap">
-						<button type="button" class="btn ep-status-btn ep-status-all <?php echo ($selectedStatusValue === 'all') ? 'active' : ''; ?>" data-status="all">
-							All
-						</button>
+						<div class="ep-billing-tabs-wrap">
+							<button type="button" class="btn ep-billing-tab <?php echo $selectedBillingType === 'hourly' ? 'active' : ''; ?>" data-billing-type="hourly">Hourly</button>
+							<button type="button" class="btn ep-billing-tab <?php echo $selectedBillingType === 'monthly' ? 'active' : ''; ?>" data-billing-type="monthly">Monthly</button>
+						</div>
 						<button type="button" class="btn ep-status-btn ep-status-process <?php echo ($selectedStatusValue === 'process' || $selectedStatusValue === 'in process' || $selectedStatusValue === 'in_process') ? 'active' : ''; ?>" data-status="Process">
 							In Process
 						</button>
@@ -223,6 +191,9 @@
 						</button>
 						<button type="button" class="btn ep-status-btn ep-status-hold <?php echo ($selectedStatusValue === 'on hold' || $selectedStatusValue === 'on_hold') ? 'active' : ''; ?>" data-status="On Hold">
 							On Hold
+						</button>
+						<button type="button" class="btn btn-primary btn-flat ep-filter-refresh-btn" id="ep_show_all_btn">
+							<i class="fa fa-list"></i> Show All
 						</button>
 						<!-- <button type="button" class="btn ep-year-btn <?php echo $isCurrentYearSelected ? 'active' : ''; ?>" id="ep_current_year_btn" data-year="<?php echo htmlspecialchars($currentYearValue, ENT_QUOTES, 'UTF-8'); ?>">
 							Current Year
@@ -461,6 +432,7 @@
 							<?php if (!$hideResourceColumn): ?>
 							<th style="text-align:center; width: 6% !important;">Number Of Resources</th>
 							<?php endif; ?>
+							<th style="text-align:center; width: 8% !important;">Timesheet Date</th>
 							<th style="text-align:center; width: 10% !important;">Project Status</th>
 							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Project Estimated Hours</th>
 							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Timesheet Hours</th>
@@ -488,6 +460,7 @@
 							$clientDiffClass = $clientDiffResult['class'];
 							$clientStartDate = $clientGroup['clientStartDateTs'] !== null ? date('d-M-Y', $clientGroup['clientStartDateTs']) : '';
 							$clientEndDate = $clientGroup['clientEndDateTs'] !== null ? date('d-M-Y', $clientGroup['clientEndDateTs']) : '';
+							$clientTimesheetEntryDate = !empty($clientGroup['clientTimesheetEntryDateTs']) ? date('d-M-Y', $clientGroup['clientTimesheetEntryDateTs']) : '';
 							$rowSearch = strtolower($clientManagerDisplay . ' ' . $clientName);
 						?>
 						<tr class="client-header-row" data-client-index="<?php echo $clientIndex; ?>" data-search="<?php echo htmlspecialchars($rowSearch, ENT_QUOTES, 'UTF-8'); ?>">
@@ -502,6 +475,7 @@
 							<?php if (!$hideResourceColumn): ?>
 							<td class="num-cell"></td>
 							<?php endif; ?>
+							<td class="date-cell"><?php echo !empty($clientTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_client_status_badge($clientStatus); ?></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientScheduleTotal); ?></strong></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientTimesheetTotal); ?></strong></td>
@@ -526,6 +500,7 @@
 							<td class="project-cell" style="font-weight: 600;"><i class="fa fa-angle-right"></i> <?php echo $projectName; ?></td>
 							<?php $projectStartDate = execution_plan_date_display(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''); ?>
 							<?php $projectEndDate = execution_plan_date_display(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''); ?>
+							<?php $projectTimesheetEntryDate = execution_plan_date_display(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''); ?>
 							<?php $projectResourceCount = execution_plan_team_members_count(isset($projectRow->team_members) ? $projectRow->team_members : ''); ?>
 							<td class="date-cell"><?php echo !empty($projectStartDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectStartDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo !empty($projectEndDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectEndDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
@@ -533,6 +508,7 @@
 							<?php if (!$hideResourceColumn): ?>
 							<td class="num-cell"><?php echo (int)$projectResourceCount; ?></td>
 							<?php endif; ?>
+							<td class="date-cell"><?php echo !empty($projectTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_project_status_badge(isset($projectRow->project_status) ? $projectRow->project_status : ''); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($scheduleHours); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($timesheetHours); ?></td>
@@ -705,11 +681,28 @@
 		background-color: transparent;
 		color: #555 !important;
 	}
+	#execution_plan_search_form .select2-container.ep-selected-bg .select2-selection--single,
+	#execution_plan_search_form .select2-container.ep-selected-bg .select2-selection--multiple {
+		background-color: #6f42c1 !important;
+		border-color: #6f42c1 !important;
+	}
 	#execution_plan_search_form .select2-container.ep-selected-bg .select2-selection__rendered {
-		background-color: #6f42c1;
+		background-color: transparent !important;
 		color: #fff !important;
 		border-radius: 3px;
 		padding-left: 10px !important;
+	}
+	#execution_plan_search_form .ep-ym-group .select2-container.ep-selected-bg .select2-selection--single {
+		background-color: #6f42c1 !important;
+		border-color: #6f42c1 !important;
+		box-shadow: 0 1px 3px rgba(111, 66, 193, 0.35);
+	}
+	#execution_plan_search_form .ep-ym-group .select2-container.ep-selected-bg .select2-selection__rendered {
+		color: #fff !important;
+		font-weight: 600;
+	}
+	#execution_plan_search_form .ep-ym-group .select2-container.ep-selected-bg .select2-selection__clear {
+		color: #fff !important;
 	}
 	#execution_plan_search_form .select2-container.ep-selected-bg .select2-selection__arrow b {
 		border-top-color: #fff !important;
@@ -767,20 +760,20 @@
 	}
 	.ep-billing-tabs-wrap {
 		display: inline-flex;
-		gap: 8px;
-		margin-right: 8px;
+		gap: 6px;
+		margin: 0;
 		vertical-align: middle;
 		align-items: center;
 		padding: 4px;
-		background: linear-gradient(180deg, #f3faf4 0%, #e8f4ea 100%);
-		border: 1px solid #c7decb;
+		background: #f4f6f8;
+		border: 1px solid #d5dbe3;
 		border-radius: 10px;
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(39, 95, 52, 0.10);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 2px rgba(0, 0, 0, 0.06);
 	}
 	.ep-billing-tab {
 		background: #ffffff;
-		border: 1px solid #c9dccd;
-		color: #2f5e3a;
+		border: 1px solid #d0d7e2;
+		color: #3d566e;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
@@ -790,25 +783,59 @@
 		min-width: 94px;
 		text-align: center;
 		transition: all .2s ease;
-		box-shadow: 0 1px 1px rgba(39, 95, 52, 0.08);
+		box-shadow: none;
+		cursor: pointer;
 	}
 	.ep-billing-tab:hover {
-		color: #1f4f2b;
-		background: #eef8f0;
-		border-color: #a8cdb0;
+		color: #2a4055;
+		background: #f8fafc;
+		border-color: #b8c4d4;
 		transform: translateY(-1px);
-		box-shadow: 0 3px 8px rgba(39, 95, 52, 0.18);
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
 	}
 	.ep-billing-tab.active {
-		background: linear-gradient(180deg, #4eb35b 0%, #3b9f48 100%);
-		border-color: #358d41;
 		color: #fff !important;
-		box-shadow: 0 4px 10px rgba(39, 95, 52, 0.28);
+		border-color: transparent;
+		box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+	}
+	.ep-billing-tab[data-billing-type="hourly"].active {
+		background: linear-gradient(180deg, #2f8fd9 0%, #1f7ac0 100%);
+		border-color: #1a6fad;
+	}
+	.ep-billing-tab[data-billing-type="hourly"]:hover:not(.active) {
+		color: #1f7ac0;
+		background: #eef6fc;
+		border-color: #9ec9ea;
+	}
+	.ep-billing-tab[data-billing-type="monthly"].active {
+		background: linear-gradient(180deg, #9b59b6 0%, #8e44ad 100%);
+		border-color: #7d3c98;
+	}
+	.ep-billing-tab[data-billing-type="monthly"]:hover:not(.active) {
+		color: #8e44ad;
+		background: #f7f0fa;
+		border-color: #d7b8e5;
 	}
 	.ep-billing-tab:focus,
 	.ep-billing-tab:active {
 		outline: none;
 		text-decoration: none;
+	}
+	.ep-filter-refresh-btn {
+		font-weight: 700;
+		font-size: 13px;
+		letter-spacing: .4px;
+		text-transform: uppercase;
+		border-radius: 8px;
+		padding: 8px 16px;
+		min-width: 110px;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+	}
+	.ep-filter-refresh-btn:hover,
+	.ep-filter-refresh-btn:focus {
+		color: #fff;
+		text-decoration: none;
+		box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
 	}
 	.ep-status-btn {
 		font-weight: 700;
@@ -884,10 +911,10 @@
 	}
 	@media (max-width: 768px) {
 		.ep-billing-tabs-wrap {
-			display: flex;
-			margin: 0 0 10px 0;
-			width: 100%;
-			justify-content: space-between;
+			display: inline-flex;
+			margin: 0;
+			width: auto;
+			justify-content: flex-start;
 		}
 		.ep-billing-tab {
 			min-width: 0;
@@ -914,13 +941,19 @@
 $(document).ready(function() {
 	var clientsByDepartmentUrl = "<?php echo base_url('execution_plan/get_clients_by_departments'); ?>";
 	var projectsByClientUrl = "<?php echo base_url('execution_plan/get_projects_by_clients'); ?>";
+	var epSearchUrl = "<?php echo base_url('execution_plan'); ?>";
+	var epExportUrl = "<?php echo base_url('execution_plan/export_report'); ?>";
+	var epCurrentYear = String(<?php echo (int)date('Y'); ?>);
 
 	function updateSelectedBg($select) {
 		var value = $select.val();
 		var $container = $select.next(".select2-container");
+		var fieldId = $select.attr("id") || "";
 		var hasValue = false;
 		if ($.isArray(value)) {
 			hasValue = value.length > 0;
+		} else if ($.inArray(fieldId, ["from_year", "to_year", "from_month", "to_month"]) !== -1) {
+			hasValue = (value !== null && value !== undefined && value !== "");
 		} else {
 			hasValue = !!value && value !== "all";
 		}
@@ -929,6 +962,118 @@ $(document).ready(function() {
 		} else {
 			$container.removeClass("ep-selected-bg");
 		}
+	}
+
+	var epSyncingDates = false;
+
+	function epNormalizeYearMonthValue(val) {
+		val = String(val === null || val === undefined ? "all" : val);
+		return (val === "" ? "all" : val);
+	}
+
+	function epYearMonthKey(yearVal, monthVal, boundary) {
+		yearVal = epNormalizeYearMonthValue(yearVal);
+		monthVal = epNormalizeYearMonthValue(monthVal);
+		if (yearVal === "all") {
+			return null;
+		}
+		var year = parseInt(yearVal, 10);
+		if (isNaN(year) || year <= 0) {
+			return null;
+		}
+		if (monthVal === "all") {
+			return boundary === "from" ? (year * 100 + 1) : (year * 100 + 12);
+		}
+		var month = parseInt(monthVal, 10);
+		if (isNaN(month) || month < 1 || month > 12) {
+			return boundary === "from" ? (year * 100 + 1) : (year * 100 + 12);
+		}
+		return year * 100 + month;
+	}
+
+	function epUpdateDateRangeConstraints() {
+		var fromYear = epNormalizeYearMonthValue($("#from_year").val());
+		var fromMonth = epNormalizeYearMonthValue($("#from_month").val());
+		var toYear = epNormalizeYearMonthValue($("#to_year").val());
+		var toMonth = epNormalizeYearMonthValue($("#to_month").val());
+		var fromYearNum = (fromYear === "all") ? null : parseInt(fromYear, 10);
+		var toYearNum = (toYear === "all") ? null : parseInt(toYear, 10);
+		var fromMonthNum = (fromMonth === "all") ? null : parseInt(fromMonth, 10);
+
+		$("#to_year option").each(function() {
+			var val = epNormalizeYearMonthValue($(this).val());
+			if (val === "all" || fromYearNum === null) {
+				$(this).prop("disabled", false);
+				return;
+			}
+			$(this).prop("disabled", parseInt(val, 10) < fromYearNum);
+		});
+
+		$("#from_year option").each(function() {
+			var val = epNormalizeYearMonthValue($(this).val());
+			if (val === "all" || toYearNum === null) {
+				$(this).prop("disabled", false);
+				return;
+			}
+			$(this).prop("disabled", parseInt(val, 10) > toYearNum);
+		});
+
+		$("#to_month option").each(function() {
+			var val = epNormalizeYearMonthValue($(this).val());
+			if (val === "all" || fromYearNum === null || toYearNum === null || fromYear !== toYear || fromMonthNum === null) {
+				$(this).prop("disabled", false);
+				return;
+			}
+			$(this).prop("disabled", parseInt(val, 10) < fromMonthNum);
+		});
+
+		$("#from_month option").each(function() {
+			var val = epNormalizeYearMonthValue($(this).val());
+			if (val === "all" || fromYearNum === null || toYearNum === null || fromYear !== toYear || toMonth === "all") {
+				$(this).prop("disabled", false);
+				return;
+			}
+			var toMonthNum = parseInt(toMonth, 10);
+			$(this).prop("disabled", parseInt(val, 10) > toMonthNum);
+		});
+	}
+
+	function enforceExecutionPlanDateRange(changedId) {
+		if (epSyncingDates) {
+			return;
+		}
+
+		var fromYear = epNormalizeYearMonthValue($("#from_year").val());
+		var fromMonth = epNormalizeYearMonthValue($("#from_month").val());
+		var toYear = epNormalizeYearMonthValue($("#to_year").val());
+		var toMonth = epNormalizeYearMonthValue($("#to_month").val());
+
+		if (fromYear === "all" || toYear === "all") {
+			epUpdateDateRangeConstraints();
+			return;
+		}
+
+		var fromKey = epYearMonthKey(fromYear, fromMonth, "from");
+		var toKey = epYearMonthKey(toYear, toMonth, "to");
+		if (fromKey === null || toKey === null || fromKey <= toKey) {
+			epUpdateDateRangeConstraints();
+			return;
+		}
+
+		epSyncingDates = true;
+		if (changedId === "from_year" || changedId === "from_month" || changedId === "") {
+			$("#to_year").val(fromYear).trigger("change");
+			$("#to_month").val(fromMonth).trigger("change");
+		} else {
+			$("#from_year").val(toYear).trigger("change");
+			$("#from_month").val(toMonth).trigger("change");
+		}
+		epSyncingDates = false;
+		epUpdateDateRangeConstraints();
+		updateSelectedBg($("#from_year"));
+		updateSelectedBg($("#from_month"));
+		updateSelectedBg($("#to_year"));
+		updateSelectedBg($("#to_month"));
 	}
 
 	if ($.fn.select2) {
@@ -942,8 +1087,13 @@ $(document).ready(function() {
 			updateSelectedBg($(this));
 		});
 		$filters.on("change", function() {
+			if (!epSyncingDates && $.inArray(this.id, ["from_year", "to_year", "from_month", "to_month"]) !== -1) {
+				$("#ep_default_year").val("");
+				enforceExecutionPlanDateRange(this.id);
+			}
 			updateSelectedBg($(this));
 		});
+		enforceExecutionPlanDateRange("");
 	}
 
 	function setSelectOptions($select, items, valueKey, textKey) {
@@ -1045,22 +1195,133 @@ $(document).ready(function() {
 		toggleClientProjects(idx);
 	});
 
+	$(".ep-billing-tab").on("click", function() {
+		var billingType = String($(this).data("billing-type") || "").toLowerCase();
+		if (!billingType) {
+			return;
+		}
+		resetExecutionPlanFilters({
+			billingType: billingType,
+			status: "",
+			dateMode: "currentYear"
+		});
+	});
+
+	$("#ep_show_all_btn").on("click", function() {
+		resetExecutionPlanFilters({
+			billingType: "",
+			status: "",
+			dateMode: "all"
+		});
+	});
+
+	function applyExecutionPlanDateDefaults(dateMode) {
+		if (dateMode === "preserve") {
+			return;
+		}
+		epSyncingDates = true;
+		if (dateMode === "currentYear") {
+			$("#ep_default_year").val("1");
+			$("#from_year").val(epCurrentYear).trigger("change");
+			$("#to_year").val(epCurrentYear).trigger("change");
+			$("#from_month, #to_month").val("all").trigger("change");
+			updateSelectedBg($("#from_year"));
+			updateSelectedBg($("#to_year"));
+			updateSelectedBg($("#from_month"));
+			updateSelectedBg($("#to_month"));
+			epSyncingDates = false;
+			enforceExecutionPlanDateRange("");
+			return;
+		}
+		$("#ep_default_year").val("");
+		$("#from_year, #from_month, #to_year, #to_month").val("all").trigger("change");
+		updateSelectedBg($("#from_year"));
+		updateSelectedBg($("#to_year"));
+		updateSelectedBg($("#from_month"));
+		updateSelectedBg($("#to_month"));
+		epSyncingDates = false;
+		enforceExecutionPlanDateRange("");
+	}
+
+	function resetExecutionPlanFilters(options) {
+		options = options || {};
+		var billingType = options.billingType || "";
+		var status = options.status !== undefined ? options.status : "";
+		var dateMode = options.dateMode || "preserve";
+
+		$("#department, #client_Id, #project_Id, #project_manager").val(null).trigger("change");
+		applyExecutionPlanDateDefaults(dateMode);
+		$("#project_status").val(status);
+		$("#man_days").val(billingType);
+
+		$(".ep-status-btn").removeClass("active");
+		if (status) {
+			var statusKey = String(status).toLowerCase();
+			if (statusKey === "process" || statusKey === "in process" || statusKey === "in_process") {
+				$('.ep-status-btn[data-status="Process"]').addClass("active");
+			} else if (statusKey === "closed") {
+				$('.ep-status-btn[data-status="Closed"]').addClass("active");
+			} else if (statusKey === "on hold" || statusKey === "on_hold") {
+				$('.ep-status-btn[data-status="On Hold"]').addClass("active");
+			}
+		}
+
+		$(".ep-billing-tab").removeClass("active");
+		if (billingType === "hourly") {
+			$('.ep-billing-tab[data-billing-type="hourly"]').addClass("active");
+		} else if (billingType === "monthly") {
+			$('.ep-billing-tab[data-billing-type="monthly"]').addClass("active");
+		}
+
+		$("#execution_plan_search_form").trigger("submit");
+	}
+
 	$(".ep-status-btn").on("click", function() {
 		var status = $(this).data("status");
-		if (String(status).toLowerCase() === "all") {
-			$("#from_year, #from_month, #to_year, #to_month").val("all").trigger("change");
-		}
+		$("#ep_default_year").val("");
 		$("#project_status").val(status);
 		$(".ep-status-btn").removeClass("active");
 		$(this).addClass("active");
 		$("#execution_plan_search_form").trigger("submit");
 	});
 
+	$("#execution_plan_search_form button[type='submit']").on("click", function() {
+		$("#ep_default_year").val("");
+	});
+
+	$("#ep_export_report_btn").on("click", function() {
+		var $form = $("#execution_plan_search_form");
+		enforceExecutionPlanDateRange("");
+		["from_year", "to_year", "from_month", "to_month"].forEach(function(fieldId) {
+			var $field = $("#" + fieldId);
+			var value = $field.val();
+			if (value === null || value === undefined || value === "") {
+				$field.val("all");
+			}
+			updateSelectedBg($field);
+		});
+		var originalAction = $form.attr("action");
+		$form.attr("action", epExportUrl);
+		$form.trigger("submit");
+		$form.attr("action", originalAction);
+	});
+
+	$("#execution_plan_search_form").on("submit", function() {
+		enforceExecutionPlanDateRange("");
+		["from_year", "to_year", "from_month", "to_month"].forEach(function(fieldId) {
+			var $field = $("#" + fieldId);
+			var value = $field.val();
+			if (value === null || value === undefined || value === "") {
+				$field.val("all");
+			}
+			updateSelectedBg($field);
+		});
+	});
+
 	function syncActiveStatusButton() {
 		var currentStatus = $.trim($("#project_status").val() || "").toLowerCase();
 		$(".ep-status-btn").removeClass("active");
 		if (currentStatus === "" || currentStatus === "all") {
-			$('.ep-status-btn[data-status="all"]').addClass("active");
 			return;
 		}
 		if (currentStatus === "process" || currentStatus === "in process" || currentStatus === "in_process") {
@@ -1075,7 +1336,6 @@ $(document).ready(function() {
 			$('.ep-status-btn[data-status="On Hold"]').addClass("active");
 			return;
 		}
-		$('.ep-status-btn[data-status="all"]').addClass("active");
 	}
 
 	syncActiveStatusButton();

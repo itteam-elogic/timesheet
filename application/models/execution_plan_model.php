@@ -49,6 +49,12 @@ class Execution_plan_model extends CI_Model {
 			$toDate = sprintf('%04d-12-31', $toYear);
 		}
 
+		if ($fromDate !== '' && $toDate !== '' && strtotime($fromDate) > strtotime($toDate)) {
+			$swapDate = $fromDate;
+			$fromDate = $toDate;
+			$toDate = $swapDate;
+		}
+
 		$fromKey = null;
 		$toKey = null;
 		if ($fromDate !== '') {
@@ -94,28 +100,61 @@ class Execution_plan_model extends CI_Model {
 		return ' WHERE ' . implode(' AND ', $conditions);
 	}
 
+	private function build_project_period_overlap_sql($fromDate, $toDate) {
+		if ($fromDate !== '' && $toDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			$toEsc = $this->db->escape($toDate);
+			return '(
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_start_date) <= ' . $toEsc . ' AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+				OR
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND (p.project_end_date IS NULL OR p.project_end_date = \'0000-00-00\')
+					AND DATE(p.project_start_date) <= ' . $toEsc . ')
+				OR
+				((p.project_start_date IS NULL OR p.project_start_date = \'0000-00-00\')
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+			)';
+		}
+		if ($fromDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			return '(
+				(p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\' AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+				OR
+				((p.project_end_date IS NULL OR p.project_end_date = \'0000-00-00\')
+					AND p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND DATE(p.project_start_date) <= ' . $fromEsc . ')
+			)';
+		}
+		if ($toDate !== '') {
+			$toEsc = $this->db->escape($toDate);
+			return '(
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\' AND DATE(p.project_start_date) <= ' . $toEsc . ')
+				OR
+				((p.project_start_date IS NULL OR p.project_start_date = \'0000-00-00\')
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_end_date) >= ' . $toEsc . ')
+			)';
+		}
+		return '';
+	}
+
 	private function apply_report_date_range_filter($fromDate, $toDate, $fromKey, $toKey) {
 		if ($fromDate === '' && $toDate === '') {
 			return;
 		}
 
 		$conditions = array();
-
-		if ($fromDate !== '' && $toDate !== '') {
-			$fromEsc = $this->db->escape($fromDate);
-			$toEsc = $this->db->escape($toDate);
-			$conditions[] = "(DATE(p.project_start_date) <= {$toEsc} AND (p.project_end_date IS NULL OR p.project_end_date = '0000-00-00' OR DATE(p.project_end_date) >= {$fromEsc}))";
-		} elseif ($fromDate !== '') {
-			$fromEsc = $this->db->escape($fromDate);
-			$conditions[] = "(p.project_end_date IS NULL OR p.project_end_date = '0000-00-00' OR DATE(p.project_end_date) >= {$fromEsc})";
-		} elseif ($toDate !== '') {
-			$toEsc = $this->db->escape($toDate);
-			$conditions[] = "DATE(p.project_start_date) <= {$toEsc}";
+		$overlapSql = $this->build_project_period_overlap_sql($fromDate, $toDate);
+		if ($overlapSql !== '') {
+			$conditions[] = $overlapSql;
 		}
 
 		$tsDateFilter = $this->build_timesheet_date_filter_sql($fromDate, $toDate, 'erd.emp_report_dates');
 		if ($tsDateFilter !== '') {
-			$conditions[] = "EXISTS (SELECT 1 FROM emp_record_details erd WHERE erd.project_Id = p.project_Id AND erd.client_Id = p.client_Id{$tsDateFilter})";
+			$conditions[] = 'EXISTS (SELECT 1 FROM emp_record_details erd WHERE erd.project_Id = p.project_Id AND erd.client_Id = p.client_Id' . $tsDateFilter . ')';
 		}
 
 		$invoiceConditions = array();
@@ -127,6 +166,47 @@ class Execution_plan_model extends CI_Model {
 		}
 		if (!empty($invoiceConditions)) {
 			$conditions[] = 'EXISTS (SELECT 1 FROM project_invoice_monthly pim WHERE pim.project_Id = p.project_Id AND ' . implode(' AND ', $invoiceConditions) . ')';
+		}
+
+		if (!empty($conditions)) {
+			$this->db->where('(' . implode(' OR ', $conditions) . ')', null, false);
+		}
+	}
+
+	private function has_selected_year_range($from_year, $to_year) {
+		$fromYear = !empty($from_year) ? (int)reset($from_year) : 0;
+		$toYear = !empty($to_year) ? (int)reset($to_year) : 0;
+		return ($fromYear > 0 || $toYear > 0);
+	}
+
+	/**
+	 * When a year is selected (2026, 2025, etc.), hide zero-timesheet projects
+	 * unless they have period activity or started within the selected range.
+	 * "All" year selection skips this filter and shows zero-timesheet rows.
+	 */
+	private function apply_period_activity_filter($fromDate, $toDate) {
+		if ($fromDate === '' && $toDate === '') {
+			return;
+		}
+
+		$conditions = array(
+			'(COALESCE(ts_totals.total_timesheet_hours, 0) + COALESCE(ts_general_project_totals.general_timesheet_hours, 0) > 0)',
+			'(COALESCE(invoice_totals.total_invoice_hours, 0) > 0)'
+		);
+
+		if ($fromDate !== '' && $toDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			$toEsc = $this->db->escape($toDate);
+			$conditions[] = '(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\' '
+				. 'AND DATE(p.project_start_date) >= ' . $fromEsc . ' AND DATE(p.project_start_date) <= ' . $toEsc . ')';
+		} elseif ($fromDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			$conditions[] = '(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\' '
+				. 'AND DATE(p.project_start_date) >= ' . $fromEsc . ')';
+		} elseif ($toDate !== '') {
+			$toEsc = $this->db->escape($toDate);
+			$conditions[] = '(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\' '
+				. 'AND DATE(p.project_start_date) <= ' . $toEsc . ')';
 		}
 
 		$this->db->where('(' . implode(' OR ', $conditions) . ')', null, false);
@@ -156,7 +236,9 @@ class Execution_plan_model extends CI_Model {
 		$tsGeneralDateFilter = $this->build_timesheet_date_filter_sql($fromDate, $toDate, 'erd.emp_report_dates');
 		$invoiceDateFilter = $this->build_invoice_date_filter_sql($fromKey, $toKey);
 
-		$ts_totals = "(SELECT project_Id, client_Id, SUM(emp_time_hours) as total_timesheet_hours
+		$ts_totals = "(SELECT project_Id, client_Id,
+			SUM(emp_time_hours) as total_timesheet_hours,
+			MAX(DATE(emp_report_dates)) as latest_timesheet_entry_date
 			FROM emp_record_details
 			WHERE 1=1{$tsDateFilter}
 			GROUP BY project_Id, client_Id) ts_totals";
@@ -165,7 +247,8 @@ class Execution_plan_model extends CI_Model {
 			GROUP BY project_Id) invoice_totals";
 		$ts_general_project_totals = "(SELECT gp.client_Id,
 				LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', ''))) as base_project_name,
-				SUM(erd.emp_time_hours) as general_timesheet_hours
+				SUM(erd.emp_time_hours) as general_timesheet_hours,
+				MAX(DATE(erd.emp_report_dates)) as latest_general_timesheet_entry_date
 			FROM emp_record_details erd
 			INNER JOIN project_details gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
 			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'{$tsGeneralDateFilter}
@@ -181,6 +264,12 @@ class Execution_plan_model extends CI_Model {
 				COALESCE(NULLIF(TRIM(p.status), ""), "") as project_status,
 				COALESCE(p.estimated_hours, 0) as schedule_hours,
 				(COALESCE(ts_totals.total_timesheet_hours, 0) + COALESCE(ts_general_project_totals.general_timesheet_hours, 0)) as timesheet_hours,
+				CASE
+					WHEN ts_totals.latest_timesheet_entry_date IS NULL THEN ts_general_project_totals.latest_general_timesheet_entry_date
+					WHEN ts_general_project_totals.latest_general_timesheet_entry_date IS NULL THEN ts_totals.latest_timesheet_entry_date
+					WHEN ts_totals.latest_timesheet_entry_date >= ts_general_project_totals.latest_general_timesheet_entry_date THEN ts_totals.latest_timesheet_entry_date
+					ELSE ts_general_project_totals.latest_general_timesheet_entry_date
+				END as timesheet_entry_date,
 				COALESCE(invoice_totals.total_invoice_hours, 0) as invoice_hours,
 				c.client_name,
 				c.client_Id,
@@ -245,12 +334,10 @@ class Execution_plan_model extends CI_Model {
 
 		$this->apply_report_date_range_filter($fromDate, $toDate, $fromKey, $toKey);
 
-		$hasDateRange = ($fromDate !== '' || $toDate !== '');
-		if ($hasDateRange) {
-			$this->db->where('(COALESCE(p.estimated_hours, 0) > 0 OR COALESCE(ts_totals.total_timesheet_hours, 0) > 0 OR COALESCE(ts_general_project_totals.general_timesheet_hours, 0) > 0 OR COALESCE(invoice_totals.total_invoice_hours, 0) > 0)', null, false);
-		} else {
-			$this->db->where('(COALESCE(p.estimated_hours, 0) > 0 OR COALESCE(ts_totals.total_timesheet_hours, 0) > 0 OR COALESCE(ts_general_project_totals.general_timesheet_hours, 0) > 0)', null, false);
+		if ($this->has_selected_year_range($from_year, $to_year)) {
+			$this->apply_period_activity_filter($fromDate, $toDate);
 		}
+
 		$this->db->order_by('p.project_end_date', 'desc');
 		$this->db->order_by('p.project_start_date', 'desc');
 		$this->db->order_by('p.project_name', 'desc');

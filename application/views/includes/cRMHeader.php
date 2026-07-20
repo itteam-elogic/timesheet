@@ -160,6 +160,7 @@ if(
 					<li><a href="<?php echo base_url(); ?>resource_schedule"><i class="fa fa-key"></i><span>Resource Schedule</span></a></li>					
                     
                     <li><a href="<?php echo base_url(); ?>defaulter/user_defaulter"><i class="fa fa-envelope-o"></i> Timesheet Defaulter</a></li>
+                    <li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i> Timesheet Inactivity (6 Months)</a></li>
                     
                    <!--  <li><a href="<?php echo base_url(); ?>kpi_reports"><i class="fa fa-calendar"></i> KPI Reports </a></li> -->
                     
@@ -191,6 +192,7 @@ if(
 					<li><a href="<?php echo base_url(); ?>empreports"><i class="fa fa-indent"></i><span>Timesheet Logs</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>empreports/unapproved"><i class="fa fa-ban"></i><span>Unapproved Report Logs</span></a></li>
+					<li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i><span>Timesheet Inactivity (6 Months)</span></a></li>
                     
 					 <?php elseif(in_array($this->session->userdata['logged_in_timesheet']['user_type'], array('business_head'))): ?>
                     
@@ -210,6 +212,7 @@ if(
                     
 					
                     <li><a href="<?php echo base_url(); ?>empreports/unapproved"><i class="fa fa-ban"></i><span>Unapproved Report Logs</span></a></li>
+					<li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i><span>Timesheet Inactivity (6 Months)</span></a></li>
 					
                     <?php elseif(in_array($this->session->userdata['logged_in_timesheet']['user_type'], array('manager'))): ?>
                     
@@ -236,6 +239,7 @@ if(
                     
 					
                     <li><a href="<?php echo base_url(); ?>empreports/unapproved"><i class="fa fa-ban"></i><span>Unapproved Report Logs</span></a></li>
+					<li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i><span>Timesheet Inactivity (6 Months)</span></a></li>
 					
                    <?php if(!empty($this->session->userdata['logged_in_timesheet']['username']=='sandeep')): ?>
                     
