@@ -413,7 +413,6 @@ class Execution_plan extends CI_Controller {
 			$clientTimesheetTotal = 0;
 			$clientInvoiceTotal = 0;
 			$clientBillingTypes = array();
-			$clientStartDateTs = null;
 			$clientTimesheetEntryDateTs = null;
 
 			foreach ($projects as $projectRow) {
@@ -426,25 +425,22 @@ class Execution_plan extends CI_Controller {
 					$clientTimesheetEntryDateTs = $timesheetEntryTs;
 				}
 
-				$startTs = $this->execution_plan_project_date_ts(isset($projectRow->project_start_date) ? $projectRow->project_start_date : '');
-				if ($startTs !== null && ($clientStartDateTs === null || $startTs < $clientStartDateTs)) {
-					$clientStartDateTs = $startTs;
-				}
-
 				$billingType = $this->execution_plan_format_billing_type(isset($projectRow->man_days) ? $projectRow->man_days : '');
 				if ($billingType !== '') {
 					$clientBillingTypes[strtolower($billingType)] = $billingType;
 				}
 			}
 
+			$clientStartDateTs = null;
 			$clientEndDateTs = null;
+			if ($latestProject !== null) {
+				$clientStartDateTs = $this->execution_plan_project_date_ts(isset($latestProject->client_start_date) ? $latestProject->client_start_date : '');
+				$clientEndDateTs = $this->execution_plan_project_date_ts(isset($latestProject->client_end_date) ? $latestProject->client_end_date : '');
+			}
+
 			$clientStatus = 'Inactive';
 			$clientManagerDisplay = 'N/A';
 			if ($latestProject !== null) {
-				$clientEndDateTs = $this->execution_plan_project_date_ts(isset($latestProject->project_end_date) ? $latestProject->project_end_date : '');
-				if ($clientEndDateTs === null) {
-					$clientEndDateTs = $this->execution_plan_project_date_ts(isset($latestProject->project_start_date) ? $latestProject->project_start_date : '');
-				}
 				$clientStatus = !empty($latestProject->client_status) ? trim((string)$latestProject->client_status) : 'Inactive';
 				$projectManagerName = !empty($latestProject->project_manager_name) ? trim($latestProject->project_manager_name) : '';
 				if ($projectManagerName !== '') {

@@ -957,6 +957,8 @@ public function consolidatedReport()
 							'department' => $row->department,
 							'clientpm' => $row->clientpm,
 							'client_pm_name' => isset($row->client_pm_name) ? $row->client_pm_name : '',
+							'client_start_date' => isset($row->client_start_date) ? $row->client_start_date : '',
+							'client_end_date' => isset($row->client_end_date) ? $row->client_end_date : '',
 							'projects' => array(),
 						);
 					}
@@ -1016,6 +1018,10 @@ public function consolidatedReport()
 			$grouped[$row->client_Id]['department'] = $row->department;
 			$grouped[$row->client_Id]['clientpm'] = $row->clientpm;
 			$grouped[$row->client_Id]['client_pm_name'] = isset($row->client_pm_name) ? $row->client_pm_name : '';
+			if (!isset($grouped[$row->client_Id]['client_start_date'])) {
+				$grouped[$row->client_Id]['client_start_date'] = isset($row->client_start_date) ? $row->client_start_date : '';
+				$grouped[$row->client_Id]['client_end_date'] = isset($row->client_end_date) ? $row->client_end_date : '';
+			}
 			$grouped[$row->client_Id]['projects'][] = $row;
 		}
 		if (!empty($grouped)) {
@@ -3373,6 +3379,7 @@ public function generateConsolidatedReportExcel() {
 }
 
 public function generateClientReportExcel() {
+    $this->load->helper('kpi_display');
     $core = $this->client_report_core_filters_from_get();
     $from_date = $core['from_date'];
     $to_date = $core['to_date'];
@@ -3546,52 +3553,12 @@ public function generateClientReportExcel() {
             return $timestamp;
         };
         
-        // Calculate earliest start date and latest end date from all projects
-        $earliestStartDate = null;
-        $latestEndDate = null;
-        foreach ($data['projects'] as $proj) {
-            if (!empty($proj->project_start_date)) {
-                $projStartDate = $isValidDate($proj->project_start_date);
-                if ($projStartDate !== false && ($earliestStartDate === null || $projStartDate < $earliestStartDate)) {
-                    $earliestStartDate = $projStartDate;
-                }
-            }
-            if (!empty($proj->project_end_date)) {
-                $projEndDate = $isValidDate($proj->project_end_date);
-                if ($projEndDate !== false && ($latestEndDate === null || $projEndDate > $latestEndDate)) {
-                    $latestEndDate = $projEndDate;
-                }
-            }
-        }
-
-        // Calculate month abbreviation from date range or project dates
-        $monthDisplay = '--';
-        if (!empty($monthFromDate)) {
-            $monthTimestamp = $isValidDate($monthFromDate);
-            if ($monthTimestamp !== false) {
-                $monthDisplay = date('M', $monthTimestamp);
-            }
-        } elseif ($earliestStartDate !== null) {
-            $monthDisplay = date('M', $earliestStartDate);
-        }
-        
-        // Format dates separately for Start Date and End Date based on projects
-        $startDateDisplay = '';
-        $endDateDisplay = '';
-        if ($earliestStartDate !== null) {
-            $formattedDate = date('d-M-Y', $earliestStartDate);
-            // Check if formatted date is not 01-Jan-1970
-            if ($formattedDate != '01-Jan-1970') {
-                $startDateDisplay = $formattedDate;
-            }
-        }
-        if ($latestEndDate !== null) {
-            $formattedDate = date('d-M-Y', $latestEndDate);
-            // Check if formatted date is not 01-Jan-1970
-            if ($formattedDate != '01-Jan-1970') {
-                $endDateDisplay = $formattedDate;
-            }
-        }
+        // Client row dates: same SQL MIN/MAX logic as on-screen grid (Execution Plan pattern).
+        $clientDates = client_report_resolve_client_dates($data);
+        $clientStartDateTs = $clientDates['start_ts'];
+        $clientEndDateTs = $clientDates['end_ts'];
+        $startDateDisplay = client_report_format_client_date_display($clientStartDateTs);
+        $endDateDisplay = client_report_format_client_date_display($clientEndDateTs);
 
         // Add client row (same columns as grid: Client Name, PM, Dept, Start, End, Billing, ...)
         $clientRow = [

@@ -1,29 +1,38 @@
 <!-- Include Header -->
 <?php $this->load->view('includes/cRMHeader');
 
-$fromDate = isset($filters['from_date']) ? $filters['from_date'] : date('Y-m-d', strtotime('-6 months'));
-$toDate = isset($filters['to_date']) ? $filters['to_date'] : date('Y-m-d');
+$fromDate = isset($filters['from_date']) ? $filters['from_date'] : date('Y-m-01', strtotime('-6 months'));
+$toDate = isset($filters['to_date']) ? $filters['to_date'] : date('Y-m-t');
+$fromYear = isset($filters['from_year']) ? $filters['from_year'] : 'ALL';
+$fromMonth = (isset($filters['from_month']) && $filters['from_month'] !== '') ? (int)$filters['from_month'] : 0;
+$toYear = isset($filters['to_year']) ? $filters['to_year'] : 'ALL';
+$toMonth = (isset($filters['to_month']) && $filters['to_month'] !== '') ? (int)$filters['to_month'] : 0;
+$fromYearIsAll = (strtoupper((string)$fromYear) === 'ALL');
+$toYearIsAll = (strtoupper((string)$toYear) === 'ALL');
+if ($fromYearIsAll) {
+    $fromMonth = 0;
+}
+if ($toYearIsAll) {
+    $toMonth = 0;
+}
+$eriStartYear = 2010;
+$eriEndYear = (int)date('Y');
+$eriMonthLabels = array(
+    1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+    5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+    9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+);
+$selectedDepartment = isset($filters['department']) ? $filters['department'] : '';
 $selectedClientId = isset($filters['client_Id']) ? $filters['client_Id'] : '';
 $selectedProjectId = isset($filters['project_Id']) ? $filters['project_Id'] : '';
-$selectedReportingManager = isset($filters['reporting_manager']) ? $filters['reporting_manager'] : '';
-$selectedEmployeeName = isset($filters['employee_name']) ? $filters['employee_name'] : '';
 $selectedProjectStatus = isset($filters['project_status']) ? $filters['project_status'] : '';
-$includeNeverEntered = !empty($filters['include_never_entered']) && $filters['include_never_entered'] === '1';
-$records = isset($records) ? $records : array();
+$clients = isset($clients) ? $clients : array();
+$projects = isset($projects) ? $projects : array();
+$departments = isset($departments) ? $departments : array();
 $projectStatuses = isset($projectStatuses) ? $projectStatuses : array();
+$records = isset($records) ? $records : array();
 $canCloseProjects = !empty($canCloseProjects);
-
 $totalRecords = count($records);
-$neverEnteredCount = 0;
-$maxInactiveDays = 0;
-foreach ($records as $rec) {
-    if (empty($rec->last_entry_date)) {
-        $neverEnteredCount++;
-    }
-    if ($rec->days_since_last_entry !== null && $rec->days_since_last_entry !== '' && (int)$rec->days_since_last_entry > $maxInactiveDays) {
-        $maxInactiveDays = (int)$rec->days_since_last_entry;
-    }
-}
 
 if (!function_exists('format_inactivity_project_date')) {
     function format_inactivity_project_date($dateValue) {
@@ -71,94 +80,6 @@ if (!function_exists('eri_project_status_label')) {
     font-size: 14px;
     margin: 0;
 }
-.eri-summary-row {
-    margin-bottom: 18px;
-}
-.eri-summary-card {
-    background: #fff;
-    border: 1px solid #e3e8ef;
-    border-radius: 10px;
-    padding: 16px 18px;
-    box-shadow: 0 2px 8px rgba(31, 80, 118, 0.06);
-    min-height: 88px;
-}
-.eri-summary-card .eri-summary-label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #6c757d;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-.eri-summary-card .eri-summary-value {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.1;
-    color: #1f5076;
-}
-.eri-summary-card.eri-card-warning .eri-summary-value { color: #d97706; }
-.eri-summary-card.eri-card-danger .eri-summary-value { color: #dc3545; }
-.eri-summary-card.eri-card-info .eri-summary-value { color: #2c5aa0; }
-
-.eri-filter-card {
-    border: 1px solid #e3e8ef;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(31, 80, 118, 0.06);
-    margin-bottom: 18px;
-}
-.eri-filter-card .card-body {
-    padding: 18px 20px 8px;
-}
-.eri-filter-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #1f5076;
-    margin: 0 0 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #edf1f5;
-}
-.eri-filter-title i {
-    margin-right: 8px;
-    color: #337ab7;
-}
-.eri-filter-card .control-label {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: #5a6a7a;
-}
-.eri-filter-card .form-control {
-    border-radius: 6px;
-    border-color: #d5dbe3;
-    height: 36px;
-}
-.eri-filter-card .eri-date-input {
-    background: #f4f7fb;
-    color: #1f5076;
-    font-weight: 600;
-}
-.eri-filter-actions {
-    padding-top: 4px;
-}
-.eri-filter-actions .btn {
-    border-radius: 6px;
-    min-width: 96px;
-}
-.eri-checkbox-wrap {
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: #f8fafc;
-    border: 1px solid #e8edf3;
-    border-radius: 6px;
-}
-.eri-checkbox-wrap label {
-    margin: 0;
-    font-weight: 600;
-    color: #495057;
-    font-size: 13px;
-}
-
 .eri-table-card {
     border: 1px solid #e3e8ef;
     border-radius: 10px;
@@ -231,13 +152,31 @@ if (!function_exists('eri_project_status_label')) {
 }
 #inactivityReportTable .eri-col-project {
     min-width: 180px;
-    max-width: 260px;
-    word-break: break-word;
+    max-width: 280px;
 }
 #inactivityReportTable .eri-col-client {
     min-width: 130px;
-    max-width: 180px;
-    word-break: break-word;
+    max-width: 200px;
+}
+#inactivityReportTable .eri-col-project .eri-cell-inner,
+#inactivityReportTable .eri-col-client .eri-cell-inner {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    max-width: 100%;
+}
+#inactivityReportTable .eri-col-project .eri-cell-text,
+#inactivityReportTable .eri-col-client .eri-cell-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+#inactivityReportTable .eri-col-project .eri-cell-id {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin-left: 4px;
 }
 #inactivityReportTable .eri-col-employee {
     font-weight: 600;
@@ -286,7 +225,6 @@ if (!function_exists('eri_project_status_label')) {
     margin-bottom: 8px;
     color: #adb5bd;
 }
-
 .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_filter {
     padding: 12px 6px 0;
@@ -319,10 +257,6 @@ if (!function_exists('eri_project_status_label')) {
     text-align: center;
     white-space: nowrap;
 }
-.eri-process-check {
-    transform: scale(1.1);
-    cursor: pointer;
-}
 .eri-status-toggle {
     cursor: pointer;
 }
@@ -330,13 +264,163 @@ if (!function_exists('eri_project_status_label')) {
     opacity: 0.85;
     box-shadow: 0 0 0 1px rgba(51, 122, 183, 0.35);
 }
+.eri-filter-card {
+    border: 1px solid #e3e8ef;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(31, 80, 118, 0.06);
+    margin-bottom: 18px;
+}
+.eri-filter-card .card-body {
+    padding: 18px 20px 8px;
+}
+.eri-filter-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f5076;
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #edf1f5;
+}
+.eri-filter-title i {
+    margin-right: 8px;
+    color: #337ab7;
+}
+.eri-filter-card .control-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #5a6a7a;
+}
+.eri-filter-card .form-control {
+    border-radius: 6px;
+    border-color: #d5dbe3;
+    height: 36px;
+}
+.eri-filter-actions {
+    padding-top: 4px;
+}
+.eri-filter-actions .btn {
+    border-radius: 6px;
+    min-width: 96px;
+}
+.eri-filter-card .eri-dates-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+}
+.eri-filter-card .eri-dates-compact {
+    flex: 1 1 auto;
+}
+.eri-filter-card .kpi-ym-range-panels {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.eri-filter-card .kpi-ym-panel {
+    background: #ffffff;
+    border: 1px solid #d8dee6;
+    border-radius: 10px;
+    padding: 10px 14px 12px;
+    min-width: 280px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.eri-filter-card .kpi-ym-panel-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    line-height: 1.2;
+    margin-bottom: 10px;
+}
+.eri-filter-card .kpi-ym-panel-fields {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.eri-filter-card .kpi-ym-select-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+.eri-filter-card .kpi-ym-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #ffffff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 8px;
+    border: 1px solid #cfd6df;
+    color: #4a5568;
+    font-weight: 500;
+    font-size: 14px;
+    height: 38px;
+    padding: 6px 32px 6px 12px;
+    border-radius: 8px;
+    min-width: 128px;
+}
+.eri-filter-card .kpi-ym-year-select { min-width: 110px; }
+.eri-filter-card .kpi-ym-month-select { min-width: 140px; }
+.eri-filter-card .kpi-ym-select-wrap.kpi-ym-wrap-selected {
+    background-color: #673ab7;
+    border-radius: 8px;
+    border: 2px solid #e2e2e2;
+}
+.eri-filter-card .kpi-ym-select-wrap.kpi-ym-wrap-selected .kpi-ym-select {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding-right: 52px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+}
+.eri-filter-card .kpi-ym-clear-icon {
+    display: none;
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    font-weight: 700;
+}
+.eri-filter-card .kpi-ym-select-wrap.kpi-ym-wrap-selected .kpi-ym-clear-icon {
+    display: block;
+}
+.eri-filter-card .select2-container .select2-selection--single {
+    height: 38px;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+}
+.eri-filter-card .select2-container .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+}
+.eri-filter-card .select2-container.cr-ym-selected-bg .select2-selection--single {
+    background-color: #673ab7 !important;
+    border-color: #673ab7 !important;
+    color: #fff;
+}
+.eri-filter-card .select2-container.cr-ym-selected-bg .select2-selection__rendered {
+    color: #fff !important;
+    font-weight: 600;
+}
+.eri-filter-card .select2-container.cr-ym-selected-bg .select2-selection__arrow b {
+    border-color: #fff transparent transparent transparent;
+}
 </style>
 
 <div class="content-wrapper">
     <div class="page-title eri-page-title">
         <div>
             <h1><i class="fa fa-exclamation-triangle"></i> Timesheet Inactivity Report</h1>
-            <p class="eri-subtitle">Employees with no timesheet entries from <?php echo date('d-M-Y', strtotime($fromDate)); ?> to <?php echo date('d-M-Y', strtotime($toDate)); ?></p>
+            <p class="eri-subtitle">Projects with no timesheet log from <?php echo date('M Y', strtotime($fromDate)); ?> to <?php echo date('M Y', strtotime($toDate)); ?><?php echo ($fromYearIsAll || $toYearIsAll) ? ' (All = last 6 months)' : ''; ?>.</p>
         </div>
         <div>
             <a class="btn btn-info btn-flat" href="<?php echo base_url('emp_record_inactivity'); ?>" data-toggle="tooltip" title="Refresh">
@@ -345,51 +429,34 @@ if (!function_exists('eri_project_status_label')) {
         </div>
     </div>
 
-    <div class="row eri-summary-row">
-        <div class="col-md-4 col-sm-4">
-            <div class="eri-summary-card eri-card-info">
-                <div class="eri-summary-label">Total Inactive Records</div>
-                <div class="eri-summary-value"><?php echo (int)$totalRecords; ?></div>
-            </div>
-        </div>
-        <div class="col-md-4 col-sm-4">
-            <div class="eri-summary-card eri-card-warning">
-                <div class="eri-summary-label">Never Entered</div>
-                <div class="eri-summary-value"><?php echo (int)$neverEnteredCount; ?></div>
-            </div>
-        </div>
-        <div class="col-md-4 col-sm-4">
-            <div class="eri-summary-card eri-card-danger">
-                <div class="eri-summary-label">Max Days Inactive</div>
-                <div class="eri-summary-value"><?php echo $maxInactiveDays > 0 ? (int)$maxInactiveDays : '—'; ?></div>
-            </div>
-        </div>
-    </div>
-
     <div class="card eri-filter-card">
         <div class="card-body">
             <h4 class="eri-filter-title"><i class="fa fa-filter"></i> Search Filters</h4>
-            <form name="inactivity_search" id="inactivity_search" method="post" action="<?php echo base_url('emp_record_inactivity/search'); ?>">
+            <form method="post" action="<?php echo base_url('emp_record_inactivity/search'); ?>" id="eri_filter_form">
                 <div class="row">
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
-                            <label class="control-label">From Date</label>
-                            <input class="form-control eri-date-input" type="text" id="from_date" name="from_date" value="<?php echo htmlspecialchars($fromDate, ENT_QUOTES, 'UTF-8'); ?>" readonly>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="form-group">
-                            <label class="control-label">To Date</label>
-                            <input class="form-control eri-date-input" type="text" id="to_date" name="to_date" value="<?php echo htmlspecialchars($toDate, ENT_QUOTES, 'UTF-8'); ?>" readonly>
+                            <label class="control-label">Department</label>
+                            <select name="department" id="department" class="form-control">
+                                <option value="">All Departments</option>
+                                <?php foreach ($departments as $dept): ?>
+                                    <?php if (empty($dept->department)) continue; ?>
+                                    <option value="<?php echo htmlspecialchars($dept->department, ENT_QUOTES, 'UTF-8'); ?>"
+                                        <?php echo $selectedDepartment === $dept->department ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($dept->department, ENT_QUOTES, 'UTF-8'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Client</label>
-                            <select class="form-control" id="client_Id" name="client_Id">
+                            <select name="client_Id" id="client_Id" class="form-control">
                                 <option value="">All Clients</option>
                                 <?php foreach ($clients as $client): ?>
-                                    <option value="<?php echo (int)$client->client_Id; ?>" <?php echo ((string)$selectedClientId === (string)$client->client_Id) ? 'selected' : ''; ?>>
+                                    <option value="<?php echo (int)$client->client_Id; ?>"
+                                        <?php echo (string)$selectedClientId === (string)$client->client_Id ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($client->client_name, ENT_QUOTES, 'UTF-8'); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -399,26 +466,12 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Project</label>
-                            <select class="form-control" id="project_Id" name="project_Id">
+                            <select name="project_Id" id="project_Id" class="form-control">
                                 <option value="">All Projects</option>
                                 <?php foreach ($projects as $project): ?>
-                                    <option value="<?php echo (int)$project->project_Id; ?>" <?php echo ((string)$selectedProjectId === (string)$project->project_Id) ? 'selected' : ''; ?>>
+                                    <option value="<?php echo (int)$project->project_Id; ?>"
+                                        <?php echo (string)$selectedProjectId === (string)$project->project_Id ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($project->project_name, ENT_QUOTES, 'UTF-8'); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 col-sm-6">
-                        <div class="form-group">
-                            <label class="control-label">Reporting Manager</label>
-                            <select class="form-control" id="reporting_manager" name="reporting_manager">
-                                <option value="">All Reporting Managers</option>
-                                <?php foreach ($reportingManagers as $manager): ?>
-                                    <option value="<?php echo (int)$manager->empId; ?>" <?php echo ((string)$selectedReportingManager === (string)$manager->empId) ? 'selected' : ''; ?>>
-                                        <?php echo ucfirst($manager->name); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -427,46 +480,83 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Status</label>
-                            <select class="form-control" id="project_status" name="project_status">
+                            <select name="project_status" id="project_status" class="form-control">
                                 <option value="">All Status</option>
                                 <?php foreach ($projectStatuses as $statusRow): ?>
-                                    <?php $statusValue = isset($statusRow->project_status) ? trim((string)$statusRow->project_status) : ''; ?>
-                                    <?php if ($statusValue === '') { continue; } ?>
-                                    <option value="<?php echo htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ((string)$selectedProjectStatus === (string)$statusValue) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars(eri_project_status_label($statusValue), ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php if (empty($statusRow->project_status)) continue; ?>
+                                    <?php
+                                        $statusValue = trim((string)$statusRow->project_status);
+                                        $statusLabel = eri_project_status_label($statusValue);
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8'); ?>"
+                                        <?php echo $selectedProjectStatus === $statusValue ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8'); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="form-group">
-                            <label class="control-label">Employee Name</label>
-                            <input class="form-control" type="text" id="employee_name" name="employee_name" value="<?php echo htmlspecialchars($selectedEmployeeName, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Search by name">
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="form-group">
-                            <label class="control-label">Options</label>
-                            <div class="eri-checkbox-wrap">
-                                <label>
-                                    <input type="checkbox" name="include_never_entered" value="1" <?php echo $includeNeverEntered ? 'checked' : ''; ?>>
-                                    Include never entered employees
-                                </label>
+                </div>
+                <div class="eri-dates-actions-row">
+                    <div class="eri-dates-compact">
+                        <div class="kpi-ym-range-panels">
+                            <div class="kpi-ym-panel">
+                                <div class="kpi-ym-panel-title">From</div>
+                                <div class="kpi-ym-panel-fields">
+                                    <div class="kpi-ym-select-wrap">
+                                        <select name="from_year" id="from_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="From year">
+                                            <option value="">Year</option>
+                                            <option value="ALL" <?php echo $fromYearIsAll ? 'selected' : ''; ?>>All</option>
+                                            <?php for ($y = $eriEndYear; $y >= $eriStartYear; $y--): ?>
+                                                <option value="<?php echo $y; ?>" <?php echo (!$fromYearIsAll && (string)$fromYear === (string)$y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                        <span class="kpi-ym-clear-icon" onclick="clearEriYmSelect('from_year')">&times;</span>
+                                    </div>
+                                    <div class="kpi-ym-select-wrap">
+                                        <select name="from_month" id="from_month" class="form-control kpi-ym-select kpi-ym-month-select kpi-ym-clearable" title="From month" <?php echo $fromYearIsAll ? 'disabled' : ''; ?>>
+                                            <option value="">Month</option>
+                                            <?php foreach ($eriMonthLabels as $num => $label): ?>
+                                                <option value="<?php echo $num; ?>" <?php echo ($fromMonth > 0 && (int)$num === $fromMonth) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <span class="kpi-ym-clear-icon" onclick="clearEriYmSelect('from_month')">&times;</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="kpi-ym-panel">
+                                <div class="kpi-ym-panel-title">To</div>
+                                <div class="kpi-ym-panel-fields">
+                                    <div class="kpi-ym-select-wrap">
+                                        <select name="to_year" id="to_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="To year">
+                                            <option value="">Year</option>
+                                            <option value="ALL" <?php echo $toYearIsAll ? 'selected' : ''; ?>>All</option>
+                                            <?php for ($y = $eriEndYear; $y >= $eriStartYear; $y--): ?>
+                                                <option value="<?php echo $y; ?>" <?php echo (!$toYearIsAll && (string)$toYear === (string)$y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                        <span class="kpi-ym-clear-icon" onclick="clearEriYmSelect('to_year')">&times;</span>
+                                    </div>
+                                    <div class="kpi-ym-select-wrap">
+                                        <select name="to_month" id="to_month" class="form-control kpi-ym-select kpi-ym-month-select kpi-ym-clearable" title="To month" <?php echo $toYearIsAll ? 'disabled' : ''; ?>>
+                                            <option value="">Month</option>
+                                            <?php foreach ($eriMonthLabels as $num => $label): ?>
+                                                <option value="<?php echo $num; ?>" <?php echo ($toMonth > 0 && (int)$num === $toMonth) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <span class="kpi-ym-clear-icon" onclick="clearEriYmSelect('to_month')">&times;</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="form-group eri-filter-actions text-right">
-                            <button class="btn btn-primary icon-btn" type="submit">
-                                <i class="fa fa-search"></i> Search
-                            </button>
-                            <a href="<?php echo base_url('emp_record_inactivity'); ?>" class="btn btn-default icon-btn">
-                                <i class="fa fa-undo"></i> Reset
-                            </a>
-                        </div>
+                    <div class="eri-filter-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-search"></i> Search
+                        </button>
+                        <a href="<?php echo base_url('emp_record_inactivity'); ?>" class="btn btn-default">
+                            <i class="fa fa-refresh"></i> Reset
+                        </a>
                     </div>
                 </div>
             </form>
@@ -497,25 +587,22 @@ if (!function_exists('eri_project_status_label')) {
                                 <th class="eri-col-select"><input type="checkbox" id="eri_select_all_process" title="Select all Process/Closed projects on this page"></th>
                             <?php endif; ?>
                             <th class="eri-col-sno">#</th>
-                            <th class="eri-col-employee">Employee</th>
-                            <th class="eri-col-empid">Emp ID</th>
-                            <th class="eri-col-manager">Manager</th>
                             <th class="eri-col-client">Client</th>
                             <th class="eri-col-project">Project</th>
                             <th>Dept</th>
                             <th>Status</th>
                             <th class="eri-col-date">Start Date</th>
                             <th class="eri-col-date">End Date</th>
-                            <th class="eri-col-date">Last Entry</th>
+                            <th class="eri-col-date">Last Log Date</th>
                             <th class="eri-col-days">Days</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($records)): ?>
                             <tr>
-                                <td colspan="<?php echo $canCloseProjects ? 13 : 12; ?>" class="eri-empty-state">
+                                <td colspan="<?php echo $canCloseProjects ? 10 : 9; ?>" class="eri-empty-state">
                                     <i class="fa fa-inbox"></i>
-                                    No inactive records found for the selected period.
+                                    No inactive records found.
                                 </td>
                             </tr>
                         <?php else: ?>
@@ -548,11 +635,17 @@ if (!function_exists('eri_project_status_label')) {
                                         </td>
                                     <?php endif; ?>
                                     <td class="eri-col-sno"><?php echo $i; ?></td>
-                                    <td class="eri-col-employee"><?php echo ucwords($row->employee_name); ?></td>
-                                    <td class="eri-col-empid"><?php echo htmlspecialchars($row->emp_com_id, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td class="eri-col-manager"><?php echo !empty($row->reporting_manager) ? ucfirst($row->reporting_manager) : '—'; ?></td>
-                                    <td class="eri-col-client" title="<?php echo htmlspecialchars($row->client_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row->client_name, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td class="eri-col-project" title="<?php echo htmlspecialchars($row->project_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row->project_name, ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td class="eri-col-client">
+                                        <span class="eri-cell-inner">
+                                            <span class="eri-cell-text" title="<?php echo htmlspecialchars($row->client_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row->client_name, ENT_QUOTES, 'UTF-8'); ?></span>
+                                        </span>
+                                    </td>
+                                    <td class="eri-col-project">
+                                        <span class="eri-cell-inner">
+                                            <span class="eri-cell-text" title="<?php echo htmlspecialchars($row->project_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($row->project_name, ENT_QUOTES, 'UTF-8'); ?></span>
+                                            <span class="text-muted eri-cell-id">(<?php echo (int)$row->project_Id; ?>)</span>
+                                        </span>
+                                    </td>
                                     <td><?php echo !empty($row->department) ? htmlspecialchars($row->department, ENT_QUOTES, 'UTF-8') : '—'; ?></td>
                                     <td>
                                         <?php if ($row->project_status !== '—'): ?>
@@ -575,8 +668,8 @@ if (!function_exists('eri_project_status_label')) {
                                     <td class="eri-col-date"><?php echo format_inactivity_project_date(isset($row->project_start_date) ? $row->project_start_date : ''); ?></td>
                                     <td class="eri-col-date"><?php echo format_inactivity_project_date(isset($row->project_end_date) ? $row->project_end_date : ''); ?></td>
                                     <td class="eri-col-date">
-                                        <?php if (!empty($row->last_entry_date)): ?>
-                                            <?php echo date('d-M-Y', strtotime($row->last_entry_date)); ?>
+                                        <?php if (!empty($row->emp_report_dates)): ?>
+                                            <?php echo date('d-M-Y', strtotime($row->emp_report_dates)); ?>
                                         <?php else: ?>
                                             <span class="eri-badge eri-badge-never">Never</span>
                                         <?php endif; ?>
@@ -599,11 +692,100 @@ if (!function_exists('eri_project_status_label')) {
 </div>
 
 <script type="text/javascript">
+function syncEriYmSelect($select) {
+    var val = $select.val();
+    var hasValue = val !== null && val !== undefined && String(val).trim() !== '';
+    var $container = $select.next('.select2-container');
+    if ($container.length) {
+        if (hasValue) {
+            $container.addClass('cr-ym-selected-bg');
+        } else {
+            $container.removeClass('cr-ym-selected-bg');
+        }
+        return;
+    }
+    var $wrap = $select.closest('.kpi-ym-select-wrap');
+    if (hasValue) {
+        $wrap.addClass('kpi-ym-wrap-selected');
+    } else {
+        $wrap.removeClass('kpi-ym-wrap-selected');
+    }
+}
+
+function clearEriMonthIfYearAll(yearId, monthId) {
+    var yearVal = $('#' + yearId).val();
+    var $month = $('#' + monthId);
+    if (yearVal && String(yearVal).toUpperCase() === 'ALL') {
+        $month.val('').prop('disabled', true).trigger('change');
+    } else {
+        $month.prop('disabled', false);
+    }
+    syncEriYmSelect($month);
+}
+
+function clearEriYmSelect(id) {
+    var $select = $('#' + id);
+    $select.val('').trigger('change');
+    syncEriYmSelect($select);
+    if (id === 'from_year') {
+        clearEriYmSelect('from_month');
+        clearEriMonthIfYearAll('from_year', 'from_month');
+    } else if (id === 'to_year') {
+        clearEriYmSelect('to_month');
+        clearEriMonthIfYearAll('to_year', 'to_month');
+    }
+}
+
 $(function() {
-    $("#from_date, #to_date").datepicker({
-        dateFormat: 'yy-mm-dd',
-        changeMonth: true,
-        numberOfMonths: 1
+    if ($.fn.select2) {
+        $('#from_year, #to_year').select2({
+            width: '110px',
+            placeholder: 'Year',
+            allowClear: true,
+            minimumResultsForSearch: 0
+        });
+        $('#from_month, #to_month').select2({
+            width: '150px',
+            placeholder: 'Month',
+            allowClear: true,
+            minimumResultsForSearch: 0
+        });
+    }
+
+    $('.kpi-ym-clearable').each(function() {
+        syncEriYmSelect($(this));
+    });
+
+    clearEriMonthIfYearAll('from_year', 'from_month');
+    clearEriMonthIfYearAll('to_year', 'to_month');
+
+    $('#from_year').on('change', function() {
+        clearEriMonthIfYearAll('from_year', 'from_month');
+        syncEriYmSelect($(this));
+    });
+    $('#to_year').on('change', function() {
+        clearEriMonthIfYearAll('to_year', 'to_month');
+        syncEriYmSelect($(this));
+    });
+
+    $('.kpi-ym-clearable').on('change', function() {
+        syncEriYmSelect($(this));
+    });
+
+    $('#client_Id').on('change', function() {
+        var clientId = $(this).val();
+        $.ajax({
+            url: "<?php echo base_url('emp_record_inactivity/getProjectsByClient'); ?>",
+            type: "POST",
+            data: { client_Id: clientId },
+            success: function(response) {
+                $('#project_Id').html(response);
+            }
+        });
+    });
+
+    $('#eri_filter_form').on('submit', function() {
+        $('#from_month, #to_month').prop('disabled', false);
     });
 
     var $table = $('#inactivityReportTable');
@@ -611,13 +793,14 @@ $(function() {
     if ($table.find('tbody tr td').length > 1 && !$table.find('tbody tr td.eri-empty-state').length) {
         var dtColumnTargets = {
             sno: <?php echo $canCloseProjects ? 1 : 0; ?>,
-            days: <?php echo $canCloseProjects ? 12 : 11; ?>,
-            center: <?php echo $canCloseProjects ? '[3, 8, 9, 10, 11, 12]' : '[2, 7, 8, 9, 10, 11]'; ?>,
-            projectClient: <?php echo $canCloseProjects ? '[5, 6]' : '[4, 5]'; ?>
+            days: <?php echo $canCloseProjects ? 9 : 8; ?>,
+            center: <?php echo $canCloseProjects ? '[1, 5, 6, 7, 8, 9]' : '[0, 4, 5, 6, 7, 8]'; ?>
         };
 
         $table.DataTable({
             deferRender: true,
+            processing: true,
+            stateSave: false,
             pageLength: 25,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
             order: [[dtColumnTargets.days, 'desc']],
@@ -628,13 +811,7 @@ $(function() {
                 { targets: 0, orderable: false, searchable: false, width: '36px' },
                 <?php endif; ?>
                 { targets: dtColumnTargets.sno, orderable: false, width: '40px' },
-                { targets: dtColumnTargets.center, className: 'text-center' },
-                { targets: dtColumnTargets.projectClient, render: function(data, type) {
-                    if (type === 'display' && data && data.length > 42) {
-                        return '<span title="' + $('<div>').text(data).html() + '">' + $('<div>').text(data).html().substring(0, 42) + '…</span>';
-                    }
-                    return data;
-                }}
+                { targets: dtColumnTargets.center, className: 'text-center' }
             ],
             language: {
                 search: 'Quick Search:',
@@ -800,18 +977,6 @@ $(function() {
     });
 
     updateStatusButtonState();
-
-    $('#client_Id').on('change', function() {
-        var clientId = $(this).val();
-        $.ajax({
-            url: "<?php echo base_url('emp_record_inactivity/getProjectsByClient'); ?>",
-            type: "POST",
-            data: { client_Id: clientId },
-            success: function(response) {
-                $('#project_Id').html(response);
-            }
-        });
-    });
 });
 </script>
 

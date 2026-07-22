@@ -274,7 +274,7 @@ function prepareClientReportFilterFormForSubmit() {
     if ($("#from_year").length) {
         var fy = $("#from_year").val();
         if (fy && String(fy).toUpperCase() === "ALL") {
-            $("#from_month").val("").prop("disabled", true);
+            $("#from_month").val(null).prop("disabled", true).trigger("change");
         } else {
             $("#from_month").prop("disabled", false);
         }
@@ -282,7 +282,7 @@ function prepareClientReportFilterFormForSubmit() {
     if ($("#to_year").length) {
         var ty = $("#to_year").val();
         if (ty && String(ty).toUpperCase() === "ALL") {
-            $("#to_month").val("").prop("disabled", true);
+            $("#to_month").val(null).prop("disabled", true).trigger("change");
         } else {
             $("#to_month").prop("disabled", false);
         }
@@ -601,6 +601,14 @@ if (!is_array($getempId)) {
     width: 100% !important;
     max-width: 100%;
 }
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container {
+    width: 128px !important;
+    min-width: 128px;
+    max-width: 128px;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .kpi-ym-clear-icon {
+    display: none !important;
+}
 .client-report-filter-grid .select2-container .select2-selection--multiple,
 .client-report-filter-grid .select2-container .select2-selection--single {
     min-height: 40px !important;
@@ -608,19 +616,76 @@ if (!is_array($getempId)) {
     border-radius: 8px !important;
     background: #fff !important;
 }
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container .select2-selection--single {
+    min-height: 38px !important;
+    border-color: #cfd6df !important;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container .select2-selection__rendered {
+    line-height: 36px !important;
+    padding-left: 12px !important;
+    color: #4a5568 !important;
+    font-weight: 500;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container .select2-selection__arrow {
+    height: 36px;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container.cr-ym-selected-bg .select2-selection--single {
+    background-color: #6f42c1 !important;
+    border-color: #6f42c1 !important;
+    box-shadow: 0 1px 3px rgba(111, 66, 193, 0.35);
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container.cr-ym-selected-bg .select2-selection__rendered {
+    color: #fff !important;
+    font-weight: 600;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container.cr-ym-selected-bg .select2-selection__clear {
+    color: #fff !important;
+    margin-right: 6px;
+}
+.client-report-filter-grid .kpi-ym-select-wrap .select2-container.cr-ym-selected-bg .select2-selection__arrow b {
+    border-top-color: #fff !important;
+}
 .client-report-filter-grid .select2-container--default.select2-container--focus .select2-selection--multiple,
 .client-report-filter-grid .select2-container--default.select2-container--focus .select2-selection--single {
-    border-color: #014b88 !important;
-    box-shadow: 0 0 0 3px rgba(1, 75, 136, 0.12);
+    border-color: #6f42c1 !important;
+    box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.15);
 }
 .client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice,
 .client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-    background-color: #6d28d9 !important;
-    border-color: #5b21b6 !important;
+    background-color: #6f42c1 !important;
+    border-color: #6f42c1 !important;
     color: #fff !important;
 }
 .client-report-filter-grid .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
     color: #f5f3ff !important;
+}
+.client-report-filter-grid .select2-container--default .select2-results__option--highlighted[aria-selected],
+.client-report-filter-grid .select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: #6f42c1 !important;
+    color: #fff !important;
+}
+.cr-client-report-ym-dropdown.select2-dropdown {
+    border: 1px solid #6f42c1;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(111, 66, 193, 0.18);
+}
+.cr-client-report-ym-dropdown .select2-search--dropdown {
+    padding: 8px;
+}
+.cr-client-report-ym-dropdown .select2-search__field {
+    border: 1px solid #6f42c1 !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+    outline: none;
+}
+.cr-client-report-ym-dropdown .select2-search__field:focus {
+    box-shadow: 0 0 0 2px rgba(111, 66, 193, 0.15);
+}
+.cr-client-report-ym-dropdown .select2-results__option--highlighted[aria-selected],
+.cr-client-report-ym-dropdown .select2-results__option[aria-selected="true"] {
+    background-color: #6f42c1 !important;
+    color: #fff !important;
 }
 .client-report-filter-grid #filter_project + .select2-container .select2-selection--multiple {
     background: #fff !important;
@@ -740,7 +805,7 @@ if (!is_array($getempId)) {
                             <div class="kpi-ym-select-wrap">
                                 <select name="from_year" id="from_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="From year">
                                     <option value="">Year</option>
-                                    <option value="ALL" <?= $uiFromYearIsAll ? 'selected' : '' ?>>ALL</option>
+                                    <option value="ALL" <?= $uiFromYearIsAll ? 'selected' : '' ?>>All</option>
                                     <?php for ($y = $kpiEndYear; $y >= $kpiStartYear; $y--): ?>
                                     <option value="<?= $y ?>" <?= (!$uiFromYearIsAll && (int) $uiFromYear === $y) ? 'selected' : '' ?>><?= $y ?></option>
                                     <?php endfor; ?>
@@ -764,7 +829,7 @@ if (!is_array($getempId)) {
                             <div class="kpi-ym-select-wrap">
                                 <select name="to_year" id="to_year" class="form-control kpi-ym-select kpi-ym-year-select kpi-ym-clearable" title="To year">
                                     <option value="">Year</option>
-                                    <option value="ALL" <?= $uiToYearIsAll ? 'selected' : '' ?>>ALL</option>
+                                    <option value="ALL" <?= $uiToYearIsAll ? 'selected' : '' ?>>All</option>
                                     <?php for ($y = $kpiEndYear; $y >= $kpiStartYear; $y--): ?>
                                     <option value="<?= $y ?>" <?= (!$uiToYearIsAll && (int) $uiToYear === $y) ? 'selected' : '' ?>><?= $y ?></option>
                                     <?php endfor; ?>
@@ -798,9 +863,19 @@ if (!is_array($getempId)) {
 <script>
 function syncClientReportYmSelect($select) {
     var val = $select.val();
+    var hasValue = val !== null && val !== undefined && String(val).trim() !== '';
+    var $container = $select.next('.select2-container');
+    if ($container.length) {
+        if (hasValue) {
+            $container.addClass('cr-ym-selected-bg');
+        } else {
+            $container.removeClass('cr-ym-selected-bg');
+        }
+        return;
+    }
     var $wrap = $select.closest('.kpi-ym-select-wrap');
     var $clear = $select.siblings('.kpi-ym-clear-icon');
-    if (val !== null && String(val).trim() !== '') {
+    if (hasValue) {
         $wrap.addClass('kpi-ym-wrap-selected');
         $clear.show();
     } else {
@@ -810,7 +885,7 @@ function syncClientReportYmSelect($select) {
 }
 function clearClientReportYmSelect(id) {
     var $select = $('#' + id);
-    $select.val('');
+    $select.val(null).trigger('change');
     syncClientReportYmSelect($select);
     if (id === 'from_year') {
         clearClientReportYmSelect('from_month');
@@ -823,7 +898,7 @@ function clearClientReportMonthIfYearAll(yearSelectId, monthSelectId) {
     var yearVal = $('#' + yearSelectId).val();
     if (yearVal && String(yearVal).toUpperCase() === 'ALL') {
         var $month = $('#' + monthSelectId);
-        $month.val('');
+        $month.val(null).trigger('change');
         syncClientReportYmSelect($month);
     }
 }
@@ -842,7 +917,24 @@ function updateClientReportHeading() {
         $('#kpiReportHeading').text('Client Report');
     }
 }
+function initClientReportYmSelect2() {
+    if (!$.fn.select2) {
+        return;
+    }
+    var ymConfig = function(placeholder) {
+        return {
+            width: '128px',
+            placeholder: placeholder,
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownCssClass: 'cr-client-report-ym-dropdown'
+        };
+    };
+    $('#from_year, #to_year').select2(ymConfig('Year'));
+    $('#from_month, #to_month').select2(ymConfig('Month'));
+}
 $(document).ready(function() {
+    initClientReportYmSelect2();
     $('.kpi-ym-clearable').each(function() {
         syncClientReportYmSelect($(this));
     });
@@ -1578,54 +1670,24 @@ $tdBase = 'text-align:center;padding:12px 8px;font-weight:bold;border:1px solid 
                 return $timestamp;
             };
             
-            // Calculate earliest start date and latest end date from all projects
-            // Use project_end_date from project_details table for end date
-            $earliestStartDate = null;
-            $latestEndDate = null;
-            foreach ($data['projects'] as $proj) {
-                if (!empty($proj->project_start_date)) {
-                    $projStartDate = $isValidDate($proj->project_start_date);
-                    if ($projStartDate !== false && ($earliestStartDate === null || $projStartDate < $earliestStartDate)) {
-                        $earliestStartDate = $projStartDate;
-                    }
-                }
-                // Use project_end_date from project_details table
-                if (!empty($proj->project_end_date)) {
-                    $projEndDate = $isValidDate($proj->project_end_date);
-                    if ($projEndDate !== false && ($latestEndDate === null || $projEndDate > $latestEndDate)) {
-                        $latestEndDate = $projEndDate;
-                    }
-                }
-            }
+            // Client row dates: MIN/MAX across all non-general projects (same as Execution Plan / Excel export).
+            $clientDates = client_report_resolve_client_dates($data);
+            $clientStartDateTs = $clientDates['start_ts'];
+            $clientEndDateTs = $clientDates['end_ts'];
             
-            // Calculate month abbreviation from date range or project dates
+            // Calculate month abbreviation from date range or client start date
             $monthDisplay = '--';
             if (!empty($from_date)) {
                 $monthTimestamp = $isValidDate($from_date);
                 if ($monthTimestamp !== false) {
                     $monthDisplay = date('M', $monthTimestamp);
                 }
-            } elseif ($earliestStartDate !== null) {
-                $monthDisplay = date('M', $earliestStartDate);
+            } elseif ($clientStartDateTs !== false) {
+                $monthDisplay = date('M', $clientStartDateTs);
             }
             
-            // Format dates separately for Start Date and End Date based on projects
-            $startDateDisplay = '';
-            $endDateDisplay = '';
-            if ($earliestStartDate !== null) {
-                $formattedDate = date('d-M-Y', $earliestStartDate);
-                // Check if formatted date is not 01-Jan-1970
-                if ($formattedDate != '01-Jan-1970') {
-                    $startDateDisplay = $formattedDate;
-                }
-            }
-            if ($latestEndDate !== null) {
-                $formattedDate = date('d-M-Y', $latestEndDate);
-                // Check if formatted date is not 01-Jan-1970
-                if ($formattedDate != '01-Jan-1970') {
-                    $endDateDisplay = $formattedDate;
-                }
-            }
+            $startDateDisplay = client_report_format_client_date_display($clientStartDateTs);
+            $endDateDisplay = client_report_format_client_date_display($clientEndDateTs);
             $clientMonthId = md5($clientId . '_' . (isset($from_date) ? $from_date : '') . '_' . (isset($to_date) ? $to_date : '') . '_' . $monthLabel);
             ?>
             <tr class="client-row"

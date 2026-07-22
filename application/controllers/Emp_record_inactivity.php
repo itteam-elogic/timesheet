@@ -5,7 +5,6 @@ class Emp_record_inactivity extends CI_Controller {
 
     public function __construct() {
         parent::__construct();
-        $this->load->helper('form');
         $this->load->library('session');
         $this->load->model('timesheet_login');
         $this->load->model('emp_record_inactivity_model');
@@ -16,69 +15,68 @@ class Emp_record_inactivity extends CI_Controller {
     }
 
     public function index() {
-        $filters = $this->buildFiltersFromRequest();
-        $data = $this->buildViewData($filters);
+        $data = $this->buildViewData($this->buildFiltersFromRequest());
         $this->load->view('emp_record_inactivity/inactivity_report', $data);
     }
 
     public function search() {
-        $filters = $this->buildFiltersFromRequest();
-        $data = $this->buildViewData($filters);
+        $data = $this->buildViewData($this->buildFiltersFromRequest());
         $this->load->view('emp_record_inactivity/inactivity_report', $data);
     }
 
     public function getProjectsByClient() {
         $clientId = trim((string)$this->input->post('client_Id'));
+        $selectedProjectId = trim((string)$this->input->post('project_Id'));
         $projects = $this->emp_record_inactivity_model->getProjectsByClient($clientId);
 
         echo '<option value="">All Projects</option>';
         foreach ($projects as $project) {
-            echo '<option value="' . (int)$project->project_Id . '">' . htmlspecialchars($project->project_name, ENT_QUOTES, 'UTF-8') . '</option>';
+            $pid = (int)$project->project_Id;
+            $selected = ($selectedProjectId !== '' && (int)$selectedProjectId === $pid) ? ' selected' : '';
+            echo '<option value="' . $pid . '"' . $selected . '>'
+                . htmlspecialchars($project->project_name, ENT_QUOTES, 'UTF-8')
+                . '</option>';
         }
     }
 
     private function buildFiltersFromRequest() {
-        $fromDate = trim((string)$this->input->post('from_date'));
-        $toDate = trim((string)$this->input->post('to_date'));
+        $fromYear = $this->input->get_post('from_year');
+        $fromMonth = $this->input->get_post('from_month');
+        $toYear = $this->input->get_post('to_year');
+        $toMonth = $this->input->get_post('to_month');
 
-        if ($fromDate === '') {
-            $fromDate = $this->emp_record_inactivity_model->getDefaultFromDate();
-        }
-        if ($toDate === '') {
-            $toDate = $this->emp_record_inactivity_model->getDefaultToDate();
-        }
+        $resolved = $this->emp_record_inactivity_model->resolveYearMonthDateRange(
+            $fromYear,
+            $fromMonth,
+            $toYear,
+            $toMonth
+        );
 
         return array(
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-            'client_Id' => trim((string)$this->input->post('client_Id')),
-            'project_Id' => trim((string)$this->input->post('project_Id')),
-            'reporting_manager' => trim((string)$this->input->post('reporting_manager')),
-            'employee_name' => trim((string)$this->input->post('employee_name')),
-            'project_status' => trim((string)$this->input->post('project_status')),
-            'include_never_entered' => $this->input->post('include_never_entered') ? '1' : '0',
+            'from_date' => $resolved['from_date'],
+            'to_date' => $resolved['to_date'],
+            'from_year' => $resolved['from_year'],
+            'from_month' => $resolved['from_month'],
+            'to_year' => $resolved['to_year'],
+            'to_month' => $resolved['to_month'],
+            'department' => trim((string)$this->input->get_post('department')),
+            'client_Id' => trim((string)$this->input->get_post('client_Id')),
+            'project_Id' => trim((string)$this->input->get_post('project_Id')),
+            'project_status' => trim((string)$this->input->get_post('project_status')),
         );
     }
 
     private function buildViewData($filters) {
-        $inactiveRecords = $this->emp_record_inactivity_model->getInactiveTimesheetRecords($filters);
-        $neverEntered = array();
-
-        if (!empty($filters['include_never_entered']) && $filters['include_never_entered'] === '1'
-            && $filters['client_Id'] === '' && $filters['project_Id'] === ''
-            && $filters['project_status'] === '') {
-            $neverEntered = $this->emp_record_inactivity_model->getEmployeesNeverEntered($filters);
-        }
-
-        $records = array_merge($inactiveRecords, $neverEntered);
+        $clientId = isset($filters['client_Id']) ? $filters['client_Id'] : '';
+        $dropdowns = $this->emp_record_inactivity_model->getFilterDropdownData($clientId);
 
         return array(
-            'records' => $records,
+            'records' => $this->emp_record_inactivity_model->getInactiveTimesheetRecords($filters),
             'filters' => $filters,
-            'clients' => $this->emp_record_inactivity_model->getActiveClients(),
-            'projects' => $this->emp_record_inactivity_model->getProjectsByClient($filters['client_Id']),
-            'reportingManagers' => $this->emp_record_inactivity_model->getReportingManagersList(),
-            'projectStatuses' => $this->emp_record_inactivity_model->getProjectStatuses(),
+            'clients' => $dropdowns['clients'],
+            'projects' => $dropdowns['projects'],
+            'departments' => $dropdowns['departments'],
+            'projectStatuses' => $dropdowns['projectStatuses'],
             'canCloseProjects' => $this->canCloseProcessProjects(),
         );
     }

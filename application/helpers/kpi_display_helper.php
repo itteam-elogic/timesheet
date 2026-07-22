@@ -147,6 +147,80 @@ if (!function_exists('client_report_matches_any_term')) {
 }
 
 /**
+ * Parse a project/client date for KPI client report display.
+ *
+ * @param mixed $dateStr
+ * @return int|false Unix timestamp or false when invalid
+ */
+if (!function_exists('client_report_client_date_ts')) {
+    function client_report_client_date_ts($dateStr)
+    {
+        if (empty($dateStr) || $dateStr == '0000-00-00' || $dateStr == '0000-00-00 00:00:00') {
+            return false;
+        }
+        $timestamp = strtotime($dateStr);
+        if ($timestamp === false || $timestamp < 0) {
+            return false;
+        }
+        if (date('Y-m-d', $timestamp) == '1970-01-01') {
+            return false;
+        }
+        return $timestamp;
+    }
+}
+
+/**
+ * Resolve client-row start/end dates (SQL MIN/MAX), with fallback to project row fields.
+ *
+ * @param array $data Grouped client data from client report
+ * @return array{start_ts: int|false, end_ts: int|false}
+ */
+if (!function_exists('client_report_resolve_client_dates')) {
+    function client_report_resolve_client_dates(array $data)
+    {
+        $start = isset($data['client_start_date']) ? $data['client_start_date'] : '';
+        $end = isset($data['client_end_date']) ? $data['client_end_date'] : '';
+        if (($start === '' || $start === null) && !empty($data['projects']) && is_array($data['projects'])) {
+            foreach ($data['projects'] as $proj) {
+                if (!empty($proj->client_start_date)) {
+                    $start = $proj->client_start_date;
+                    break;
+                }
+            }
+        }
+        if (($end === '' || $end === null) && !empty($data['projects']) && is_array($data['projects'])) {
+            foreach ($data['projects'] as $proj) {
+                if (!empty($proj->client_end_date)) {
+                    $end = $proj->client_end_date;
+                    break;
+                }
+            }
+        }
+        return array(
+            'start_ts' => client_report_client_date_ts($start),
+            'end_ts' => client_report_client_date_ts($end),
+        );
+    }
+}
+
+/**
+ * Format client-row date for grid / Excel (d-M-Y).
+ *
+ * @param int|false|null $timestamp
+ * @return string
+ */
+if (!function_exists('client_report_format_client_date_display')) {
+    function client_report_format_client_date_display($timestamp)
+    {
+        if ($timestamp === false || $timestamp === null) {
+            return '';
+        }
+        $formattedDate = date('d-M-Y', $timestamp);
+        return ($formattedDate != '01-Jan-1970') ? $formattedDate : '';
+    }
+}
+
+/**
  * Legacy OR filter across merged search terms (free-text / comma-separated search only).
  *
  * @param array $grouped

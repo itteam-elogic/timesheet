@@ -3175,6 +3175,9 @@ $isMEPManager = in_array($empId, $mepManagers);
         ) as project_invoice_amt,';
     }
     $reportMonthSelect = $aggregate_by_month ? 'project_hours.report_month,' : '';
+    $clientDateSubqueryBase = " FROM project_details p2
+        WHERE p2.client_Id = client_details.client_Id
+        AND LOWER(COALESCE(p2.project_name, '')) NOT LIKE '%general%'";
     $this->db->select('
         project_hours.client_Id,
         project_hours.project_Id,
@@ -3188,6 +3191,12 @@ $isMEPManager = in_array($empId, $mepManagers);
         project_details.man_days,
         project_details.project_start_date,
         project_details.project_end_date,
+        (SELECT MIN(p2.project_start_date)' . $clientDateSubqueryBase . '
+            AND p2.project_start_date IS NOT NULL
+            AND p2.project_start_date != \'0000-00-00\') as client_start_date,
+        (SELECT MAX(p2.project_end_date)' . $clientDateSubqueryBase . '
+            AND p2.project_end_date IS NOT NULL
+            AND p2.project_end_date != \'0000-00-00\') as client_end_date,
         ' . $selectInvoice . '
         employee_details.name AS pm_name,
         client_pm_ed.name AS client_pm_name,

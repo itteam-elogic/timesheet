@@ -254,6 +254,10 @@ class Execution_plan_model extends CI_Model {
 			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'{$tsGeneralDateFilter}
 			GROUP BY gp.client_Id, LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))) ts_general_project_totals";
 
+		$clientDateSubqueryBase = " FROM project_details p2
+			WHERE p2.client_Id = c.client_Id
+			AND LOWER(COALESCE(p2.project_name, '')) NOT LIKE '%general%'";
+
 		$this->db->select('
 				p.project_Id,
 				p.project_name,
@@ -274,6 +278,12 @@ class Execution_plan_model extends CI_Model {
 				c.client_name,
 				c.client_Id,
 				COALESCE(NULLIF(TRIM(c.status), ""), "Inactive") as client_status,
+				(SELECT MIN(p2.project_start_date)' . $clientDateSubqueryBase . '
+					AND p2.project_start_date IS NOT NULL
+					AND p2.project_start_date != \'0000-00-00\') as client_start_date,
+				(SELECT MAX(p2.project_end_date)' . $clientDateSubqueryBase . '
+					AND p2.project_end_date IS NOT NULL
+					AND p2.project_end_date != \'0000-00-00\') as client_end_date,
 				emp.name as project_manager_name,
 				p.empId as project_manager_id,
 				COALESCE(NULLIF(TRIM(p.project_type), ""), c.department) as department
