@@ -1,6 +1,6 @@
 /**
  * KPI reports shared styles (#kpiPage)
- * Table typography: headers 20px bold, data cells 18px normal
+ * Table typography: headers 15px bold, data cells 15px normal
  * Hours display: numeric only (no "hrs" suffix) — see kpi_display_helper.php
  */
 /* Apply styles only within the #kpi page */
@@ -324,7 +324,7 @@
 #kpiPage #employeeTable.client-report-table thead th,
 #kpiPage .table thead th {
   font-family: 'Roboto Condensed', sans-serif !important;
-  font-size: 20px !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
   padding: 12px 10px !important;
   line-height: 1.35 !important;
@@ -334,7 +334,7 @@
 #kpiPage #employeeTable.client-report-table tbody td,
 #kpiPage .table tbody td {
   font-family: 'Roboto Condensed', sans-serif !important;
-  font-size: 18px !important;
+  font-size: 15px !important;
   font-weight: 400 !important;
   padding: 12px 10px !important;
   line-height: 1.35 !important;
@@ -419,6 +419,25 @@
     background-color: #5cb85c;
     border-color: #4cae4c;
     opacity: 0.85;
+}
+
+/* Client report header reset button - blue, left of export */
+#kpiPage .client-report-reset-btn-wrap .btn {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    gap: 8px;
+}
+
+#kpiPage .client-report-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: -45px;
+}
+
+#kpiPage .client-report-page-actions .generate-report-btn {
+    margin-left: 0;
 }
 
 

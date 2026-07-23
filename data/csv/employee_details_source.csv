@@ -1,0 +1,90 @@
+empId,name,emp_com_id,email,username,designation,user_type,reporting_manger,emp_joining_date,department,mobile_num,avatar,status,created_at,updated_at
+41,Sandeep Anupati,307,sandeep@elogictech.com,sandeep,Project Delivery Head - North America,manager,47,4/23/2012,Architectural,,default.jpg,Active,7/24/2017 9:37,6/18/2026 10:04
+46,Suman Kumar,340,suman@elogictech.com,suman,IT and Infrastructure Manager,manager,92,8/18/2014,IT,,default.jpg,Active,7/24/2017 9:42,6/18/2026 10:07
+47,Pradip Chauhan,236,pradip@elogictech.com,pradip,Global Delivery Head - ASMEP,manager,92,7/17/2007,Architectural,,default.jpg,Active,7/24/2017 10:06,6/18/2026 10:02
+53,Rajanikanth Bhasuthkar,315,rajanikanth@elogictech.com,rajanikanth,Project Manager - CAD,manager,41,03-09-12,2D Auto CAD,9885591918,53_IMG_20161228_220636.jpg,Active,7/24/2017 10:12,7/20/2026 14:54
+64,Abdul Razzak,654,razzak@elogictech.com,razzak,Project Coordinator - Arch,developer,71,3/28/2022,Architectural,9666800217,64_Capture.JPG,Active,7/24/2017 10:43,7/20/2026 14:54
+71,Siva Krishna,391,sivakrishna@elogictech.com,gudipati,Senior - Project Manager - Arch,manager,47,4/18/2016,Architectural,8019598092,71_Sivakrishna.jpg,Active,7/24/2017 10:48,7/20/2026 14:54
+92,Rupali Modi,0,rupali@elogictech.com,rupali,Founder & CEO,admin,0,0000-00-00,Software,,92_CEO.jpg,Active,7/26/2017 13:23,04-03-24 12:53
+136,Mohammad fayaz,485,fayaz@elogictech.com,fayaz,Asst Project Manager - Arch,developer,41,10/29/2018,Architectural,,default.jpg,Active,11-08-18 11:05,6/18/2026 10:13
+140,Shirley Rufina,235,shirley@elogictech.com,shirley,HR Manager,manager,92,7/17/2007,HR,,default.jpg,Active,12/27/2018 13:54,6/18/2026 13:40
+146,Syed Afsar,499,afsar@elogictech.com,syed,Project Manager - Electrical,manager,541,04-02-19,MEP,,default.jpg,Active,02-04-19 10:18,6/18/2026 10:15
+149,Syed Farhan,233,farhan@elogictech.com,farhan,Vice President - Sales,manager,92,09-07-07,Business Development,,default.jpg,Active,02-04-19 12:59,6/18/2026 9:55
+150,Arun kumar,610,arun@elogictech.com,arun,BIM Architect,developer,41,10-11-21,Architectural,9989872488,default.jpg,Active,03-12-19 11:04,6/23/2026 8:21
+183,Hemanth kmv,293,accounts@elogictech.com,hemanthkmv,Accounts Manager,manager,92,4/21/2022,Accounting,,default.jpg,Active,02-03-20 14:26,6/18/2026 11:50
+197,Singipilli Rakesh,600,rakeshs@elogictech.com,rakeshs,Assistant  Project Manager - Arch,developer,41,08-09-21,Architectural,,197_Media_.jpeg,Active,02-08-21 11:18,7/20/2026 14:54
+245,Yacoob Pasha,629,yacoob@elogictech.com,yacoob,Junior Project Manager - Mech,developer,541,1/17/2022,MEP,,default.jpg,Active,1/19/2022 15:21,7/20/2026 14:53
+299,Rakesh Bottu,688,rakeshb@elogictech.com,rakeshb,Senior BIM Modeler - Arch,developer,41,07-01-22,Architectural,,default.jpg,Active,6/27/2022 14:53,7/20/2026 14:53
+300,Dada Khalandar,689,dada@elogictech.com,dada,BIM Modeler - Arch,developer,71,07-01-22,Architectural,9182171861,300_Capture.PNG,Active,07-04-22 12:07,7/20/2026 14:53
+319,Theddu Rakesh,711,rakesht@elogictech.com,rakesht,Senior BIM Modeler - Arch,developer,41,09-10-22,Architectural,,default.jpg,Active,09-09-22 13:16,7/20/2026 14:53
+351,Hyder Hyder,744,hyder@elogictech.com,hyder,Project Coordinator Arch,developer,71,02-08-23,Architectural,,default.jpg,Active,02-09-23 7:43,7/20/2026 14:51
+371,Moin Patel,784,moinpatel@elogictech.com,moinpatel,Project Co-ordinator - Electrical,developer,146,09-12-23,MEP,9561264948,default.jpg,Active,3/27/2023 7:27,7/20/2026 14:50
+372,Jatin Samala,768,jatin@elogictech.com,jatin,BIM Modeler - Mech,developer,541,04-03-23,MEP,,default.jpg,Active,3/27/2023 7:27,7/20/2026 14:50
+378,Sultan Shaik,759,sultan@elogictech.com,sultan,Junior BIM Modeler - Arch,developer,71,3/27/2023,Architectural,,default.jpg,Active,3/27/2023 9:12,7/20/2026 14:50
+384,Jaishri Jain,766,jaishree@elogictech.com,jaishri,Operation Manager,admin,92,4/18/2023,Operations,9100191056,default.jpg,Active,4/18/2023 10:02,6/18/2026 12:10
+391,Ashish Mattaparthi,773,ashish.mattaparthi@elogictech.com,ashish.mattaparthi,Assistant Project Manager - Electrical,developer,146,06-05-23,MEP,,default.jpg,Active,06-06-23 12:09,7/20/2026 14:50
+401,Seethaiah Maddineni,787,seethaiah@elogictech.com,seethaiah,Senior BIM Modeler - Electrical,developer,146,09-04-23,MEP,,default.jpg,Active,09-04-23 8:54,7/20/2026 14:49
+402,Nagakishore Chandhavolu,786,nagakishore@elogictech.com,nagakishore,Senior BIM Engineer - Plumbing,developer,146,8/31/2023,MEP,9100532035,default.jpg,Active,09-06-23 6:35,7/20/2026 14:49
+405,Danda Sai,790,saigopi@elogictech.com,saigopi,Structural Engineer ,developer,394,10-04-23,Structural,,default.jpg,Active,10-05-23 12:02,6/18/2026 12:17
+416,SaiKrishna Puram,765,krishna@elogictech.com,krishna,HR Executive,developer,140,4/17/2023,Others,9505031819,416_VKD_6131.JPG,Active,11-01-23 14:43,6/18/2026 12:08
+421,Laxmikanth Suram,378,laxmikanth@elogictech.com,kanth,Tech Lead,manager,384,10/15/2015,Software,,default.jpg,Active,11-06-23 11:24,6/18/2026 10:09
+424,Chitikila appalanaidu,850,chitikila.appalanaidu@outlook.com,chitikila.appalanaidu,BIM Modeler - Electrical,developer,146,4/28/2025,MEP,,default.jpg,Active,11/15/2023 15:57,6/18/2026 12:24
+425,Satyanarayana VV,849,satyanarayana.vv@outlook.com,satyanarayana,BIM Modeler - Electrical,developer,146,04-04-25,MEP,,default.jpg,Active,11/15/2023 15:57,6/18/2026 12:23
+440,Nadeem Ali,807,nadeemali.s@elogictech.com,nadeemali.s,BIM Modeler - Electrical,developer,146,03-05-24,MEP,,default.jpg,Active,03-05-24 7:04,7/20/2026 14:49
+442,Jyothi Nakkanaboina,809,jyothi.n@elogictech.com,jyothi.n,Junior Modeler - Electrical,developer,146,4/26/2025,MEP,,default.jpg,Active,3/25/2024 7:52,7/20/2026 14:49
+444,Pranavi Nallani,852,pranavi@elogictech.com,pranavi,Junior Modeler - Electrical,developer,146,4/26/2025,MEP,8897415286,default.jpg,Active,04-04-24 14:24,7/20/2026 14:49
+454,Vikas Alagandula,816,vikas.a@elogictech.com,vikas.a,Project Coordinator - Mech,developer,541,06-03-24,MEP,8179144479,454_Vikas.jpg,Active,06-03-24 7:26,7/20/2026 14:47
+459,Nouman Syed,578,nouman@elogictech.com,nouman,Manager - Business Development,developer,149,04-06-21,Business Development,,default.jpg,Active,7/31/2024 15:20,6/18/2026 11:37
+462,Mirza Ibrahim,565,mirza@elogictech.com,mirza,Manager - Business Development,developer,149,12-11-21,Business Development,,default.jpg,Active,8/13/2024 9:18,6/18/2026 10:17
+463,Sai Kumar,779,saikumar.yadav@elogictech.com,saikumar,Business Development Executive,developer,149,7/20/2023,Business Development,,default.jpg,Active,8/13/2024 9:24,6/18/2026 12:13
+464,Sai krishna,717,sai@elogictech.com,saikrishnav,Business Development Executive,developer,149,10/17/2022,Business Development,,default.jpg,Active,8/13/2024 9:30,6/18/2026 11:57
+465,Hari Krishna,723,harry@elogictech.com,harikrishna,Assistant Manager - Sales & Business Development,developer,47,11-07-22,Business Development,,default.jpg,Active,8/13/2024 9:31,6/18/2026 12:02
+475,Prathyusha Injati,829,prathyusha@elogictech.com,prathyusha,Project Coordinator - Electrical,developer,146,11-04-24,MEP,,default.jpg,Active,11-04-24 9:16,7/20/2026 14:46
+481,Jyothsna Pappu,834,jyothsna@elogictech.com,jyothsna,HR - Recruiter,developer,140,03-06-25,HR,,default.jpg,Active,03-05-25 7:57,6/18/2026 13:39
+501,Chandrika Sarella,857,chandrika@elogictech.com,chandrika,Junior Structural Engineer ,developer,394,6/30/2025,Structural,,default.jpg,Active,07-02-25 9:52,6/18/2026 12:26
+504,Ankathi Prathyusha,860,prathyusha.a@elogictech.com,prathyushaa,BIM Engineer   - Mech,developer,541,8/22/2025,MEP,,default.jpg,Active,10/23/2025 8:32,6/18/2026 8:04
+505,Paidi Akhila,861,akhila@elogictech.com,akhilareddy,Junior Software Executive,developer,384,11-10-25,Software,,default.jpg,Active,11-12-25 9:02,6/17/2026 12:33
+506,Balakrishna Yerra,862,balakrishna@elogictech.com,balakrishna,3D Visualizer,developer,53,12-08-25,2D Auto CAD,,default.jpg,Active,12/17/2025 6:17,6/18/2026 12:27
+508,Ramya Sri,864,ramya@elogictech.com,ramya,Junior BIM Modeler - Struc,developer,394,01-07-26,Structural,,default.jpg,Active,01-08-26 16:27,6/18/2026 12:28
+509,Lalith Nallala,866,lalith@elogictech.com,lalith,BIM Architect,developer,41,1/19/2026,Architectural,,default.jpg,Active,1/20/2026 8:23,6/18/2026 12:29
+510,Md Yadul,865,yadul@elogictech.com,yadul,Senior BIM Engineer - Arch,developer,71,1/19/2026,Architectural,,default.jpg,Active,1/20/2026 8:26,7/20/2026 14:46
+511,N Bhaskar,867,bhaskar@elogictech.com,bhaskar,3D Visualizer,developer,523,1/21/2026,3D Visualization,,default.jpg,Active,1/21/2026 16:02,6/18/2026 12:31
+512,Danapana Devaraju,868,devaraju@elogictech.com,devaraju,3D Visualizer ,developer,523,1/29/2026,3D Visualization,,default.jpg,Active,02-03-26 12:48,6/18/2026 12:32
+513,Shaik zakeer,870,zakeer@elogictech.com,zakeer,3D Visualizer ,developer,523,02-03-26,3D Visualization,,default.jpg,Active,02-04-26 9:51,6/18/2026 12:34
+514,Sunkara Sriram,870,sriram@elogictech.com,sriram,3D Visualizer ,developer,523,02-03-26,3D Visualization,,default.jpg,Active,02-04-26 9:52,6/18/2026 12:35
+515,MD Naushad,869,naushad@elogictech.com,naushad,BIM Modeler - Arch,developer,71,02-02-26,Architectural,,default.jpg,Active,02-04-26 9:56,7/20/2026 14:46
+516,Uma Maheshwara,872,uma@elogictech.com,uma,BIM Engineer - Arch,developer,71,02-09-26,Architectural,9010410816,default.jpg,Active,02-12-26 7:14,7/20/2026 14:46
+517,Shoaib Akhtar,873,shoaib@elogictech.com,shoaib,BIM Engineer - Arch,developer,71,02-09-26,Architectural,,default.jpg,Active,02-12-26 7:16,7/20/2026 14:46
+518,Domala Mahesh,874,mahesh@elogictech.com,mahesh,Architect,developer,53,2/20/2026,2D Auto CAD,,default.jpg,Active,2/24/2026 5:32,6/18/2026 12:37
+519,Mayur Parihar,875,mayur@elogictech.com,mayur,Senior BIM Engineer - Arch,developer,71,2/24/2026,Architectural,,default.jpg,Active,2/26/2026 7:05,7/20/2026 14:45
+520,Nandini Padamati,876,nandini@elogictech.com,nandini,Junior BIM Modeler - Struc,developer,394,2/25/2026,Structural,,default.jpg,Active,2/26/2026 7:06,7/20/2026 14:45
+523,Nikhil Bachawal,880,nikhil@elogictech.com,nikhil,Project Manager 3D ,manager,47,03-09-26,3D Visualization,,default.jpg,Active,03-12-26 14:03,6/18/2026 12:41
+524,Sai Kiran Pillala marri,881,saikiran@elogictech.com,saikiran,Architect,developer,53,03-12-26,2D Auto CAD,,default.jpg,Active,3/13/2026 8:30,6/19/2026 7:27
+525,Narala Setti,882,veerendra@elogictech.com,veerendra,Senior BIM Modeler - Arch,developer,71,3/18/2026,Architectural,,default.jpg,Active,3/19/2026 8:15,7/20/2026 14:43
+526,Appireddy Vaishnavi Lahari,8014,vaishanavi@elogictech.com,vaishnavi,Software Intern,developer,384,3/16/2026,Software,,default.jpg,Active,3/24/2026 11:49,6/17/2026 12:35
+527,Rampally Shravya,883,shravya@elogictech.com,shravya,3D Visualizer ,developer,523,3/27/2026,3D Visualization,,default.jpg,Active,3/30/2026 15:13,07-10-26 8:10
+528,Karasani Sandeep,884,sandeep.k@elogictech.com,k.sandeep,Architect,developer,53,3/30/2026,2D Auto CAD,,default.jpg,Active,04-01-26 7:55,6/18/2026 9:23
+529,Naga Venkata,885,nagadurga@elogictech.com,nagadurga,BIM Engineer - Struc,developer,394,04-01-26,Structural,,default.jpg,Active,04-02-26 12:32,7/20/2026 14:43
+530,Paramesh Raipudi,877,paramesh@elogictech.com,paramesh,Assistant Accounts Manager,developer,183,2/27/2026,Accounting,,default.jpg,Active,04-03-26 9:28,6/18/2026 12:39
+531,Rampelli Rahul,886,rahul.r@elogictech.com,rahulr,BIM Engineer - Arch,developer,71,04-02-26,Architectural,,default.jpg,Active,04-03-26 15:09,7/20/2026 14:42
+532,Adapa Rama,887,rama.g@elogictech.com,rama.g,BIM Modeler - Arch,developer,41,4/14/2026,Architectural,,default.jpg,Active,4/15/2026 8:57,7/20/2026 14:41
+533,Mohammed Razak,888,razak@elogictech.com,razak,BIM Engineer - Arch,developer,71,4/20/2026,Architectural,,default.jpg,Active,4/21/2026 12:14,7/20/2026 14:41
+534,Bolloju Jhansi,890,jhansi@elogictech.com  ,jhansi,BIM Engineer - Arch,developer,71,05-06-26,Architectural,,default.jpg,Active,05-07-26 7:55,7/20/2026 14:40
+535,Avula varaprasad,889,prasad@elogictech.com,prasad,Junior Data Analyst,developer,384,9/30/2026,Operations,,default.jpg,Active,05-07-26 10:36,6/18/2026 9:17
+536,keerthana Karthikeyan,891,keerthana@elogictech.com,keerthana,Junior  BIM Automation Engineer - Revit API,developer,92,05-11-26,Software,,default.jpg,Active,05-12-26 10:10,6/18/2026 9:17
+538,sai Mahesh,894,sai.mahesh@elogictech.com,saimahesh,BIM Engineer - Arch,developer,71,06-01-26,Architectural,,default.jpg,Active,06-02-26 13:58,7/20/2026 14:40
+539,Naga Komali,893,naga.komali@elogictech.com,nagakomali,Junior BIM Architect,developer,41,06-01-26,Architectural,,default.jpg,Active,06-02-26 14:00,6/18/2026 9:15
+540,Prasannanjaneya Kumar,892,prasannanjaneya@elogictech.com,prasannanjaneya,Assistant Project Manager - Arch,developer,41,5/28/2026,Architectural,,default.jpg,Active,06-02-26 14:01,6/18/2026 9:15
+541,Sivaram Tadikonda,895,Sivaram@elogictech.com,sivaram,BIM Manager - MEP,manager,47,06-05-26,MEP,,default.jpg,Active,06-05-26 12:54,6/18/2026 9:15
+542,Mallula Lakshmi,896,lakshmi.p@elogictech.com,lakshmi.p,Business Development Executive,developer,149,06-08-26,Business Development,,default.jpg,Active,06-10-26 9:31,6/18/2026 9:14
+544,Mir Ausaf,898,ausaf@elogictech.com,ausaf,BIM Modeler - Arch,developer,71,6/15/2026,Architectural,,default.jpg,Active,6/17/2026 14:50,7/20/2026 14:39
+545,Ashok Dondapati,899,ashok@elogictech.com,ashok,Senior BIM Modeler - Struc,developer,394,07-02-26,Architectural,,default.jpg,Active,07-06-26 14:02,7/20/2026 14:38
+546,Peta Devendra,900,devendra@elogictech.com,devendra,BIM Architect,developer,71,07-02-26,Architectural,,default.jpg,Active,07-06-26 14:16,07-06-26 14:16
+547,Shaik Nagula,904,shaik.n@elogictech.com,shaik.n,Junior BIM Modeler - Plumbing,developer,541,07-06-26,MEP,,default.jpg,Active,07-07-26 12:09,7/20/2026 14:38
+548,Poornima Manyala,901,poornima.m@elogictech.com,poornima.m,BIM Modeler - Arch,developer,41,07-06-26,Architectural,,default.jpg,Active,07-07-26 12:34,7/20/2026 14:37
+549,Mohammed Habeebuddin,903,habeebuddin@elogictech.com,habeebuddin,Junior BIM Engineer - Arch,developer,71,07-06-26,Architectural,8978687376,default.jpg,Active,07-07-26 13:15,7/20/2026 14:37
+550,Katru Sri,902,katru@elogictech.com,katru,BIM Modeler - Arch,developer,71,07-06-26,Architectural,,default.jpg,Active,07-07-26 13:28,7/20/2026 14:37
+551,Mohd Zubair,906,zubair@elogictech.com,zubair,BIM Engineer - Arch,developer,71,07-08-26,Architectural,,default.jpg,Active,07-10-26 9:38,7/20/2026 14:03
+554,Lingampally  Yeshwanth,908,yeshwanth.l@elogictech.com,yeshwanth.l,CAD Engineer,developer,71,07-10-26,Architectural,,default.jpg,Active,7/13/2026 10:58,7/13/2026 10:58
+555,Lokanath Behera,909,lokanath@elogictech.com,lokanath,BIM Modeler - Plumbing,developer,541,7/14/2026,MEP,,default.jpg,Active,7/17/2026 8:05,7/20/2026 13:58
+556,Aman .,910,aman@elogictech.com,aman,BIM Modeler - Arch,developer,41,7/20/2026,Architectural,,default.jpg,Active,7/21/2026 9:02,7/21/2026 9:02

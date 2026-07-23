@@ -1,6 +1,4 @@
 <head>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400&display=swap" rel="stylesheet">
     <style>
         .highlighted-project {
             background-color: #d4edda !important;
@@ -229,14 +227,15 @@ $getListOfManagers = $this->timesheet_login->getReportingManagers(null);
 ?>
 
 <link href="<?php echo HTTP_CSS_PATH; ?>kpi-style.css" rel="stylesheet" />
-<body id="kpiPage">
+<body id="kpiPage" class="client-report-ep">
 <div class="content-wrapper">
     <div class="page-title">
         <div>
             <h1>Manage KPI</h1>
         </div>
-        <div class="generate-report-btn consolidated-export-report-btn" style="margin-left: -45px;">
-            <button id="generateBtn" onclick="downloadExcel()" class="btn btn-success">
+        <div>
+            <a class="btn btn-primary btn-flat" href="#" onclick="clearAllFilters(); return false;"><i class="fa fa-refresh"></i> Reset</a>
+            <button type="button" id="generateBtn" onclick="downloadExcel()" class="btn btn-success btn-flat">
                 <i class="fa fa-download"></i>
                 <span id="btnText">Export Report</span>
                 <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
@@ -295,7 +294,6 @@ function downloadExcel() {
     const btnText = document.getElementById('btnText');
     const spinner = document.getElementById('spinner');
 
-    btn.classList.add('btn-success');
     btn.disabled = true;
     spinner.classList.remove('d-none');
     btnText.textContent = 'Downloading...';
@@ -380,14 +378,48 @@ if (!is_array($getempId)) {
     }
 ?>
 <style>
+/* Execution Plan aligned styling for Client Report */
+#kpiPage.client-report-ep .content-wrapper .card {
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+#kpiPage.client-report-ep .page-title .btn-flat {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    border-radius: 8px;
+    padding: 8px 16px;
+    min-width: 110px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+#kpiPage.client-report-ep .page-title .btn-success.btn-flat {
+    min-width: 130px;
+}
+#kpiPage.client-report-ep .ep-filter-refresh-btn {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    border-radius: 8px;
+    padding: 8px 16px;
+    min-width: 110px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+#kpiPage.client-report-ep .ep-filter-refresh-btn:hover,
+#kpiPage.client-report-ep .ep-filter-refresh-btn:focus {
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
 .client-report-filter-bar {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 22px 24px 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 14px rgba(1, 75, 136, 0.07), 0 2px 6px rgba(15, 23, 42, 0.04);
-    border-top: 3px solid #014b88;
+    border: 1px solid #e6eaef;
+    border-radius: 10px;
+    padding: 18px 20px 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    border-top: none;
 }
 .client-report-filter-grid .crf-grid-top {
     display: grid;
@@ -406,20 +438,21 @@ if (!is_array($getempId)) {
     }
 }
 .client-report-filter-grid .crf-field {
-    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f9 100%);
-    border: 1px solid #e8ecf1;
-    border-radius: 10px;
-    padding: 12px 14px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
     min-height: 0;
 }
-.client-report-filter-grid .crf-field-label {
+.client-report-filter-grid .crf-field-label,
+.client-report-filter-grid .crf-field-label label {
     display: block;
     font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: #014b88;
-    margin-bottom: 8px;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #2c3e50;
+    margin-bottom: 6px;
 }
 .client-report-filter-grid .crf-dates-actions-row {
     display: flex;
@@ -427,7 +460,9 @@ if (!is_array($getempId)) {
     align-items: flex-end;
     justify-content: space-between;
     gap: 14px 20px;
-    margin-top: 2px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid #eceff3;
 }
 .client-report-filter-grid .crf-dates-compact {
     display: flex;
@@ -442,19 +477,19 @@ if (!is_array($getempId)) {
     gap: 12px;
 }
 .client-report-filter-grid .kpi-ym-panel {
-    background: #ffffff;
-    border: 1px solid #d8dee6;
-    border-radius: 10px;
-    padding: 10px 14px 12px;
+    background: #fafbfc;
+    border: 1px solid #e6eaef;
+    border-radius: 8px;
+    padding: 10px 12px 8px;
     min-width: 280px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: none;
 }
 .client-report-filter-grid .kpi-ym-panel-title {
-    font-weight: 600;
-    color: #333;
-    font-size: 14px;
+    font-weight: 700;
+    color: #2c3e50;
+    font-size: 13px;
     line-height: 1.2;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 .client-report-filter-grid .kpi-ym-panel-fields {
     display: flex;
@@ -495,9 +530,9 @@ if (!is_array($getempId)) {
     font-weight: normal;
 }
 .client-report-filter-grid .kpi-ym-select-wrap.kpi-ym-wrap-selected {
-    background-color: #673ab7;
+    background-color: #6f42c1;
     border-radius: 8px;
-    border: 2px solid #e2e2e2;
+    border: 2px solid #6f42c1;
 }
 .client-report-filter-grid .kpi-ym-select-wrap.kpi-ym-wrap-selected .kpi-ym-select {
     background-color: transparent !important;
@@ -519,7 +554,7 @@ if (!is_array($getempId)) {
     top: 50%;
     transform: translateY(-50%);
     color: #fff;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1;
     cursor: pointer;
     display: none;
@@ -567,35 +602,9 @@ if (!is_array($getempId)) {
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
-    gap: 12px;
-    padding-top: 4px;
+    gap: 10px;
+    padding-top: 0;
     border-top: none;
-}
-.client-report-filter-grid .btn-crf-apply {
-    background: linear-gradient(180deg, #015a9e 0%, #014b88 100%) !important;
-    color: #fff !important;
-    font-weight: 700;
-    padding: 10px 22px;
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(1, 75, 136, 0.25);
-    min-width: 120px;
-}
-.client-report-filter-grid .btn-crf-apply:hover {
-    filter: brightness(1.05);
-    color: #fff !important;
-}
-.client-report-filter-grid .btn-crf-clear {
-    background: #fff !important;
-    color: #c2410c !important;
-    font-weight: 700;
-    padding: 10px 18px;
-    border: 2px solid #fdba74 !important;
-    border-radius: 8px;
-}
-.client-report-filter-grid .btn-crf-clear:hover {
-    background: #fff7ed !important;
-    color: #9a3412 !important;
 }
 .client-report-filter-grid .select2-container {
     width: 100% !important;
@@ -850,8 +859,8 @@ if (!is_array($getempId)) {
                 </div>
             </div>
             <div class="crf-btn-row">
-                <button type="submit" class="btn btn-crf-apply"><i class="fa fa-search"></i> Search</button>
-                <button type="button" class="btn btn-crf-clear" onclick="clearAllFilters();"><i class="fa fa-times-circle"></i> Clear all filters</button>
+                <button type="submit" class="btn btn-primary icon-btn"><i class="fa fa-fw fa-lg fa-check-circle"></i> Search</button>
+                <button type="button" class="btn btn-primary btn-flat ep-filter-refresh-btn" onclick="clearAllFilters();"><i class="fa fa-refresh"></i> Reset</button>
             </div>
         </div>
     </div>
@@ -1425,7 +1434,7 @@ if (!empty($monthsDisplayText)):
 ?>
 <div class="row mt-3 mb-3">
     <div class="col-md-12">
-        <div class="alert alert-info" style="background-color: #5B9BD5; color: white; border: none; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;">
+        <div class="alert alert-info" style="background-color: #5B9BD5; color: white; border: none; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 14px;">
             <i class="fa fa-calendar" style="margin-right: 8px;"></i>
             <strong>Month-wise Report:</strong> <?php echo htmlspecialchars($monthsDisplayText); ?>
             <?php if ($monthCount > 1): ?>
@@ -1469,34 +1478,32 @@ $deptKpiSummary = isset($deptKpiSummary) && is_array($deptKpiSummary) ? $deptKpi
 $deptKpiRows = (!empty($deptKpiSummary['has_data']) && !empty($deptKpiSummary['rows']) && is_array($deptKpiSummary['rows']))
     ? $deptKpiSummary['rows']
     : array();
-$thStyle = 'text-align:center;font-weight:bold;color:white;padding:12px 8px;border:1px solid #0a3d66;';
-$thDeptStyle = 'text-align:left;font-weight:bold;color:white;padding:12px 14px;border:1px solid #0a3d66;';
-$tdBase = 'text-align:center;padding:12px 8px;font-weight:bold;border:1px solid #cccccc;';
+$tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid #c9d4e2;font-size:15px;';
 ?>
 <?php if (!empty($deptKpiRows)): ?>
 <div class="row mt-3 mb-2 client-report-dept-kpi-wrap">
     <div class="col-md-12">
         <h4 class="client-report-dept-kpi-heading">Department &amp; Project Manager Client Summary Report</h4>
-        <div style="display:flex;justify-content:center;overflow-x:auto;">
-            <table class="table table-bordered client-report-dept-kpi-table" style="width:100%;max-width:1200px;border-collapse:collapse;margin:0 auto;">
+        <div class="client-report-dept-kpi-table-wrap">
+            <table class="table table-bordered client-report-dept-kpi-table">
                 <thead>
-                    <tr style="background-color:#014b88;">
-                        <th style="<?= $thDeptStyle ?>">Departments</th>
-                        <th style="<?= $thStyle ?>">Prod Hours</th>
-                        <th style="<?= $thStyle ?>">PG Hours</th>
-                        <th style="<?= $thStyle ?>">Utilization Hours</th>
-                        <th style="<?= $thStyle ?>">Productivity%</th>
-                        <th style="<?= $thStyle ?>">Project General%</th>
-                        <th style="<?= $thStyle ?>">Utilization%</th>
-                        <th style="<?= $thStyle ?>">Quality %</th>
-                        <th style="<?= $thStyle ?>">Invoiced hours</th>
-                        <th style="<?= $thStyle ?>">Difference</th>
+                    <tr>
+                        <th class="cr-dept-kpi-th cr-dept-kpi-th-label">Departments</th>
+                        <th class="cr-dept-kpi-th">Prod<br>Hours</th>
+                        <th class="cr-dept-kpi-th">PG<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Utilization<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Productivity<br>%</th>
+                        <th class="cr-dept-kpi-th">Project General<br>%</th>
+                        <th class="cr-dept-kpi-th">Utilization<br>%</th>
+                        <th class="cr-dept-kpi-th">Quality<br>%</th>
+                        <th class="cr-dept-kpi-th">Invoiced<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Difference</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($deptKpiRows as $deptRow): ?>
                     <tr>
-                        <td style="text-align:left;font-weight:bold;background:#fff;padding:12px 14px;border:1px solid #ccc;"><?= htmlspecialchars(isset($deptRow['label']) ? $deptRow['label'] : '', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="text-align:left;font-weight:600;background:#eef2f7;padding:12px 14px;border:1px solid #c9d4e2;font-size:15px;color:#1f5076;"><?= htmlspecialchars(isset($deptRow['label']) ? $deptRow['label'] : '', ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['prod_hours']) ? $deptRow['prod_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['pg_hours']) ? $deptRow['pg_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['utilization_hours']) ? $deptRow['utilization_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
@@ -1518,12 +1525,48 @@ $tdBase = 'text-align:center;padding:12px 8px;font-weight:bold;border:1px solid 
 .client-report-dept-kpi-heading {
     text-align: center;
     font-weight: 700;
-    color: #014b88;
+    color: #2c3e50;
     margin-bottom: 14px;
     font-size: 18px;
 }
 .client-report-dept-kpi-wrap {
     margin-bottom: 20px;
+}
+.client-report-dept-kpi-table-wrap {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+}
+.client-report-dept-kpi-table {
+    width: 100%;
+    min-width: 1100px;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin: 0 auto;
+    table-layout: auto;
+}
+.client-report-dept-kpi-table .cr-dept-kpi-th {
+    text-align: center;
+    font-weight: 600;
+    color: #fff;
+    padding: 10px 8px;
+    border: 1px solid #2c5aa0;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: middle;
+    background: linear-gradient(to bottom, #337ab7, #2c5aa0);
+    min-width: 88px;
+}
+.client-report-dept-kpi-table .cr-dept-kpi-th-label {
+    text-align: left;
+    min-width: 140px;
+}
+.client-report-dept-kpi-table tbody td {
+    font-size: 15px;
 }
 </style>
 
@@ -1541,19 +1584,19 @@ $tdBase = 'text-align:center;padding:12px 8px;font-weight:bold;border:1px solid 
     <thead>
         <tr>
             <th title="Client Name">Client Name</th>
-            <th title="Project Manager">Project Manager</th>
+            <th title="Project Manager">Project<br>Manager</th>
             <th title="Department">Department</th>
-            <th title="Start Date">Start Date</th>
-            <th title="End Date">End Date</th>
-            <th title="Billing" style="text-align: center !important;">Billing</th>
-            <th title="Production Hours" style="text-align: center !important;">Production Hours</th>
-            <th title="Project General Hours" style="text-align: center !important;">Project General Hours</th>
-            <th title="Total Hours" style="text-align: center !important;">Total Hours</th>
-            <th title="Invoiced" style="text-align: center !important;">Invoiced</th>
-            <th title="Quality Errors" style="text-align: center !important;">Quality Errors</th>
-            <th title="Productivity%" style="text-align: center !important;">Productivity %</th>
-            <th title="Project General%" style="text-align: center !important;">Project General %</th>
-            <th title="Difference" style="text-align: center !important;">Difference</th>
+            <th title="Start Date">Start<br>Date</th>
+            <th title="End Date">End<br>Date</th>
+            <th title="Billing">Billing</th>
+            <th title="Production Hours">Production<br>Hours</th>
+            <th title="Project General Hours">Project General<br>Hours</th>
+            <th title="Total Hours">Total<br>Hours</th>
+            <th title="Invoiced">Invoiced</th>
+            <th title="Quality Errors">Quality<br>Errors</th>
+            <th title="Productivity%">Productivity<br>%</th>
+            <th title="Project General%">Project General<br>%</th>
+            <th title="Difference">Difference</th>
         </tr>
     </thead>
     <tbody>
@@ -1917,42 +1960,48 @@ function redirectToClient() {
     margin-bottom: 30px;
     background: #ffffff;
     border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(1, 75, 136, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-/* Table styling improvements */
+/* Table styling - Execution Plan aligned */
 #employeeTable.client-report-table {
     width: 100%;
+    min-width: 1500px;
     border-collapse: collapse;
     border-spacing: 0;
     margin-bottom: 0;
     background-color: #ffffff;
     border: none;
+    table-layout: auto;
 }
 
 #employeeTable thead {
-    background: linear-gradient(180deg, #015a9e 0%, #014b88 50%, #003366 100%);
+    background: linear-gradient(to bottom, #337ab7, #2c5aa0);
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 #employeeTable thead tr {
-    border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+    border-bottom: none;
 }
 
 #employeeTable thead th {
     color: #ffffff;
-    letter-spacing: 0.2px;
-    padding: 14px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 10px 8px;
     border: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.25);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
     vertical-align: middle;
     white-space: normal;
     text-align: center;
-    line-height: 1.35;
-    word-break: keep-all;
+    line-height: 1.25;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 #employeeTable thead th:last-child {
@@ -1961,24 +2010,46 @@ function redirectToClient() {
 
 #employeeTable thead th:first-child {
     text-align: left;
-    padding-left: 20px;
+    padding-left: 16px;
+    min-width: 200px;
 }
 
-/* Header column min-widths to prevent awkward word breaks */
-#employeeTable thead th:nth-child(2) { min-width: 110px; }
-#employeeTable thead th:nth-child(8) { min-width: 115px; }  /* Project General Hours */
-#employeeTable thead th:nth-child(11) { min-width: 105px; } /* Quality Errors */
-#employeeTable thead th:nth-child(12) { min-width: 95px; }  /* Productivity % */
-#employeeTable thead th:nth-child(13) { min-width: 115px; } /* Project General % */
-#employeeTable thead th:nth-child(14) { min-width: 95px; }  /* Difference */
+/* Column min-widths so headers do not overlap */
+#employeeTable thead th:nth-child(2),
+#employeeTable tbody td:nth-child(2) { min-width: 110px; }
+#employeeTable thead th:nth-child(3),
+#employeeTable tbody td:nth-child(3) { min-width: 120px; }
+#employeeTable thead th:nth-child(4),
+#employeeTable thead th:nth-child(5),
+#employeeTable tbody td:nth-child(4),
+#employeeTable tbody td:nth-child(5) { min-width: 95px; }
+#employeeTable thead th:nth-child(6),
+#employeeTable tbody td:nth-child(6) { min-width: 80px; }
+#employeeTable thead th:nth-child(7),
+#employeeTable tbody td:nth-child(7) { min-width: 95px; }
+#employeeTable thead th:nth-child(8),
+#employeeTable tbody td:nth-child(8) { min-width: 115px; }
+#employeeTable thead th:nth-child(9),
+#employeeTable tbody td:nth-child(9),
+#employeeTable thead th:nth-child(10),
+#employeeTable tbody td:nth-child(10) { min-width: 90px; }
+#employeeTable thead th:nth-child(11),
+#employeeTable tbody td:nth-child(11) { min-width: 95px; }
+#employeeTable thead th:nth-child(12),
+#employeeTable tbody td:nth-child(12),
+#employeeTable thead th:nth-child(13),
+#employeeTable tbody td:nth-child(13) { min-width: 105px; }
+#employeeTable thead th:nth-child(14),
+#employeeTable tbody td:nth-child(14) { min-width: 95px; }
 
 #employeeTable tbody td {
-    padding: 14px 12px;
+    padding: 12px 14px;
     vertical-align: middle;
     border-bottom: 1px solid #e8ecf0;
     border-right: 1px solid #eef2f6;
     white-space: nowrap;
     background-color: #ffffff;
+    font-size: 15px;
 }
 
 #employeeTable tbody td:last-child {
@@ -1986,7 +2057,7 @@ function redirectToClient() {
 }
 
 #employeeTable tbody tr:hover {
-    background-color: #f0f7ff;
+    background-color: #f5f8fa;
 }
 
 #employeeTable tbody tr:last-child td {
@@ -1995,17 +2066,17 @@ function redirectToClient() {
 
 /* Client row styling */
 #employeeTable tbody tr.client-row {
-    background-color: #FFF;
-    
+    background-color: #f8f9fa;
+    border-left: 4px solid #337ab7;
 }
 
 #employeeTable tbody tr.client-row td {
-    
     font-weight: 600;
+    font-size: 15px;
 }
 
 #employeeTable tbody tr.client-row:hover {
-    background-color: #d6e9ff;
+    background-color: #f5f8fa;
 }
 
 #employeeTable tbody tr.client-row:hover td {
@@ -2033,90 +2104,67 @@ function redirectToClient() {
     background-color: #f3f4f6;
 }
 
-/* Column widths - adjusted to show full text */
-/* Client Name - Left aligned, allow wrap so long names show fully */
-#employeeTable th:nth-child(1) {
-    min-width: 220px;
-    width: 220px;
+/* Column alignment for body cells */
+#employeeTable th:nth-child(1),
+#employeeTable td:nth-child(1) {
+    min-width: 200px;
+    width: 200px;
 }
 
 #employeeTable td:nth-child(1) {
-    min-width: 220px;
-    width: 220px;
     text-align: left;
     font-weight: 600;
-    color: #014b88;
-    font-size: 16px;
+    color: #2c3e50;
+    font-size: 15px;
 }
 
-/* Project Manager - Center aligned */
-#employeeTable th:nth-child(2), #employeeTable td:nth-child(2) {
-    width: 100px;
-    min-width: 100px;
+#employeeTable td:nth-child(2) {
+    text-align: center;
+    color: #2c5aa0;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+#employeeTable td:nth-child(3),
+#employeeTable td:nth-child(4),
+#employeeTable td:nth-child(5) {
     text-align: center;
 }
 
-/* Department - Center aligned */
-#employeeTable th:nth-child(3), #employeeTable td:nth-child(3) {
-    width: 120px;
-    min-width: 120px;
+#employeeTable td:nth-child(6),
+#employeeTable td:nth-child(7),
+#employeeTable td:nth-child(8),
+#employeeTable td:nth-child(9),
+#employeeTable td:nth-child(10),
+#employeeTable td:nth-child(11),
+#employeeTable td:nth-child(12),
+#employeeTable td:nth-child(13),
+#employeeTable td:nth-child(14) {
     text-align: center;
+    padding-right: 12px;
 }
 
-/* Start Date - Center aligned */
-#employeeTable th:nth-child(4), #employeeTable td:nth-child(4) {
-    width: 115px;
-    min-width: 115px;
-    text-align: center;
-}
-
-/* End Date - Center aligned */
-#employeeTable th:nth-child(5), #employeeTable td:nth-child(5) {
-    width: 115px;
-    min-width: 115px;
-    text-align: center;
-}
-
-/* Billing - Right aligned */
-#employeeTable th:nth-child(6), #employeeTable td:nth-child(6) {
-    width: 90px;
-    min-width: 90px;
-    text-align: right;
-    padding-right: 15px;
-}
-
-/* Production Hours, Project General, Total Hours, Invoiced - Right aligned */
-#employeeTable th:nth-child(7), #employeeTable th:nth-child(8), #employeeTable th:nth-child(9), #employeeTable th:nth-child(10),
-#employeeTable td:nth-child(7), #employeeTable td:nth-child(8), #employeeTable td:nth-child(9), #employeeTable td:nth-child(10) {
-    width: 85px;
-    min-width: 85px;
-    text-align: right;
-    padding-right: 15px;
+#employeeTable td:nth-child(7),
+#employeeTable td:nth-child(8),
+#employeeTable td:nth-child(9),
+#employeeTable td:nth-child(10) {
     font-weight: 500;
 }
 
-/* Quality Errors, Productivity %, Project General %, Difference - Right aligned */
-#employeeTable th:nth-child(11), #employeeTable th:nth-child(12), #employeeTable th:nth-child(13), #employeeTable th:nth-child(14),
-#employeeTable td:nth-child(11), #employeeTable td:nth-child(12), #employeeTable td:nth-child(13), #employeeTable td:nth-child(14) {
-    width: 95px;
-    min-width: 95px;
-    text-align: right;
-    padding-right: 15px;
-}
-
-/* Client name cell - block design: light blue block, client name + (+) symbol */
+/* Client name cell - Execution Plan client row style */
 #employeeTable tbody tr.client-row td.client-name-cell {
     white-space: normal;
     word-wrap: break-word;
     max-width: 280px;
     line-height: 1.4;
-    background: linear-gradient(to right, #dceefc 0%, #e8f4fc 100%) !important;
-    color: #4c0bce;
+    background: #f8f9fa !important;
+    color: #2c3e50;
     font-weight: 600;
-    padding: 14px 16px;
-    border-left: 4px solid #014b88;
-    border-bottom: 1px solid #c5dcee;
-    box-shadow: inset 0 0 0 1px rgba(1, 75, 136, 0.08);
+    font-size: 15px;
+    padding: 12px 14px;
+    border-left: none;
+    border-bottom: 1px solid #e8ecf0;
+    box-shadow: none;
 }
 /* (+) toggle - only the + symbol, no background */
 .toggle-projects-inline {
@@ -2138,32 +2186,33 @@ function redirectToClient() {
     color: #2C5AA0;
 }
 .toggle-projects-inline i {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: bold;
     color: #2C5AA0;
 }
 
-/* Project name cell - bg #FFF, project name text #000 */
+/* Project name cell - Execution Plan project row style */
 #employeeTable tbody tr.project-row td.project-name-cell {
-    background: #FFF !important;
-    border-left: 4px solid #014b88;
-    padding: 12px 14px 12px 22px;
+    background: #fff !important;
+    border-left: none;
+    padding: 12px 14px 12px 50px;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px;
     white-space: normal;
     word-wrap: break-word;
     max-width: 280px;
     line-height: 1.4;
-    color: #000;
-    border-bottom: 1px solid #e5e7eb;
+    color: #666;
+    border-bottom: 1px solid #e8ecf0;
 }
 
 /* Date columns styling */
 #employeeTable tbody td:nth-child(4),
 #employeeTable tbody td:nth-child(5) {
-    font-family: 'Roboto Condensed', sans-serif;
-    color: #374151;
-    font-size: 16px;
+    color: #555;
+    font-size: 15px;
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* Percentage columns styling */
@@ -2171,7 +2220,8 @@ function redirectToClient() {
 #employeeTable tbody td:nth-child(12),
 #employeeTable tbody td:nth-child(13) {
     font-weight: 600;
-    color: #014b88;
+    color: #2c3e50;
+    font-size: 15px;
 }
 
 /* Number columns styling */
@@ -2182,6 +2232,9 @@ function redirectToClient() {
 #employeeTable tbody td:nth-child(10) {
     color: #1f2937;
     font-weight: 500;
+    font-size: 15px;
+    font-family: "Courier New", monospace;
+    text-align: center;
 }
 
 .ui-datepicker .ui-datepicker-prev span, .ui-datepicker .ui-datepicker-next span{
@@ -2194,17 +2247,17 @@ function redirectToClient() {
 /* Responsive adjustments */
 @media (max-width: 1400px) {
     #employeeTable thead th {
-        font-size: 14px;
-        padding: 12px 8px;
+        font-size: 11px;
+        padding: 8px 6px;
     }
     
     #employeeTable tbody td {
         font-size: 15px;
-        padding: 12px 8px;
+        padding: 10px 8px;
     }
     
     .toggle-projects-inline {
-        font-size: 14px;
+        font-size: 16px;
         padding: 3px 8px;
     }
 }

@@ -1,0 +1,71 @@
+-- Update employee designations only (63 records)
+-- Source: employee_details_designation_changes.csv
+-- Run in phpMyAdmin > SQL tab AFTER backing up employee_details table
+
+START TRANSACTION;
+
+UPDATE employee_details SET designation = 'Project Delivery Head - North America', updated_at = NOW() WHERE empId = 41;
+UPDATE employee_details SET designation = 'IT and Infrastructure Manager', updated_at = NOW() WHERE empId = 46;
+UPDATE employee_details SET designation = 'Global Delivery Head - ASMEP', updated_at = NOW() WHERE empId = 47;
+UPDATE employee_details SET designation = 'Senior - Project Manager - Arch', updated_at = NOW() WHERE empId = 71;
+UPDATE employee_details SET designation = 'Founder & CEO', updated_at = NOW() WHERE empId = 92;
+UPDATE employee_details SET designation = 'Asst Project Manager - Arch', updated_at = NOW() WHERE empId = 136;
+UPDATE employee_details SET designation = 'HR Manager', updated_at = NOW() WHERE empId = 140;
+UPDATE employee_details SET designation = 'Project Manager - Electrical', updated_at = NOW() WHERE empId = 146;
+UPDATE employee_details SET designation = 'Vice President - Sales', updated_at = NOW() WHERE empId = 149;
+UPDATE employee_details SET designation = 'BIM Architect', updated_at = NOW() WHERE empId = 150;
+UPDATE employee_details SET designation = 'Accounts Manager', updated_at = NOW() WHERE empId = 183;
+UPDATE employee_details SET designation = 'Assistant  Project Manager - Arch', updated_at = NOW() WHERE empId = 197;
+UPDATE employee_details SET designation = 'Junior Project Manager - Mech', updated_at = NOW() WHERE empId = 245;
+UPDATE employee_details SET designation = 'Senior BIM Modeler - Arch', updated_at = NOW() WHERE empId = 299;
+UPDATE employee_details SET designation = 'Senior BIM Modeler - Arch', updated_at = NOW() WHERE empId = 319;
+UPDATE employee_details SET designation = 'Project Coordinator Arch', updated_at = NOW() WHERE empId = 351;
+UPDATE employee_details SET designation = 'Project Co-ordinator - Electrical', updated_at = NOW() WHERE empId = 371;
+UPDATE employee_details SET designation = 'Junior BIM Modeler - Arch', updated_at = NOW() WHERE empId = 378;
+UPDATE employee_details SET designation = 'Assistant Project Manager - Electrical', updated_at = NOW() WHERE empId = 391;
+UPDATE employee_details SET designation = 'Senior BIM Modeler - Electrical', updated_at = NOW() WHERE empId = 401;
+UPDATE employee_details SET designation = 'Senior BIM Engineer - Plumbing', updated_at = NOW() WHERE empId = 402;
+UPDATE employee_details SET designation = 'Structural Engineer ', updated_at = NOW() WHERE empId = 405;
+UPDATE employee_details SET designation = 'HR Executive', updated_at = NOW() WHERE empId = 416;
+UPDATE employee_details SET designation = 'Tech Lead', updated_at = NOW() WHERE empId = 421;
+UPDATE employee_details SET designation = 'Junior Modeler - Electrical', updated_at = NOW() WHERE empId = 442;
+UPDATE employee_details SET designation = 'Junior Modeler - Electrical', updated_at = NOW() WHERE empId = 444;
+UPDATE employee_details SET designation = 'Manager - Business Development', updated_at = NOW() WHERE empId = 459;
+UPDATE employee_details SET designation = 'Manager - Business Development', updated_at = NOW() WHERE empId = 462;
+UPDATE employee_details SET designation = 'Business Development Executive', updated_at = NOW() WHERE empId = 463;
+UPDATE employee_details SET designation = 'Business Development Executive', updated_at = NOW() WHERE empId = 464;
+UPDATE employee_details SET designation = 'Assistant Manager - Sales & Business Development', updated_at = NOW() WHERE empId = 465;
+UPDATE employee_details SET designation = 'Project Coordinator - Electrical', updated_at = NOW() WHERE empId = 475;
+UPDATE employee_details SET designation = 'HR - Recruiter', updated_at = NOW() WHERE empId = 481;
+UPDATE employee_details SET designation = 'Junior Structural Engineer ', updated_at = NOW() WHERE empId = 501;
+UPDATE employee_details SET designation = 'BIM Engineer   - Mech', updated_at = NOW() WHERE empId = 504;
+UPDATE employee_details SET designation = 'Junior Software Executive', updated_at = NOW() WHERE empId = 505;
+UPDATE employee_details SET designation = '3D Visualizer', updated_at = NOW() WHERE empId = 506;
+UPDATE employee_details SET designation = 'Junior BIM Modeler - Struc', updated_at = NOW() WHERE empId = 508;
+UPDATE employee_details SET designation = 'BIM Architect', updated_at = NOW() WHERE empId = 509;
+UPDATE employee_details SET designation = 'Senior BIM Engineer - Arch', updated_at = NOW() WHERE empId = 510;
+UPDATE employee_details SET designation = '3D Visualizer', updated_at = NOW() WHERE empId = 511;
+UPDATE employee_details SET designation = '3D Visualizer ', updated_at = NOW() WHERE empId = 512;
+UPDATE employee_details SET designation = '3D Visualizer ', updated_at = NOW() WHERE empId = 513;
+UPDATE employee_details SET designation = '3D Visualizer ', updated_at = NOW() WHERE empId = 514;
+UPDATE employee_details SET designation = 'BIM Engineer - Arch', updated_at = NOW() WHERE empId = 516;
+UPDATE employee_details SET designation = 'Architect', updated_at = NOW() WHERE empId = 518;
+UPDATE employee_details SET designation = 'Senior BIM Engineer - Arch', updated_at = NOW() WHERE empId = 519;
+UPDATE employee_details SET designation = 'Junior BIM Modeler - Struc', updated_at = NOW() WHERE empId = 520;
+UPDATE employee_details SET designation = 'Project Manager 3D ', updated_at = NOW() WHERE empId = 523;
+UPDATE employee_details SET designation = 'Senior BIM Modeler - Arch', updated_at = NOW() WHERE empId = 525;
+UPDATE employee_details SET designation = '3D Visualizer ', updated_at = NOW() WHERE empId = 527;
+UPDATE employee_details SET designation = 'BIM Engineer - Struc', updated_at = NOW() WHERE empId = 529;
+UPDATE employee_details SET designation = 'Assistant Accounts Manager', updated_at = NOW() WHERE empId = 530;
+UPDATE employee_details SET designation = 'Junior Data Analyst', updated_at = NOW() WHERE empId = 535;
+UPDATE employee_details SET designation = 'Junior  BIM Automation Engineer - Revit API', updated_at = NOW() WHERE empId = 536;
+UPDATE employee_details SET designation = 'BIM Engineer - Arch', updated_at = NOW() WHERE empId = 538;
+UPDATE employee_details SET designation = 'Junior BIM Architect', updated_at = NOW() WHERE empId = 539;
+UPDATE employee_details SET designation = 'Assistant Project Manager - Arch', updated_at = NOW() WHERE empId = 540;
+UPDATE employee_details SET designation = 'Senior BIM Modeler - Struc', updated_at = NOW() WHERE empId = 545;
+UPDATE employee_details SET designation = 'BIM Architect', updated_at = NOW() WHERE empId = 546;
+UPDATE employee_details SET designation = 'Junior BIM Modeler - Plumbing', updated_at = NOW() WHERE empId = 547;
+UPDATE employee_details SET designation = 'Junior BIM Engineer - Arch', updated_at = NOW() WHERE empId = 549;
+UPDATE employee_details SET designation = 'CAD Engineer', updated_at = NOW() WHERE empId = 554;
+
+COMMIT;
