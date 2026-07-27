@@ -310,38 +310,62 @@ public function getStatusCount($status)
     
 /*********************************** Project master status update feature function below *************************************************/
 
-public function update_project_master_model_query($project_status_update_id,$status){ 
+public function update_project_master_model_query($project_status_update_id, $status, $project_end_date = '')
+{
+	$project_status_update_id = (int)$project_status_update_id;
+	$status = trim((string)$status);
+	$project_end_date = trim((string)$project_end_date);
 
-	//echo $status.'-----'.$project_status_update_id; 
-	  
-	$update = $this->db->set('status',$status)->where('project_Id',$project_status_update_id) ->update('project_details');
-	
-	 $userQ  = $this->db->select('project_Id,status')->from('project_details')->where('project_Id' , $project_status_update_id)->get()->result();
-	
-	 foreach($userQ as $key => $getStatus ) { 
-	
-	   if($getStatus->status == 'Process'){
-		   
-		  $activeClass =  'fa fa-check-circle label label-success';
-		  $statusName = 'In Process';
-		   
-	   
-	   }elseif($getStatus->status == 'On Hold'){		   
-		   
-		   $activeClass = 'fa fa-registered label label-warning';
-		   $statusName = 'On Hold';
-	   
-	   }else{
-	   
-			$activeClass =  'fa fa-ban label label-danger';
-			$statusName = 'Closed';
-	   
-	   }			   
-		   
-		 echo  "<a class='".$activeClass."' style=cursor:pointer; data-toggle='modal' data-target='#comment_status_model_".$getStatus->project_Id."'> ".$statusName."</a>"; 
-	
+	$project = $this->db->select('project_Id, status, project_start_date, project_end_date')
+		->from('project_details')
+		->where('project_Id', $project_status_update_id)
+		->get()
+		->row();
+
+	if (empty($project)) {
+		return;
 	}
-  
+
+	$updateData = array('status' => $status);
+
+	if ($project_end_date !== '') {
+		$startTs = strtotime($project->project_start_date);
+		$endTs = strtotime($project_end_date);
+
+		if ($startTs === false || $endTs === false || $endTs <= $startTs) {
+			header('HTTP/1.1 422 Unprocessable Entity');
+			echo 'End Date must be greater than Start Date.';
+			return;
+		}
+
+		$updateData['project_end_date'] = $project_end_date;
+	}
+
+	$this->db->where('project_Id', $project_status_update_id)->update('project_details', $updateData);
+
+	$userQ = $this->db->select('project_Id, status')
+		->from('project_details')
+		->where('project_Id', $project_status_update_id)
+		->get()
+		->result();
+
+	foreach ($userQ as $key => $getStatus) {
+		$badgeClass = 'status-badge status-closed';
+		$statusIcon = 'fa-times-circle';
+		$statusName = 'Closed';
+
+		if ($getStatus->status == 'Process') {
+			$badgeClass = 'status-badge status-process';
+			$statusIcon = 'fa-check-circle';
+			$statusName = 'In Process';
+		} elseif ($getStatus->status == 'On Hold') {
+			$badgeClass = 'status-badge status-hold';
+			$statusIcon = 'fa-pause-circle';
+			$statusName = 'On Hold';
+		}
+
+		echo '<a class="' . $badgeClass . '" style="cursor:pointer;" data-toggle="modal" data-target="#comment_status_model_' . (int)$getStatus->project_Id . '"><i class="fa ' . $statusIcon . '"></i> ' . htmlspecialchars($statusName, ENT_QUOTES, 'UTF-8') . '</a>';
+	}
 }
 
 /*********************************** Project master status update feature function below *************************************************/
@@ -409,6 +433,198 @@ public function update_project_master_model_query($project_status_update_id,$sta
 
 	/*************************without general projects counts code *****************************/
 
+    private function normalizeFilterArray($value)
+    {
+        if ($value === null || $value === '') {
+            return array();
+        }
+        if (!is_array($value)) {
+            return array($value);
+        }
+        return array_values(array_filter($value, function ($item) {
+            return $item !== '' && $item !== null;
+        }));
+    }
+
+    private function normalizeYearFilter($year)
+    {
+        $year = trim((string)$year);
+        if ($year === '' || strtoupper($year) === 'ALL') {
+            return '';
+        }
+        return $year;
+    }
+
+    private function normalizeMonthFilter($month)
+    {
+        $month = trim((string)$month);
+        if ($month === '') {
+            return 0;
+        }
+        return (int)$month;
+    }
+
+    private function applyProjectListFilters(
+        $search = '',
+        $department = array(),
+        $manager = array(),
+        $from_year = '',
+        $from_month = '',
+        $to_year = '',
+        $to_month = '',
+        $status = '',
+        $billing_type = '',
+        $client_Id = '',
+        $project_Id = ''
+    ) {
+        $department = $this->normalizeFilterArray($department);
+        $manager = $this->normalizeFilterArray($manager);
+
+        $from_year = $this->normalizeYearFilter($from_year);
+        $to_year = $this->normalizeYearFilter($to_year);
+        $from_month = $this->normalizeMonthFilter($from_month);
+        $to_month = $this->normalizeMonthFilter($to_month);
+
+        $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic solutions%'", null, false);
+
+        if (!empty($billing_type)) {
+            $this->db->where('p.man_days', $billing_type);
+        }
+
+        if (!empty($department) && !in_array('all', $department, true)) {
+            $this->db->where_in('p.project_type', $department);
+        }
+
+        if (!empty($manager)) {
+            $this->db->where_in('p.empId', $manager);
+        }
+
+        if (!empty($client_Id)) {
+            $this->db->where('p.client_Id', (int)$client_Id);
+        }
+
+        if (!empty($project_Id)) {
+            $this->db->where('p.project_Id', (int)$project_Id);
+        }
+
+        if ($from_year !== '') {
+            if ($from_month >= 1 && $from_month <= 12) {
+                $fromDate = sprintf('%04d-%02d-01', (int)$from_year, $from_month);
+            } else {
+                $fromDate = sprintf('%04d-01-01', (int)$from_year);
+            }
+            $this->db->where('p.project_start_date >=', $fromDate);
+        }
+
+        if ($to_year !== '') {
+            if ($to_month >= 1 && $to_month <= 12) {
+                $toDate = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', (int)$to_year, $to_month)));
+            } else {
+                $toDate = sprintf('%04d-12-31', (int)$to_year);
+            }
+            $this->db->where('p.project_end_date <=', $toDate);
+        }
+
+        if (!empty($status)) {
+            $this->db->where('p.status', $status);
+        }
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('p.project_name', $search);
+            $this->db->or_like('p.project_number', $search);
+            $this->db->or_like('c.client_name', $search);
+            $this->db->or_like('e.name', $search);
+            $this->db->group_end();
+        }
+    }
+
+    private function applyProjectListSort($sort_by = 'project_number', $sort_order = 'desc')
+    {
+        $allowed_columns = array(
+            'project_type' => 'p.project_type',
+            'client_name' => 'c.client_name',
+            'project_name' => 'p.project_name',
+            'project_number' => 'p.project_number',
+            'name' => 'e.name',
+            'man_days' => 'p.man_days',
+            'estimated_hours' => 'p.estimated_hours',
+            'status' => 'p.status',
+            'project_start_date' => 'p.project_start_date',
+            'project_end_date' => 'p.project_end_date',
+            'Start Date' => 'p.project_start_date',
+            'End Date' => 'p.project_end_date',
+        );
+
+        $sort_by = trim((string)$sort_by);
+        $sort_order = strtolower(trim((string)$sort_order)) === 'asc' ? 'ASC' : 'DESC';
+        $column = isset($allowed_columns[$sort_by]) ? $allowed_columns[$sort_by] : 'p.project_number';
+
+        $this->db->order_by($column, $sort_order);
+    }
+
+    public function getProjectsExportList(
+        $search = '',
+        $sort_by = 'project_number',
+        $sort_order = 'desc',
+        $department = array(),
+        $manager = array(),
+        $from_year = '',
+        $from_month = '',
+        $to_year = '',
+        $to_month = '',
+        $status = '',
+        $billing_type = '',
+        $client_Id = '',
+        $project_Id = ''
+    ) {
+        $this->db->select('
+            p.project_type,
+            c.client_name,
+            p.project_name,
+            p.project_number,
+            e.name as manager_name,
+            p.man_days,
+            p.estimated_hours,
+            p.status,
+            p.project_start_date,
+            p.project_end_date
+        ')
+            ->from('project_details as p')
+            ->join('client_details as c', 'p.client_Id = c.client_Id', 'left')
+            ->join('employee_details as e', 'p.empId = e.empId', 'left');
+
+        $this->applyProjectListFilters(
+            $search,
+            $department,
+            $manager,
+            $from_year,
+            $from_month,
+            $to_year,
+            $to_month,
+            $status,
+            $billing_type,
+            $client_Id,
+            $project_Id
+        );
+
+        $this->applyProjectListSort($sort_by, $sort_order);
+
+        return $this->db->get()->result();
+    }
+
+    public function getProjectsByClientId($clientId = '')
+    {
+        $this->db->select('project_Id, project_name, project_number')
+            ->from('project_details')
+            ->order_by('project_name', 'asc');
+
+        if ($clientId !== '' && $clientId !== null) {
+            $this->db->where('client_Id', (int)$clientId);
+        }
+
+        return $this->db->get()->result();
+    }
 
 
 public function getTotalProjects(
@@ -420,7 +636,9 @@ public function getTotalProjects(
     $to_year = '',
     $to_month = '',
     $status = '',
-    $billing_type = ''
+    $billing_type = '',
+    $client_Id = '',
+    $project_Id = ''
 ) {
 
     $this->db->select('COUNT(*) as total')
@@ -428,62 +646,19 @@ public function getTotalProjects(
         ->join('client_details as c', 'p.client_Id = c.client_Id', 'left')
         ->join('employee_details as e', 'p.empId = e.empId', 'left');
 
-
-
-    // ✅ REMOVE ELOGIC SOLUTIONS PROJECTS FROM COUNTS
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic solutions%'", null, false);
-
-    // ✅ Billing Type Filter
-    if (!empty($billing_type)) {
-        $this->db->where('p.man_days', $billing_type);
-    }
-
-    // ✅ Department filter
-    if (!empty($department) && !in_array('all', $department)) {
-        $this->db->where_in('p.project_type', $department);
-    }
-
-    // ✅ Manager filter
-    if (!empty($manager)) {
-        $this->db->where_in('p.empId', $manager);
-    }
-
-    // ✅ FROM / TO FILTER (YEAR OR MONTH OR BOTH)
-
-    // FROM YEAR
-    if (!empty($from_year)) {
-        $this->db->where('YEAR(p.project_start_date) >=', $from_year);
-    }
-
-    // FROM MONTH
-    if (!empty($from_month)) {
-        $this->db->where('MONTH(p.project_start_date) >=', $from_month);
-    }
-
-    // TO YEAR
-    if (!empty($to_year)) {
-        $this->db->where('YEAR(p.project_end_date) <=', $to_year);
-    }
-
-    // TO MONTH
-    if (!empty($to_month)) {
-        $this->db->where('MONTH(p.project_end_date) <=', $to_month);
-    }
-
-    // ✅ Status filter
-    if (!empty($status)) {
-        $this->db->where('p.status', $status);
-    }
-
-    // ✅ Search filter
-    if (!empty($search)) {
-        $this->db->group_start();
-        $this->db->like('p.project_name', $search);
-        $this->db->or_like('p.project_number', $search);
-        $this->db->or_like('c.client_name', $search);
-        $this->db->or_like('e.name', $search);
-        $this->db->group_end();
-    }
+    $this->applyProjectListFilters(
+        $search,
+        $department,
+        $manager,
+        $from_year,
+        $from_month,
+        $to_year,
+        $to_month,
+        $status,
+        $billing_type,
+        $client_Id,
+        $project_Id
+    );
 
     return $this->db->get()->row()->total;
 }
@@ -498,7 +673,9 @@ public function getStatusCountsWithoutGeneral(
     $from_month = '',
     $to_year = '',
     $to_month = '',
-    $billing_type = ''
+    $billing_type = '',
+    $client_Id = '',
+    $project_Id = ''
 )
 {
     $this->db->select("
@@ -511,57 +688,22 @@ public function getStatusCountsWithoutGeneral(
     $this->db->join('client_details as c', 'p.client_Id = c.client_Id', 'left');
     $this->db->join('employee_details as e', 'p.empId = e.empId', 'left');
 
-    // ✅ REMOVE GENERAL PROJECTS ONLY FROM COUNT TABLE
     $this->db->where("LOWER(p.project_type) NOT LIKE '%general%'", null, false);
     $this->db->where("LOWER(p.project_name) NOT LIKE '%(general)%'", null, false);
 
-    // ✅ REMOVE ELOGIC SOLUTIONS
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic solutions%'", null, false);
-
-    // Department Filter
-    if (!empty($department) && !in_array('all', $department)) {
-        $this->db->where_in('p.project_type', $department);
-    }
-
-    // Manager Filter
-    if (!empty($manager)) {
-        $this->db->where_in('p.empId', $manager);
-    }
-
-    // Billing Type
-    if (!empty($billing_type)) {
-        $this->db->where('p.man_days', $billing_type);
-    }
-
-    // From Year
-    if (!empty($from_year)) {
-        $this->db->where('YEAR(p.project_start_date) >=', $from_year);
-    }
-
-    // From Month
-    if (!empty($from_month)) {
-        $this->db->where('MONTH(p.project_start_date) >=', $from_month);
-    }
-
-    // To Year
-    if (!empty($to_year)) {
-        $this->db->where('YEAR(p.project_end_date) <=', $to_year);
-    }
-
-    // To Month
-    if (!empty($to_month)) {
-        $this->db->where('MONTH(p.project_end_date) <=', $to_month);
-    }
-
-    // Search
-    if (!empty($search)) {
-        $this->db->group_start();
-        $this->db->like('p.project_name', $search);
-        $this->db->or_like('p.project_number', $search);
-        $this->db->or_like('c.client_name', $search);
-        $this->db->or_like('e.name', $search);
-        $this->db->group_end();
-    }
+    $this->applyProjectListFilters(
+        $search,
+        $department,
+        $manager,
+        $from_year,
+        $from_month,
+        $to_year,
+        $to_month,
+        '',
+        $billing_type,
+        $client_Id,
+        $project_Id
+    );
 
     return $this->db->get()->row();
 }
@@ -584,7 +726,9 @@ public function getProjectsPaginated(
     $to_year = '',
     $to_month = '',
     $status = '',
-    $billing_type = ''
+    $billing_type = '',
+    $client_Id = '',
+    $project_Id = ''
 )
 {
     $this->db->select('p.*, c.client_name, e.name')
@@ -592,66 +736,22 @@ public function getProjectsPaginated(
         ->join('client_details as c', 'p.client_Id = c.client_Id', 'left')
         ->join('employee_details as e', 'p.empId = e.empId', 'left');
 
+    $this->applyProjectListFilters(
+        $search,
+        $department,
+        $manager,
+        $from_year,
+        $from_month,
+        $to_year,
+        $to_month,
+        $status,
+        $billing_type,
+        $client_Id,
+        $project_Id
+    );
 
-    // ✅ REMOVE ELOGIC SOLUTIONS PROJECTS
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic solutions%'", null, false);
+    $this->applyProjectListSort($sort_by, $sort_order);
 
-    // ✅ FILTER: Department
-    if (!empty($department) && !in_array('all', $department)) {
-        $this->db->where_in('p.project_type', $department);
-    }
-
-    // ✅ FILTER: Billing Type
-    if (!empty($billing_type)) {
-        $this->db->where('p.man_days', $billing_type);
-    }
-
-    // ✅ FILTER: Manager
-    if (!empty($manager)) {
-        $this->db->where_in('p.empId', $manager);
-    }
-
-    // ✅ FROM / TO FILTER (YEAR OR MONTH OR BOTH)
-
-    // FROM YEAR
-    if (!empty($from_year)) {
-        $this->db->where('YEAR(p.project_start_date) >=', $from_year);
-    }
-
-    // FROM MONTH
-    if (!empty($from_month)) {
-        $this->db->where('MONTH(p.project_start_date) >=', $from_month);
-    }
-
-    // TO YEAR
-    if (!empty($to_year)) {
-        $this->db->where('YEAR(p.project_end_date) <=', $to_year);
-    }
-
-    // TO MONTH
-    if (!empty($to_month)) {
-        $this->db->where('MONTH(p.project_end_date) <=', $to_month);
-    }
-
-    // ✅ FILTER: Status
-    if (!empty($status)) {
-        $this->db->where('p.status', $status);
-    }
-
-    // ✅ SEARCH
-    if (!empty($search)) {
-        $this->db->group_start();
-        $this->db->like('p.project_name', $search);
-        $this->db->or_like('p.project_number', $search);
-        $this->db->or_like('c.client_name', $search);
-        $this->db->or_like('e.name', $search);
-        $this->db->group_end();
-    }
-
-    // ✅ SORT
-    $this->db->order_by($sort_by, $sort_order);
-
-    // ✅ LIMIT
     $this->db->limit($limit, $offset);
 
     return $this->db->get()->result();

@@ -131,30 +131,30 @@ public function getProjectsAjax()
 {
     $page = $this->input->post('page') ?: 1;
     $limit = $this->input->post('limit') ?: 10;
-    $search = $this->input->post('search') ?: '';
+    $search = trim((string)$this->input->post('search'));
 
-    $department = $this->input->post('department');
-    $manager = $this->input->post('manager');
+    $department = $this->normalizeProjectFilterArray($this->input->post('department'));
+    $manager = $this->normalizeProjectFilterArray($this->input->post('manager'));
 
-    // ✅ YEAR MONTH FILTERS
     $from_year = $this->input->post('from_year');
     $from_month = $this->input->post('from_month');
     $to_year = $this->input->post('to_year');
     $to_month = $this->input->post('to_month');
 
-    $status = $this->input->post('status');
-$billing_type = $this->input->post('billing_type');
-	
-	if ($status == 'All') {
-    $status = '';
-}
+    $status = trim((string)$this->input->post('status'));
+    $billing_type = trim((string)$this->input->post('billing_type'));
+    $client_Id = trim((string)$this->input->post('client_Id'));
+    $project_Id = trim((string)$this->input->post('project_Id'));
+
+    if ($status === 'All') {
+        $status = '';
+    }
 
     $sort_by = $this->input->post('sort_by') ?: 'project_number';
     $sort_order = $this->input->post('sort_order') ?: 'desc';
 
     $offset = ($page - 1) * $limit;
 
-    // ✅ TOTAL RECORDS
     $totalRecords = $this->project_model->getTotalProjects(
         $search,
         $department,
@@ -164,10 +164,11 @@ $billing_type = $this->input->post('billing_type');
         $to_year,
         $to_month,
         $status,
-        $billing_type
+        $billing_type,
+        $client_Id,
+        $project_Id
     );
 
-    // ✅ PROJECT LIST
     $projects = $this->project_model->getProjectsPaginated(
         $limit,
         $offset,
@@ -181,17 +182,23 @@ $billing_type = $this->input->post('billing_type');
         $to_year,
         $to_month,
         $status,
-        $billing_type
+        $billing_type,
+        $client_Id,
+        $project_Id
     );
 
-
-    // ✅ STATUS COUNTS
-    // ✅ STATUS COUNTS WITHOUT GENERAL PROJECTS
-$statusCounts = $this->project_model->getStatusCountsWithoutGeneral(
-    $search,
-    $department,
-    $manager
-);
+    $statusCounts = $this->project_model->getStatusCountsWithoutGeneral(
+        $search,
+        $department,
+        $manager,
+        $from_year,
+        $from_month,
+        $to_year,
+        $to_month,
+        $billing_type,
+        $client_Id,
+        $project_Id
+    );
 
 $processCount = !empty($statusCounts->process) ? $statusCounts->process : 0;
 $holdCount = !empty($statusCounts->hold) ? $statusCounts->hold : 0;
@@ -215,6 +222,26 @@ $closedCount = !empty($statusCounts->closed) ? $statusCounts->closed : 0;
             'endRecord' => min($offset + $limit, $totalRecords)
         ]
     ]);
+}
+
+public function getProjectsByClient()
+{
+    $clientId = trim((string)$this->input->post('client_Id'));
+    $selectedProjectId = trim((string)$this->input->post('project_Id'));
+    $projects = $this->project_model->getProjectsByClientId($clientId);
+
+    echo '<option value="">All Projects</option>';
+    foreach ($projects as $project) {
+        $pid = (int)$project->project_Id;
+        $label = trim((string)$project->project_name);
+        if (!empty($project->project_number)) {
+            $label .= ' (' . $project->project_number . ')';
+        }
+        $selected = ($selectedProjectId !== '' && (int)$selectedProjectId === $pid) ? ' selected' : '';
+        echo '<option value="' . $pid . '"' . $selected . '>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</option>';
+    }
 }
 
 	public function add($projct_Id = NULL){
@@ -251,6 +278,9 @@ $closedCount = !empty($statusCounts->closed) ? $statusCounts->closed : 0;
 	    $this->form_validation->set_rules('project_name', 'Project name already exit. Please try another project', 'required|trim|callback_exists_projects');
         
         $this->form_validation->set_rules('project_number', 'Project number already exit in another project. Please try to different number', 'required|trim|callback_exists_project_number');
+
+        $this->form_validation->set_rules('project_start_date', 'Start Date', 'required|trim');
+        $this->form_validation->set_rules('project_end_date', 'End Date', 'required|trim|callback_validate_project_end_after_start');
 		
 		  //$this->form_validation->set_rules('task_name', 'Task name already exit. Please try another task name', 'required|trim|callback_exists_tasks');
 		
@@ -353,6 +383,9 @@ $closedCount = !empty($statusCounts->closed) ? $statusCounts->closed : 0;
 	    $this->form_validation->set_rules('project_name', 'Project name already exit. Please try another project', 'required|trim|callback_exists_projects');
         
         //$this->form_validation->set_rules('project_number', 'Project number already exit in another project. Please try to different number', 'required|trim|callback_exists_project_number');
+
+        $this->form_validation->set_rules('project_start_date', 'Start Date', 'required|trim');
+        $this->form_validation->set_rules('project_end_date', 'End Date', 'required|trim|callback_validate_project_end_after_start');
         
         
         if(!empty($this->input->post('man_days'))){
@@ -393,51 +426,11 @@ $closedCount = !empty($statusCounts->closed) ? $statusCounts->closed : 0;
 
 		
 		if ($this->form_validation->run() == FALSE) {
-	
-			$this->load->view('projects/add_project');
-			
-			$data = array(
-				'client_Id' 				 => $this->input->post('client_Id'),
-				'empId'						 => $who_allocated_project_empId,
-				'who_allocated_project_empId' => $this->session->userdata['logged_in_timesheet']['empId'],
-				'city' 				 		 => $this->input->post('city'),
-				'state' 					 => $this->input->post('state'),
-				'country' 					 => $this->input->post('country'),
-				'pc_code' 				 	 => $this->input->post('pc_code'),
-				'p_manager' 				 => $this->input->post('p_manager'),			
-				'project_type' 				 => $this->input->post('project_type'),    
-				'project_start_date' 		 => $this->input->post('project_start_date'),
-				'project_end_date'			 => $this->input->post('project_end_date'),
-				'man_days'		             => $man_days, 
-				'estimated_hours'			 => $this->input->post('estimated_hours'),
-				'notif_hours'				 => $this->input->post('notif_hours'),
-				'team_members'				 => implode(',', $this->input->post('team_members')),
-				'project_type'				 => $this->input->post('project_type'),
-				'status'				 	 => $this->input->post('status'),
-				'resource_billability'		 => $this->input->post('resource_billability'),
-				'total_site_area'			 => $this->input->post('total_site_area'),
-				'construction_technology'	 => $this->input->post('construction_technology'),
-				'building_typology'	 		 => $this->input->post('building_typology'),
-				'scope_category'	 		 => $this->input->post('scope_category'),
-				'technology_category'	 	 => $this->input->post('technology_category'),
-				'project_desc' 				 => $this->input->post('project_desc'),
-				'link_to_project'			 => $this->input->post('link_to_project'),
-				'project_contact_name'	 	 => $this->input->post('project_contact_name'),
-				'project_email_id'	 		 => $this->input->post('project_email_id'),
-				'project_contact_number'	 => $this->input->post('project_contact_number'),
-				'created_at'    			 => date('Y-m-d H:i:s'),
-				'updated_at' 		 		 => date('Y-m-d H:i:s')
-				);	
-	
-	     $this->project_model->update_project($data , $projct_Id);
-        
-        if($this->input->post('status') == 'Closed'){     
-            
-            $this->task_model->update_task_status($projct_Id); //   //update task status based on project.
-            
-        }
-		 redirect('projects');
-			
+
+			$data['updateProject'] = $this->project_model->getProjects($projct_Id);
+			$this->load->view('projects/add_project', $data);
+			return;
+
 	    }else{
 						
 			$data = array(
@@ -552,6 +545,28 @@ $closedCount = !empty($statusCounts->closed) ? $statusCounts->closed : 0;
 			 return FALSE;
         }
     
+    }
+
+    function validate_project_end_after_start() {
+        $start = trim((string)$this->input->post('project_start_date'));
+        $end = trim((string)$this->input->post('project_end_date'));
+
+        if ($start === '' || $end === '') {
+            return TRUE;
+        }
+
+        $startTs = strtotime($start);
+        $endTs = strtotime($end);
+
+        if ($startTs === FALSE || $endTs === FALSE || $endTs <= $startTs) {
+            $this->form_validation->set_message(
+                'validate_project_end_after_start',
+                'End Date must be greater than Start Date. Record not entered.'
+            );
+            return FALSE;
+        }
+
+        return TRUE;
     }
     
     /******************************************** Clone Project *********************************************************************/
@@ -944,175 +959,55 @@ public function getProjectSuggestions()
 
 public function downloadExcel()
 {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-
-    $search = $this->input->get('search');
-    $department = json_decode($this->input->get('department'), true);
-    $manager = json_decode($this->input->get('manager'), true);
+    $search = trim((string)$this->input->get('search'));
+    $department = $this->normalizeProjectFilterArray(json_decode($this->input->get('department'), true));
+    $manager = $this->normalizeProjectFilterArray(json_decode($this->input->get('manager'), true));
     $from_year = $this->input->get('from_year');
     $from_month = $this->input->get('from_month');
     $to_year = $this->input->get('to_year');
     $to_month = $this->input->get('to_month');
-    $status = $this->input->get('status');
+    $status = trim((string)$this->input->get('status'));
+    $billing_type = trim((string)$this->input->get('billing_type'));
+    $client_Id = trim((string)$this->input->get('client_Id'));
+    $project_Id = trim((string)$this->input->get('project_Id'));
+    $sort_by = $this->input->get('sort_by') ?: 'project_number';
+    $sort_order = $this->input->get('sort_order') ?: 'desc';
 
-    $this->db->select('
-        p.project_type,
-        c.client_name,
-        p.project_name,
-        p.project_number,
-        e.name as manager_name,
-        p.man_days,
-        p.status,
-        p.project_start_date,
-        p.project_end_date
-    ');
-
-    $this->db->from('project_details p');
-    $this->db->join('client_details c', 'c.client_Id = p.client_Id', 'left');
-    $this->db->join('employee_details e', 'e.empId = p.empId', 'left');
-
-    // ==========================
-    // DEFAULT SCREEN FILTERS
-    // ==========================
-
-    $this->db->where('p.status IS NOT NULL', null, false);
-    $this->db->where('p.status !=', '');
-
-    $this->db->where("LOWER(p.project_type) NOT LIKE '%general%'", null, false);
-
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%(general)%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%- general%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%general%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%test%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%trail project%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%client calls%'", null, false);
-    $this->db->where("LOWER(p.project_name) NOT LIKE '%elogic%'", null, false);
-
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%client calls%'", null, false);
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic%'", null, false);
-    $this->db->where("LOWER(c.client_name) NOT LIKE '%elogic solutions%'", null, false);
-
-    $excludedClients = [
-        'elogic (ather)',
-        'elogic points cloud training',
-        'elogicsolutions(raghava)',
-        'elogictech solutions'
-    ];
-
-    foreach ($excludedClients as $client) {
-        $this->db->where("LOWER(c.client_name) !=", strtolower($client));
+    if ($status === 'All') {
+        $status = '';
     }
 
-    // ==========================
-    // SEARCH FILTER
-    // ==========================
-    if (!empty($search)) {
-        $this->db->group_start();
-        $this->db->like('p.project_name', $search);
-        $this->db->or_like('p.project_number', $search);
-        $this->db->or_like('c.client_name', $search);
-        $this->db->group_end();
-    }
-
-    // ==========================
-    // DEPARTMENT FILTER
-    // ==========================
-    if (!empty($department) && is_array($department) && !in_array('all', $department)) {
-        $this->db->where_in('p.project_type', $department);
-    }
-
-    // ==========================
-    // MANAGER FILTER
-    // ==========================
-    if (!empty($manager) && is_array($manager)) {
-        $this->db->where_in('p.empId', $manager);
-    }
-
-    // ==========================
-    // DATE FILTER
-    // ==========================
-    if (!empty($from_year) && !empty($from_month)) {
-        $fromDate = $from_year . '-' . $from_month . '-01';
-        $this->db->where('p.project_start_date >=', $fromDate);
-    }
-
-    if (!empty($to_year) && !empty($to_month)) {
-        $toDate = date('Y-m-t', strtotime($to_year . '-' . $to_month . '-01'));
-        $this->db->where('p.project_end_date <=', $toDate);
-    }
-
-    // ==========================
-    // STATUS FILTER
-    // ==========================
-    if (!empty($status)) {
-
-        $status = strtolower(trim($status));
-
-        if ($status == 'process') {
-            $this->db->group_start();
-            $this->db->where_in('LOWER(p.status)', ['process', 'in process', 'in_process']);
-            $this->db->group_end();
-        }
-        elseif ($status == 'closed') {
-            $this->db->where('LOWER(p.status)', 'closed');
-        }
-        elseif ($status == 'on hold') {
-            $this->db->group_start();
-            $this->db->where_in('LOWER(p.status)', ['on hold', 'on_hold']);
-            $this->db->group_end();
-        }
-    }
-
-    // ==========================
-    // SORTING
-    // ==========================
-
-    $sort_by = trim($this->input->get('sort_by'));
-    $sort_order = strtolower(trim($this->input->get('sort_order')));
-
-    $allowed_columns = [
-        'project_type'   => 'p.project_type',
-        'client_name'    => 'c.client_name',
-        'project_name'   => 'p.project_name',
-        'project_number' => 'p.project_number',
-        'name'           => 'e.name',
-        'man_days'       => 'p.man_days',
-        'status'         => 'p.status'
-    ];
-
-    if ($sort_order != 'asc' && $sort_order != 'desc') {
-        $sort_order = 'desc';
-    }
-
-    if (!empty($sort_by) && isset($allowed_columns[$sort_by])) {
-        $this->db->order_by($allowed_columns[$sort_by], $sort_order);
-    } else {
-        $this->db->order_by('p.project_Id', 'DESC');
-    }
-
-    // IMPORTANT MISSING LINE
-    $query = $this->db->get();
-
-    // ==========================
-    // DOWNLOAD HEADERS
-    // ==========================
+    $rows = $this->project_model->getProjectsExportList(
+        $search,
+        $sort_by,
+        $sort_order,
+        $department,
+        $manager,
+        $from_year,
+        $from_month,
+        $to_year,
+        $to_month,
+        $status,
+        $billing_type,
+        $client_Id,
+        $project_Id
+    );
 
     header("Content-Type: application/vnd.ms-excel");
     header("Content-Disposition: attachment; filename=filtered_projects.xls");
     header("Pragma: no-cache");
     header("Expires: 0");
 
-    echo "Department\tClient\tProject Name\tProject Number\tProject Manager\tBilling Type\tStatus\tStart Date\tEnd Date\n";
+    echo "Department\tClient\tProject Name\tProject Number\tProject Manager\tBilling Type\tEst/Hours\tStatus\tStart Date\tEnd Date\n";
 
-    foreach ($query->result() as $row) {
-
+    foreach ($rows as $row) {
         echo $row->project_type . "\t" .
              $row->client_name . "\t" .
              $row->project_name . "\t" .
              $row->project_number . "\t" .
              $row->manager_name . "\t" .
              $row->man_days . "\t" .
+             $row->estimated_hours . "\t" .
              $row->status . "\t" .
              $row->project_start_date . "\t" .
              $row->project_end_date . "\n";
@@ -1121,7 +1016,18 @@ public function downloadExcel()
     exit;
 }
 
-
+private function normalizeProjectFilterArray($value)
+{
+    if ($value === null || $value === '') {
+        return array();
+    }
+    if (!is_array($value)) {
+        return array($value);
+    }
+    return array_values(array_filter($value, function ($item) {
+        return $item !== '' && $item !== null;
+    }));
+}
 
 /*********************************************************** Project Report Master search ************************************************ */
     
@@ -1129,17 +1035,19 @@ public function downloadExcel()
 
 public function update_project_master_status(){
 
-	$project_status_update_id 	 	 = $this->input->post('project_status_update_id');
-	$status 			 		 = $this->input->post('status');
+	$project_status_update_id = (int)$this->input->post('project_status_update_id');
+	$status = trim((string)$this->input->post('status'));
+	$project_end_date = trim((string)$this->input->post('project_end_date'));
 
-	
-	if(!empty($project_status_update_id)):
-	
-		$updateStatus = $this->project_model->update_project_master_model_query($project_status_update_id,$status);
-		//redirect('empreports/pmreportlogs');	
-	 
-	  endif;	
+	if (empty($project_status_update_id) || $status === '') {
+		return;
+	}
 
+	$this->project_model->update_project_master_model_query(
+		$project_status_update_id,
+		$status,
+		$project_end_date
+	);
 }
 
 /************************************************************  Project master status update feature function END *************************************/    

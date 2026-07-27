@@ -795,11 +795,12 @@
 					<div class="form-group">
 						<label class="control-label col-md-2">Start Date : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-							<input class="form-control" type="text" name="project_start_date" id="project_start_date" readonly="" placeholder="Enter Project Start Date" value="">
+							<input class="form-control" type="text" name="project_start_date" id="project_start_date" readonly="" placeholder="Enter Project Start Date" value="<?php echo set_value('project_start_date'); ?>">
 						</div>
 						<label class="control-label col-md-2">End Date : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-							<input class="form-control" type="text" name="project_end_date" id="project_end_date" readonly="" placeholder="Enter Project End Date" value="">
+							<input class="form-control" type="text" name="project_end_date" id="project_end_date" readonly="" placeholder="Enter Project End Date" value="<?php echo set_value('project_end_date'); ?>">
+							<?php echo form_error('project_end_date'); ?>
 						</div>
 					</div>
 					<div class="form-group">
@@ -1834,11 +1835,12 @@
 					<div class="form-group">
 						<label class="control-label col-md-2">Start Date : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-							<input class="form-control" type="text" name="project_start_date" id="project_start_date" readonly="" placeholder="Enter Project Start Date" value="<?php echo $getProjectData->project_start_date;?>">
+							<input class="form-control" type="text" name="project_start_date" id="project_start_date" readonly="" placeholder="Enter Project Start Date" value="<?php echo set_value('project_start_date', $getProjectData->project_start_date); ?>">
 						</div>
 						<label class="control-label col-md-2">End Date : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-							<input class="form-control" type="text" name="project_end_date" id="project_end_date" readonly="" placeholder="Enter Project End Date" value="<?php echo $getProjectData->project_end_date;?>">
+							<input class="form-control" type="text" name="project_end_date" id="project_end_date" readonly="" placeholder="Enter Project End Date" value="<?php echo set_value('project_end_date', $getProjectData->project_end_date); ?>">
+							<?php echo form_error('project_end_date'); ?>
 						</div>
 					</div>
 					<div class="form-group">
@@ -2088,6 +2090,17 @@
 	<?php endif; ?>
 </div>
 <!-- Organizatoin form validation -->
+<style type="text/css">
+	form[name='add_project_info'] label.error {
+		color: #a94442 !important;
+		font-weight: 600;
+		display: block;
+		margin-top: 4px;
+	}
+	form[name='add_project_info'] label.error[for="project_end_date"] {
+		color: #a94442 !important;
+	}
+</style>
 <script type="text/javascript" language="javascript">
 	// Wait for the DOM to be ready
 	$(function() {
@@ -2096,6 +2109,22 @@
 			var val = $(element).val();
 			return val && (Array.isArray(val) ? val.length > 0 : (val + "").length > 0);
 		}, "Please choose team member.");
+
+		$.validator.addMethod("endDateAfterStart", function(value, element) {
+			var start = $.trim($("#project_start_date").val() || "");
+			var end = $.trim(value || "");
+			if (!start || !end) {
+				return true;
+			}
+			var startParts = start.split("-");
+			var endParts = end.split("-");
+			if (startParts.length !== 3 || endParts.length !== 3) {
+				return false;
+			}
+			var startDate = new Date(parseInt(startParts[0], 10), parseInt(startParts[1], 10) - 1, parseInt(startParts[2], 10));
+			var endDate = new Date(parseInt(endParts[0], 10), parseInt(endParts[1], 10) - 1, parseInt(endParts[2], 10));
+			return endDate.getTime() > startDate.getTime();
+		}, "End Date must be greater than Start Date. Record not entered.");
 
 		$("form[name='add_project_info']").validate({
 			rules: {
@@ -2157,7 +2186,8 @@
 					required: true
 				},
 				project_end_date: {
-					required: true
+					required: true,
+					endDateAfterStart: true
 				},
 				project_start_date: {
 					required: true
@@ -2208,6 +2238,7 @@
 					return;
 				}
 				error.insertAfter(element);
+				error.css({ "display": "block", "color": "#a94442" });
 			},
 			submitHandler: function(form) {
 				form.submit();
@@ -2216,6 +2247,18 @@
 	});
 
 	$(document).ready(function() {
+		function eriEndDateMinFromStart() {
+			var startVal = $("#project_start_date").val();
+			if (!startVal) {
+				return null;
+			}
+			var parts = startVal.split("-");
+			if (parts.length !== 3) {
+				return null;
+			}
+			return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10) + 1);
+		}
+
 		var today = $("#project_start_date").val();
 		$("#project_start_date, #project_end_date").datepicker({
 			dateFormat: 'yy-mm-dd',
@@ -2223,19 +2266,32 @@
 			numberOfMonths: 1,
 			onSelect: function(selectedDate) {
 				if (this.id == 'project_start_date') {
+					var rMin = eriEndDateMinFromStart();
 					var dateMin = $('#project_start_date').datepicker("getDate");
-					//var rMin = new Date(dateMin.getFullYear(), dateMin.getMonth(), dateMin.getDate() + 1);
-					var rMin = new Date(dateMin.getFullYear(), dateMin.getMonth(), dateMin.getDate());
 					var rMax = new Date(dateMin.getFullYear(), dateMin.getMonth(), dateMin.getDate() + 365);
-					$('#project_end_date').datepicker("option", "minDate", rMin);
+					if (rMin) {
+						$('#project_end_date').datepicker("option", "minDate", rMin);
+					}
 					$('#project_end_date').datepicker("option", "maxDate", rMax);
+					$('#project_end_date').valid();
 				}
-
-
+				if (this.id == 'project_end_date') {
+					$('#project_end_date').valid();
+				}
 			}
 		});
-		$('#project_end_date').datepicker("option", "minDate", new Date(today));
+		var initialMin = eriEndDateMinFromStart();
+		if (initialMin) {
+			$('#project_end_date').datepicker("option", "minDate", initialMin);
+		}
 
+		$('#project_start_date').on('change', function() {
+			var rMin = eriEndDateMinFromStart();
+			if (rMin) {
+				$('#project_end_date').datepicker("option", "minDate", rMin);
+			}
+			$('#project_end_date').valid();
+		});
 	})
 	$('#client_Id,#resource_billability,#status,#project_type,#team_members,#team_members_update,#project_type,#state,#country,#p_manager,#construction_technology,#building_typology,#man_days,#scope_category,#technology_category').select2(); // Autosuggest list on clients
 

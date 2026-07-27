@@ -414,6 +414,25 @@ if (!function_exists('eri_project_status_label')) {
 .eri-filter-card .select2-container.cr-ym-selected-bg .select2-selection__arrow b {
     border-color: #fff transparent transparent transparent;
 }
+.eri-filter-card .eri-filter-select + .select2-container {
+    width: 100% !important;
+}
+.eri-filter-card .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+}
+.eri-filter-card .select2-dropdown {
+    border-color: #cfd6df;
+    border-radius: 8px;
+    z-index: 9999;
+}
+.eri-filter-card .select2-search--dropdown .select2-search__field {
+    border: 1px solid #cfd6df;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+.eri-filter-card .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #337ab7;
+}
 </style>
 
 <div class="content-wrapper">
@@ -423,6 +442,9 @@ if (!function_exists('eri_project_status_label')) {
             <p class="eri-subtitle">Projects with no timesheet log from <?php echo date('M Y', strtotime($fromDate)); ?> to <?php echo date('M Y', strtotime($toDate)); ?><?php echo ($fromYearIsAll || $toYearIsAll) ? ' (All = last 6 months)' : ''; ?>.</p>
         </div>
         <div>
+            <button type="button" class="btn btn-success btn-flat" onclick="downloadInactivityExcel()" data-toggle="tooltip" title="Download Excel">
+                <i class="fa fa-file-excel-o"></i> Download Excel
+            </button>
             <a class="btn btn-info btn-flat" href="<?php echo base_url('emp_record_inactivity'); ?>" data-toggle="tooltip" title="Refresh">
                 <i class="fa fa-lg fa-refresh"></i>
             </a>
@@ -437,7 +459,7 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Department</label>
-                            <select name="department" id="department" class="form-control">
+                            <select name="department" id="department" class="form-control eri-filter-select">
                                 <option value="">All Departments</option>
                                 <?php foreach ($departments as $dept): ?>
                                     <?php if (empty($dept->department)) continue; ?>
@@ -452,7 +474,7 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Client</label>
-                            <select name="client_Id" id="client_Id" class="form-control">
+                            <select name="client_Id" id="client_Id" class="form-control eri-filter-select">
                                 <option value="">All Clients</option>
                                 <?php foreach ($clients as $client): ?>
                                     <option value="<?php echo (int)$client->client_Id; ?>"
@@ -466,7 +488,7 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Project</label>
-                            <select name="project_Id" id="project_Id" class="form-control">
+                            <select name="project_Id" id="project_Id" class="form-control eri-filter-select">
                                 <option value="">All Projects</option>
                                 <?php foreach ($projects as $project): ?>
                                     <option value="<?php echo (int)$project->project_Id; ?>"
@@ -480,7 +502,7 @@ if (!function_exists('eri_project_status_label')) {
                     <div class="col-md-3 col-sm-6">
                         <div class="form-group">
                             <label class="control-label">Status</label>
-                            <select name="project_status" id="project_status" class="form-control">
+                            <select name="project_status" id="project_status" class="form-control eri-filter-select">
                                 <option value="">All Status</option>
                                 <?php foreach ($projectStatuses as $statusRow): ?>
                                     <?php if (empty($statusRow->project_status)) continue; ?>
@@ -557,6 +579,9 @@ if (!function_exists('eri_project_status_label')) {
                         <a href="<?php echo base_url('emp_record_inactivity'); ?>" class="btn btn-default">
                             <i class="fa fa-refresh"></i> Reset
                         </a>
+                        <button type="button" class="btn btn-success" onclick="downloadInactivityExcel()">
+                            <i class="fa fa-file-excel-o"></i> Download Excel
+                        </button>
                     </div>
                 </div>
             </form>
@@ -692,6 +717,20 @@ if (!function_exists('eri_project_status_label')) {
 </div>
 
 <script type="text/javascript">
+function downloadInactivityExcel() {
+    var params = {
+        department: $('#department').val() || '',
+        client_Id: $('#client_Id').val() || '',
+        project_Id: $('#project_Id').val() || '',
+        project_status: $('#project_status').val() || '',
+        from_year: $('#from_year').val() || '',
+        from_month: $('#from_month').val() || '',
+        to_year: $('#to_year').val() || '',
+        to_month: $('#to_month').val() || ''
+    };
+    window.location.href = "<?php echo base_url('emp_record_inactivity/downloadExcel'); ?>?" + $.param(params);
+}
+
 function syncEriYmSelect($select) {
     var val = $select.val();
     var hasValue = val !== null && val !== undefined && String(val).trim() !== '';
@@ -736,7 +775,27 @@ function clearEriYmSelect(id) {
     }
 }
 
+function initEriFilterSelect2() {
+    if (!$.fn.select2) {
+        return;
+    }
+    var filterCfg = {
+        width: '100%',
+        allowClear: true,
+        minimumResultsForSearch: 0
+    };
+    $('#department, #client_Id, #project_Id, #project_status').each(function() {
+        var $el = $(this);
+        if ($el.hasClass('select2-hidden-accessible')) {
+            return;
+        }
+        $el.select2(filterCfg);
+    });
+}
+
 $(function() {
+    initEriFilterSelect2();
+
     if ($.fn.select2) {
         $('#from_year, #to_year').select2({
             width: '110px',
@@ -779,7 +838,7 @@ $(function() {
             type: "POST",
             data: { client_Id: clientId },
             success: function(response) {
-                $('#project_Id').html(response);
+                $('#project_Id').html(response).val('').trigger('change');
             }
         });
     });

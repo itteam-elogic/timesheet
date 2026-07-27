@@ -2,6 +2,7 @@
     <?php $this->load->view('includes/cRMHeader'); 
     $createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
     $loggedInEmpId = $this->session->userdata['logged_in_timesheet']['empId'];
+    $filterClients = $this->client_model->getClientName();
     ?>
     <!-- Inlude Header here END-->
 
@@ -102,8 +103,10 @@ var manager = $('#manager_name').val() || [];
     var to_month = $('#to_month').val();
 
     var status = window.projectStatus || '';
+    var billing_type = window.billingType || '';
+    var client_Id = $('#client_Id').val() || '';
+    var project_Id = $('#filter_project_Id').val() || '';
 
-    // ADD THESE
     var currentSortBy = sortBy;
     var currentSortOrder = sortOrder;
 
@@ -111,11 +114,14 @@ var manager = $('#manager_name').val() || [];
         "search=" + encodeURIComponent(search) +
         "&department=" + encodeURIComponent(JSON.stringify(department)) +
         "&manager=" + encodeURIComponent(JSON.stringify(manager)) +
-        "&from_year=" + from_year +
-        "&from_month=" + from_month +
-        "&to_year=" + to_year +
-        "&to_month=" + to_month +
+        "&from_year=" + encodeURIComponent(from_year || '') +
+        "&from_month=" + encodeURIComponent(from_month || '') +
+        "&to_year=" + encodeURIComponent(to_year || '') +
+        "&to_month=" + encodeURIComponent(to_month || '') +
         "&status=" + encodeURIComponent(status) +
+        "&billing_type=" + encodeURIComponent(billing_type) +
+        "&client_Id=" + encodeURIComponent(client_Id) +
+        "&project_Id=" + encodeURIComponent(project_Id) +
         "&sort_by=" + encodeURIComponent(currentSortBy) +
         "&sort_order=" + encodeURIComponent(currentSortOrder);
 
@@ -129,11 +135,13 @@ var manager = $('#manager_name').val() || [];
         </div>
         
         <div class="filter-section">
-    <div class="row">
+    <h4 class="project-filter-heading"><i class="fa fa-filter"></i> Search Filters</h4>
+
+    <div class="row project-filter-main-row">
 
         <!-- Department -->
-<div class="col-md-2">
-    <div class="form-group">
+<div class="col-md-2 col-sm-6">
+    <div class="form-group project-filter-form-group">
         <label class="control-label">Department</label>
         
         
@@ -144,7 +152,7 @@ var manager = $('#manager_name').val() || [];
 
         <?php if($createdUser == '149'): ?>
 
-            <select class="form-control <?php echo (!empty($selectedDept)) ? 'form-control-sm' : ''; ?>"
+            <select class="form-control project-filter-select"
                     id="department"
                     name="department[]"
                     multiple>
@@ -156,7 +164,7 @@ var manager = $('#manager_name').val() || [];
 
         <?php elseif($createdUser == '47'): ?>
 
-            <select class="form-control <?php echo (!empty($selectedDept)) ? 'form-control-sm' : ''; ?>" 
+            <select class="form-control project-filter-select" 
                     id="department" 
                     name="department[]" 
                     multiple>
@@ -168,7 +176,7 @@ var manager = $('#manager_name').val() || [];
             </select>
 <?php else: ?>    
 
-    <select class="form-control <?php echo (!empty($selectedDept)) ? 'form-control-sm' : ''; ?>" 
+    <select class="form-control project-filter-select" 
             id="department" 
             name="department[]" 
             multiple>
@@ -192,25 +200,41 @@ var manager = $('#manager_name').val() || [];
     </div>
 </div>
 
+<div class="col-md-2 col-sm-6">
+    <div class="form-group project-filter-form-group">
+        <label class="control-label">Client</label>
+        <select id="client_Id" name="client_Id" class="form-control project-filter-select">
+            <option value="">All Clients</option>
+            <?php if (!empty($filterClients)): ?>
+                <?php foreach ($filterClients as $client): ?>
+                    <option value="<?php echo (int)$client->client_Id; ?>">
+                        <?php echo htmlspecialchars($client->client_name, ENT_QUOTES, 'UTF-8'); ?>
+                    </option>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </select>
+    </div>
+</div>
 
- <script>
-	$('#department').select2({
-    placeholder: "Select Department",
-    allowClear: true,
-    width: '100%'
-});
-</script>
+<div class="col-md-2 col-sm-6">
+    <div class="form-group project-filter-form-group">
+        <label class="control-label">Project</label>
+        <select id="filter_project_Id" name="filter_project_Id" class="form-control project-filter-select">
+            <option value="">All Projects</option>
+        </select>
+    </div>
+</div>
 
-<div class="col-md-3">
-    <div class="form-group" style="position:relative;">
+<div class="col-md-3 col-sm-6">
+    <div class="form-group project-filter-form-group project-filter-search-wrap">
 
-        <label><b>Project Name / Number</b></label>
+        <label class="control-label">Quick Search</label>
 
         <input type="text"
                name="search_text"
                id="searchProject"
-               class="form-control"
-               placeholder="Project Name / Number / Client"
+               class="form-control project-filter-input"
+               placeholder="Name / Number / Client"
                autocomplete="off">
 
         <div id="projectSuggestions"></div>
@@ -221,7 +245,6 @@ var manager = $('#manager_name').val() || [];
 <style>
 #projectSuggestions{
     position:absolute;
-    top:70px;
     left:0;
     width:100%;
     background:#fff;
@@ -231,6 +254,7 @@ var manager = $('#manager_name').val() || [];
     max-height:250px;
     overflow-y:auto;
     box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    top: calc(var(--pf-label-height) + var(--pf-control-height) + 8px);
 }
 
 .suggestion-item{
@@ -279,6 +303,7 @@ $(document).ready(function(){
 
         $('#searchProject').val($(this).text());
         $('#projectSuggestions').hide();
+        loadProjects(1);
 
     });
 
@@ -295,15 +320,15 @@ $(document).ready(function(){
 
         <!-- Project Manager -->
 
-<div class="col-md-3">
-<div class="form-group">
-<label><b>Project Managers</b></label>
+<div class="col-md-3 col-sm-6">
+<div class="form-group project-filter-form-group">
+<label class="control-label">Project Managers</label>
 
 <?php
 $selectedManagers = (array) $this->input->post('manager_name');
 ?>
 
-<select name="manager_name[]" id="manager_name" class="form-control" multiple>
+<select name="manager_name[]" id="manager_name" class="form-control project-filter-select" multiple>
 
 <option value="41" <?php if(in_array('41',$selectedManagers)) echo "selected"; ?>>Sandeep Anupati</option>
 <option value="394" <?php if(in_array('394',$selectedManagers)) echo "selected"; ?>>Shivani Patil</option>
@@ -320,27 +345,17 @@ $selectedManagers = (array) $this->input->post('manager_name');
 </div>
 </div>
 
-<script>
-$(document).ready(function() {
-    $('#manager_name').select2({
-        placeholder: "Select Managers",
-        width: '100%'
-    });
-});
-</script>
+    </div><!-- /.project-filter-main-row -->
 
-
-    <div class="row">
+    <div class="row project-filter-dates-row">
 
     <!-- FROM -->
-    <div class="col-md-2">
-        <div class="filter-box">
-            <div class="label-title">From</div>
-
-            <!-- From Year -->
-             <div class="select-row">
+    <div class="col-md-6 col-sm-12">
+        <div class="form-group project-filter-form-group project-date-group">
+            <label class="control-label">From</label>
+            <div class="project-date-fields select-row">
             <div class="select-container">
-                <select class="dropdown-box clearable-select" id="from_year" name="from_year">
+                <select class="dropdown-box clearable-select project-filter-select" id="from_year" name="from_year">
                     <option value="">Select Year</option>
                     <option value="ALL">ALL</option>
                     <option value="2026">2026</option>
@@ -360,8 +375,8 @@ $(document).ready(function() {
             </div>
 
             <!-- From Month -->
-            <div class="select-container mt-2">
-               <select class="dropdown-box clearable-select" id="from_month" name="from_month">
+            <div class="select-container">
+               <select class="dropdown-box clearable-select project-filter-select" id="from_month" name="from_month">
                     <option value="">Select Month</option>
                     <option value="01">January</option>
                     <option value="02">February</option>
@@ -379,19 +394,17 @@ $(document).ready(function() {
 
                 <span class="clear-icon" onclick="clearDropdown('from_month')">&times;</span>
             </div>
-             </div>
+            </div>
         </div>
     </div>
 
     <!-- TO -->
-    <div class="col-md-2">
-        <div class="filter-box">
-            <div class="label-title">To</div>
-
-            <!-- To Year -->
-             <div class="select-row">
+    <div class="col-md-6 col-sm-12">
+        <div class="form-group project-filter-form-group project-date-group">
+            <label class="control-label">To</label>
+            <div class="project-date-fields select-row">
             <div class="select-container">
-               <select class="dropdown-box clearable-select" id="to_year" name="to_year">
+               <select class="dropdown-box clearable-select project-filter-select" id="to_year" name="to_year">
                     <option value="">Select Year</option>
                     <option value="ALL">ALL</option>
                     <option value="2026">2026</option>
@@ -411,8 +424,8 @@ $(document).ready(function() {
             </div>
 
             <!-- To Month -->
-            <div class="select-container mt-2">
-                <select class="dropdown-box clearable-select" id="to_month" name="to_month">
+            <div class="select-container">
+                <select class="dropdown-box clearable-select project-filter-select" id="to_month" name="to_month">
                     <option value="">Select Month</option>
                     <option value="01">January</option>
                     <option value="02">February</option>
@@ -430,42 +443,152 @@ $(document).ready(function() {
 
                 <span class="clear-icon" onclick="clearDropdown('to_month')">&times;</span>
             </div>
-             </div>
+            </div>
         </div>
-
     </div>
+
+    </div><!-- /.project-filter-dates-row -->
+
+    <div class="project-filter-actions">
+    <button type="button" class="btn btn-primary" onclick="loadProjects(1)">
+        <i class="fa fa-search"></i> Search
+    </button>
+
+    <button type="button" class="btn btn-hourly" onclick="filterStatus('Hourly')">Hourly</button>
+    <button type="button" class="btn btn-monthly" onclick="filterStatus('Monthly')">Monthly</button>
+    <button type="button" class="btn btn-success" onclick="filterStatus('Process')">In Process</button>
+    <button type="button" class="btn btn-warning" onclick="filterStatus('On Hold')">On Hold</button>
+    <button type="button" class="btn btn-danger" onclick="filterStatus('Closed')">Closed</button>
+    <button type="button" class="btn btn-info" onclick="filterStatus('All')">All</button>
+    </div>
+
+</div><!-- /.filter-section -->
 
 <style>
 /* Filter Box */
-.filter-box {
-    border: 2px solid #ddd;
+.filter-section {
+    --pf-control-height: 40px;
+    --pf-label-height: 22px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px 16px;
+    box-shadow: 0 2px 10px rgba(31, 80, 118, 0.06);
+    margin-bottom: 20px;
+}
+.project-filter-heading {
+    margin: 0 0 14px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f5076;
+}
+.project-filter-heading .fa {
+    margin-right: 8px;
+    color: #337ab7;
+}
+.project-filter-main-row,
+.project-filter-dates-row {
+    margin-left: -8px;
+    margin-right: -8px;
+}
+.project-filter-main-row > [class*="col-"],
+.project-filter-dates-row > [class*="col-"] {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.project-date-group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+    margin-bottom: 0;
+}
+.project-date-fields {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+.project-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #eef2f6;
+}
+.project-filter-actions .btn {
+    margin: 0;
+    min-width: 96px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 12px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.filter-section .project-filter-form-group {
+    margin-bottom: 12px;
+}
+.filter-section .project-filter-form-group > .control-label {
+    display: block;
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: var(--pf-label-height);
+    min-height: var(--pf-label-height);
+    color: #333;
+}
+.filter-section .project-filter-input,
+.filter-section .form-control.project-filter-input {
+    height: var(--pf-control-height);
+    border: 1px solid #cfd6df;
     border-radius: 8px;
-    padding: 8px;
-    background: #f9f9f9;
+    font-size: 14px;
+    box-shadow: none;
+    background: #fff;
+}
+.filter-section .project-filter-search-wrap {
+    position: relative;
+}
+
+.filter-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0;
+    background: transparent;
+}
+.filter-box-inline {
+    border: none;
+    padding: 0;
+    background: transparent;
 }
 
 /* Keep Year + Month Side By Side */
 .select-row {
     display: flex;
-    gap: 4px;
-    margin-top: 5px;
+    gap: 6px;
+    margin-top: 0;
+    align-items: center;
 }
 
 /* Select Container */
 .select-container {
     position: relative;
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 /* Dropdown Styling */
 .dropdown-box {
-    width: 92%;
-    height: 32px;
+    width: 100%;
+    height: var(--pf-control-height);
     padding: 5px 28px 5px 8px;
     border: 1px solid #ccc;
     border-radius: 8px;
     background: #fff;
-    font-size: 12px;
+    font-size: 14px;
     transition: all 0.3s ease;
     color: #333;
 }
@@ -481,153 +604,222 @@ $(document).ready(function() {
 /* Clear Icon */
 .clear-icon {
     position: absolute;
-    right: 27px;
+    right: 22px;
     top: 50%;
     transform: translateY(-50%);
-    color: #fff;
+    color: #666;
     font-size: 15px;
     cursor: pointer;
     display: none;
     z-index: 10;
+    line-height: 1;
+}
+.dropdown-box.selected-box + .clear-icon,
+.select-container .select2-hidden-accessible.selected-box ~ .select2-container .select2-selection--single {
+    background-color: #673ab7 !important;
+    border-color: #673ab7 !important;
+    color: #fff !important;
 }
 
 /* Label */
 .label-title {
     font-weight: 600;
     margin-bottom: 8px;
+    font-size: 14px;
+}
+.filter-section .select2-container,
+.filter-box .select2-container {
+    width: 100% !important;
+}
+.filter-section .select2-container .select2-selection--single,
+.filter-box .select2-container .select2-selection--single {
+    height: var(--pf-control-height) !important;
+    min-height: var(--pf-control-height) !important;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+    background: #fff;
+}
+.filter-section .select2-container .select2-selection__rendered,
+.filter-box .select2-container .select2-selection__rendered {
+    line-height: calc(var(--pf-control-height) - 2px) !important;
+    font-size: 14px;
+    padding-left: 10px;
+}
+.filter-section .select2-container .select2-selection--single .select2-selection__arrow,
+.filter-box .select2-container .select2-selection--single .select2-selection__arrow {
+    height: calc(var(--pf-control-height) - 2px) !important;
+    top: 0;
+}
+.filter-section .select2-container--default .select2-selection--multiple {
+    min-height: var(--pf-control-height) !important;
+    height: var(--pf-control-height) !important;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 2px 8px;
+    line-height: calc(var(--pf-control-height) - 6px);
+    max-height: var(--pf-control-height);
+    overflow: hidden;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    margin-top: 4px;
+    line-height: 18px;
     font-size: 13px;
+    padding: 0 6px;
+}
+.filter-section .select2-container--default .select2-selection--single .select2-selection__clear {
+    margin-right: 18px;
+}
+.filter-section .select2-dropdown,
+.filter-box .select2-dropdown {
+    z-index: 10050;
+    border-radius: 8px;
+}
+.filter-section .select2-search--dropdown .select2-search__field,
+.filter-box .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+.filter-section .project-filter-dates-row {
+    margin-top: 0;
+    width: 100%;
 }
 </style>
 
 
 <script>
-    $('#filterBtn').click(function () {
+function syncProjectYmClearState($select) {
+    var clearBtn = $select.closest('.select-container').find('.clear-icon');
+    var val = $select.val();
+    var hasValue = val !== null && val !== undefined && String(val).trim() !== '';
+    var $s2 = $select.next('.select2-container');
+    if (hasValue) {
+        clearBtn.show();
+        $select.addClass('selected-box');
+        $s2.find('.select2-selection--single').css({
+            'background-color': '#673ab7',
+            'border-color': '#673ab7',
+            'color': '#fff'
+        });
+        $s2.find('.select2-selection__rendered').css('color', '#fff');
+    } else {
+        clearBtn.hide();
+        $select.removeClass('selected-box');
+        $s2.find('.select2-selection--single').css({
+            'background-color': '',
+            'border-color': '',
+            'color': ''
+        });
+        $s2.find('.select2-selection__rendered').css('color', '');
+    }
+}
 
-    var from_year = $('#from_year').val();
-    var from_month = $('#from_month').val();
+function initProjectFilterSelect2() {
+    if (!$.fn.select2) {
+        return;
+    }
 
-    var to_year = $('#to_year').val();
-    var to_month = $('#to_month').val();
+    var searchEnabled = {
+        width: '100%',
+        allowClear: true,
+        minimumResultsForSearch: 0
+    };
 
-    var department = $('#department').val();
-    var project_manager = $('#project_manager').val();
+    var $department = $('#department');
+    if ($department.length && !$department.hasClass('select2-hidden-accessible')) {
+        $department.select2($.extend({}, searchEnabled, {
+            placeholder: 'Select Department'
+        }));
+    }
 
-    $.ajax({
-        url: "<?= base_url('Projects/filterData') ?>",
-        type: "POST",
-        data: {
-            from_year: from_year,
-            from_month: from_month,
-            to_year: to_year,
-            to_month: to_month,
-            department: department,
-            project_manager: project_manager
-        },
-        success: function(response) {
-            $('#tableData').html(response);
+    var $client = $('#client_Id');
+    if ($client.length && !$client.hasClass('select2-hidden-accessible')) {
+        $client.select2($.extend({}, searchEnabled, {
+            placeholder: 'All Clients'
+        }));
+    }
+
+    var $projectFilter = $('#filter_project_Id');
+    if ($projectFilter.length && !$projectFilter.hasClass('select2-hidden-accessible')) {
+        $projectFilter.select2($.extend({}, searchEnabled, {
+            placeholder: 'All Projects'
+        }));
+    }
+
+    var $manager = $('#manager_name');
+    if ($manager.length && !$manager.hasClass('select2-hidden-accessible')) {
+        $manager.select2($.extend({}, searchEnabled, {
+            placeholder: 'Select Managers'
+        }));
+    }
+
+    $('#from_year, #from_month, #to_year, #to_month').each(function() {
+        var $el = $(this);
+        if ($el.hasClass('select2-hidden-accessible')) {
+            return;
         }
+        $el.select2({
+            width: '100%',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $('body')
+        });
+        syncProjectYmClearState($el);
     });
 
-});
-</script>
+    var $perPage = $('#perPage');
+    if ($perPage.length && !$perPage.hasClass('select2-hidden-accessible')) {
+        $perPage.select2({
+            width: '100%',
+            minimumResultsForSearch: 0
+        });
+    }
+}
 
+function loadFilterProjectsByClient(preserveProjectId, skipGridReload) {
+    var clientId = $('#client_Id').val() || '';
+    var projectId = preserveProjectId ? ($('#filter_project_Id').val() || '') : '';
+    $.ajax({
+        url: "<?php echo base_url('projects/getProjectsByClient'); ?>",
+        type: 'POST',
+        data: { client_Id: clientId, project_Id: projectId },
+        success: function(html) {
+            $('#filter_project_Id').html(html);
+            if (!preserveProjectId) {
+                if (skipGridReload) {
+                    $('#filter_project_Id').val('');
+                } else {
+                    $('#filter_project_Id').val('').trigger('change');
+                }
+            }
+        }
+    });
+}
 
-<script>
 $(document).ready(function () {
+    initProjectFilterSelect2();
 
     $('.clearable-select').on('change', function () {
-
-        var clearBtn = $(this).siblings('.clear-icon');
-
-        if ($(this).val() !== '') {
-
-            // Show clear icon
-            clearBtn.show();
-
-            // Add selected background
-            $(this).addClass('selected-box');
-
-        } else {
-
-            // Hide clear icon
-            clearBtn.hide();
-
-            // Remove selected background
-            $(this).removeClass('selected-box');
-        }
-
+        syncProjectYmClearState($(this));
     });
 
 });
 
 /* Clear Dropdown */
 function clearDropdown(id) {
-
-    $('#' + id).val('');
-
-    // Remove selected class
-    $('#' + id).removeClass('selected-box');
-
-    // Hide clear icon
-    $('#' + id).siblings('.clear-icon').hide();
-
-    // Reload projects
+    var $el = $('#' + id);
+    $el.val(null).trigger('change');
+    syncProjectYmClearState($el);
     loadProjects(1);
 }
 </script>
 
-        <!-- Buttons -->
-<!-- Buttons -->
-<div class="col-md-12 text-center button-wrapper">
-
-    <button class="btn btn-primary" onclick="loadProjects(1)">
-        SEARCH
-    </button>
-
-    <button type="button" class="btn btn-hourly" onclick="filterStatus('Hourly')">
-        HOURLY
-    </button>
-
-    <button type="button" class="btn btn-monthly" onclick="filterStatus('Monthly')">
-        MONTHLY
-    </button>
-
-    <button type="button" class="btn btn-success" onclick="filterStatus('Process')">
-        IN PROCESS
-    </button>
-
-    <button type="button" class="btn btn-warning" onclick="filterStatus('On Hold')">
-        ON HOLD
-    </button>
-
-    <button type="button" class="btn btn-danger" onclick="filterStatus('Closed')">
-        CLOSED
-    </button>
-
-    <button type="button" class="btn btn-info" onclick="filterStatus('All')">
-        ALL
-    </button>
-
-</div>  
-
-    </div>
-</div>
-
-
-</div>
-
-
-
 <style>
-.button-wrapper {
-    margin-top: 30px;
-    text-align: center;
-}
-
-.button-wrapper .btn {
-    margin: 4px;
-}
-.btn-hourly {
+.project-filter-actions .btn-hourly {
  background-color: #20c997;
     color: #fff;
     border-color: #20c997;
@@ -649,11 +841,6 @@ function clearDropdown(id) {
     color: #fff;
 }
 </style>
-
-
-
-
-
 
 <div class="table-count">
 <div class="summary-card">
@@ -698,7 +885,7 @@ function clearDropdown(id) {
                                     </div>
                                 </div> -->
                                 <div class="col-md-2 col-sm-3">
-                                    <select id="perPage" class="form-control per-page-select" onchange="loadProjects(1)">
+                                    <select id="perPage" class="form-control per-page-select project-filter-select">
                                        
                                         <option value="50">50 per page</option>
                                         <option value="100">100 per page</option>
@@ -726,8 +913,8 @@ function clearDropdown(id) {
                                         <th width="105" class="sortable" data-sort="man_days" data-label="Billing"><span>Billing Type</span> <i class="sort-icon fa fa-sort"></i></th>
                                         <th width="93" class="sortable" data-sort="estimated_hours" data-label="Estimated Hours"><span>Est/Hours</span> <i class="sort-icon fa fa-sort"></i></th>
                                         <th width="105" class="sortable" data-sort="status" data-label="Status"><span>Status</span> <i class="sort-icon fa fa-sort"></i></th>
-                                        <th class="sortable" data-sort="Start Date" data-label="Start Date"><span>Start Date</span> <i class="sort-icon fa fa-sort"></i></th>
-                                        <th class="sortable" data-sort="End Date" data-label="End Date"><span>End Date</span> <i class="sort-icon fa fa-sort"></i></th>
+                                        <th class="sortable" data-sort="project_start_date" data-label="Start Date"><span>Start Date</span> <i class="sort-icon fa fa-sort"></i></th>
+                                        <th class="sortable" data-sort="project_end_date" data-label="End Date"><span>End Date</span> <i class="sort-icon fa fa-sort"></i></th>
                                         <!-- <th class="sortable" data-sort="created_at" data-label="Date"><span>Date</span> <i class="sort-icon fa fa-sort"></i></th> -->
                                         <th>Actions</th>  
                                     </tr>
@@ -792,6 +979,19 @@ function clearDropdown(id) {
         // Load projects on page load
        $(document).ready(function() {
 
+    initProjectFilterSelect2();
+    loadFilterProjectsByClient(false, true);
+
+    $('#client_Id').on('change', function() {
+        loadFilterProjectsByClient(false, false);
+        loadProjects(1);
+    });
+
+    $('#filter_project_Id').on('change', function() {
+        loadProjects(1);
+    });
+
+    updateSortIcons();
     loadProjects(1);
 
     // Sorting
@@ -803,6 +1003,7 @@ function clearDropdown(id) {
             sortBy = col;
             sortOrder = 'asc';
         }
+        updateSortIcons();
         loadProjects(1);
     });
 
@@ -850,8 +1051,10 @@ function clearDropdown(id) {
         }
     });
 
-    // Select2
-    $('#department').select2();
+    // Per-page select (initialized after table markup in initProjectFilterSelect2)
+    $(document).on('change', '#perPage', function() {
+        loadProjects(1);
+    });
 
 });
         
@@ -878,9 +1081,15 @@ function loadProjects(page) {
 currentPage = page;
 
 var limit = $('#perPage').val();
-var search = $('#searchProject').val();
-var department = $('#department').val();
-var manager = $('#manager_name').val();
+var search = $.trim($('#searchProject').val() || '');
+var department = $('#department').val() || [];
+var manager = $('#manager_name').val() || [];
+if (!$.isArray(department)) {
+    department = department ? [department] : [];
+}
+if (!$.isArray(manager)) {
+    manager = manager ? [manager] : [];
+}
 var from_year = $('#from_year').val();
 var from_month = $('#from_month').val();
 
@@ -889,6 +1098,8 @@ var to_month = $('#to_month').val();
 
 var status = window.projectStatus || '';
 var billing_type = window.billingType || '';
+var client_Id = $('#client_Id').val() || '';
+var project_Id = $('#filter_project_Id').val() || '';
 
 console.log("Department :", department);
 console.log("Manager :", manager);
@@ -904,6 +1115,7 @@ console.log("Billing :", billing_type);
     $.ajax({
         type: "POST",
         url: baseUrl + "projects/getProjectsAjax",
+        traditional: true,
        data: {
     page: page,
     limit: limit,
@@ -920,6 +1132,8 @@ console.log("Billing :", billing_type);
     status: status,
     sort_by: sortBy,
     billing_type: billing_type,
+    client_Id: client_Id,
+    project_Id: project_Id,
     sort_order: sortOrder
 },
         dataType: 'json',
@@ -927,6 +1141,8 @@ console.log("Billing :", billing_type);
         // ✅ FULL SUCCESS BLOCK WITH COUNTS
         success: function(response) {
             if (response.success) {
+
+                updateSortIcons();
 
                 // TABLE DATA
                 renderProjects(response.data, response.pagination);
@@ -1142,46 +1358,159 @@ html += '<td class="hours-cell">' + (project.estimated_hours || '-') + '</td>';
 }
         
         // Generate status update modal
+        function normalizeProjectDbDate(value) {
+            if (!value) {
+                return '';
+            }
+            var raw = String(value).split(' ')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                return raw;
+            }
+            return raw;
+        }
+
+        function endDateAfterStartDate(startDate, endDate) {
+            if (!startDate || !endDate) {
+                return false;
+            }
+            var s = startDate.split('-');
+            var e = endDate.split('-');
+            if (s.length !== 3 || e.length !== 3) {
+                return false;
+            }
+            var startTs = new Date(parseInt(s[0], 10), parseInt(s[1], 10) - 1, parseInt(s[2], 10)).getTime();
+            var endTs = new Date(parseInt(e[0], 10), parseInt(e[1], 10) - 1, parseInt(e[2], 10)).getTime();
+            return endTs > startTs;
+        }
+
+        function initProjectStatusEndDatepicker(projectId, startDate, endDate) {
+            var $end = $('#project_end_date_' + projectId);
+            if (!$end.length || !$.fn.datepicker) {
+                return;
+            }
+            if ($end.hasClass('hasDatepicker')) {
+                $end.datepicker('destroy');
+            }
+            var minEnd = null;
+            if (startDate) {
+                var parts = startDate.split('-');
+                if (parts.length === 3) {
+                    minEnd = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10) + 1);
+                }
+            }
+            $end.datepicker({
+                dateFormat: 'yy-mm-dd',
+                changeMonth: true,
+                changeYear: true,
+                minDate: minEnd
+            });
+            if (endDate) {
+                $end.datepicker('setDate', endDate);
+            }
+        }
+
         function generateStatusModal(project) {
-            var modalHtml = '<div id="comment_status_model_' + project.project_Id + '" class="modal fade" role="dialog">';
+            var isClosed = (project.status === 'Closed');
+            var startDb = normalizeProjectDbDate(project.project_start_date);
+            var endDb = normalizeProjectDbDate(project.project_end_date);
+            var modalId = 'comment_status_model_' + project.project_Id;
+            var formId = 'comment_reject_' + project.project_Id;
+            var errId = 'project_status_error_' + project.project_Id;
+
+            var modalHtml = '<div id="' + modalId + '" class="modal fade project-status-modal" role="dialog">';
             modalHtml += '<div class="modal-dialog">';
             modalHtml += '<div class="modal-content">';
             modalHtml += '<div class="modal-header">';
             modalHtml += '<button type="button" class="close" data-dismiss="modal">&times;</button>';
-            modalHtml += '<h4 class="modal-title"><i class="fa fa-cog"></i> Update Project Status</h4>';
+            if (isClosed) {
+                modalHtml += '<h4 class="modal-title"><i class="fa fa-unlock"></i> Activate Project</h4>';
+            } else {
+                modalHtml += '<h4 class="modal-title"><i class="fa fa-cog"></i> Update Project Status</h4>';
+            }
             modalHtml += '</div>';
             modalHtml += '<div class="modal-body">';
-            modalHtml += '<form class="comment_reject" name="comment_status_ok" id="comment_reject_' + project.project_Id + '" method="post" action="#">';
+            modalHtml += '<form class="comment_reject" name="comment_status_ok" id="' + formId + '" method="post" action="#">';
             modalHtml += '<input type="hidden" name="project_status_update_id" value="' + project.project_Id + '">';
-            modalHtml += '<p style="margin-bottom:20px; color:#7f8c8d;"><strong>Project:</strong> ' + project.project_name + '</p>';
-            modalHtml += '<div class="status-options">';
-            modalHtml += '<label class="status-option ' + (project.status == 'Process' ? 'selected' : '') + '"><input type="radio" name="status" value="Process" ' + (project.status == 'Process' ? 'checked' : '') + ' required><span class="status-option-inner status-process-opt"><i class="fa fa-check-circle"></i> In Process</span></label>';
-            modalHtml += '<label class="status-option ' + (project.status == 'On Hold' ? 'selected' : '') + '"><input type="radio" name="status" value="On Hold" ' + (project.status == 'On Hold' ? 'checked' : '') + '><span class="status-option-inner status-hold-opt"><i class="fa fa-pause-circle"></i> On Hold</span></label>';
-            modalHtml += '<label class="status-option ' + (project.status == 'Closed' ? 'selected' : '') + '"><input type="radio" name="status" value="Closed" ' + (project.status == 'Closed' ? 'checked' : '') + '><span class="status-option-inner status-closed-opt"><i class="fa fa-times-circle"></i> Closed</span></label>';
+            modalHtml += '<p class="project-status-modal-intro"><strong>Project:</strong> ' + $('<div>').text(project.project_name || '').html() + '</p>';
+
+            if (isClosed) {
+                modalHtml += '<div class="form-group">';
+                modalHtml += '<label>Start Date</label>';
+                modalHtml += '<input type="text" class="form-control" value="' + startDb + '" readonly>';
+                modalHtml += '</div>';
+                modalHtml += '<div class="form-group">';
+                modalHtml += '<label>End Date <span class="text-danger">*</span></label>';
+                modalHtml += '<input type="text" class="form-control project-status-end-date" name="project_end_date" id="project_end_date_' + project.project_Id + '" value="' + endDb + '" readonly placeholder="Select end date" required>';
+                modalHtml += '</div>';
+                modalHtml += '<div class="form-group">';
+                modalHtml += '<label>Status</label>';
+                modalHtml += '<select name="status" class="form-control project-status-select" required>';
+                modalHtml += '<option value="Process" selected>In Process</option>';
+                modalHtml += '<option value="On Hold">On Hold</option>';
+                modalHtml += '<option value="Closed">Closed</option>';
+                modalHtml += '</select>';
+                modalHtml += '</div>';
+            } else {
+                modalHtml += '<div class="form-group">';
+                modalHtml += '<label>Status</label>';
+                modalHtml += '<select name="status" class="form-control project-status-select" required>';
+                modalHtml += '<option value="Process"' + (project.status == 'Process' ? ' selected' : '') + '>In Process</option>';
+                modalHtml += '<option value="On Hold"' + (project.status == 'On Hold' ? ' selected' : '') + '>On Hold</option>';
+                modalHtml += '<option value="Closed"' + (project.status == 'Closed' ? ' selected' : '') + '>Closed</option>';
+                modalHtml += '</select>';
+                modalHtml += '</div>';
+            }
+
+            modalHtml += '<p id="' + errId + '" class="project-status-error text-danger" style="display:none;"></p>';
+            modalHtml += '<div class="text-center project-status-modal-actions">';
+            modalHtml += '<button class="btn btn-primary btn-lg" type="submit"><i class="fa fa-save"></i> ' + (isClosed ? 'Activate Project' : 'Update Status') + '</button>';
             modalHtml += '</div>';
-            modalHtml += '<div style="text-align:center; margin-top:25px;"><button class="btn btn-primary btn-lg" type="submit" style="padding:12px 40px; border-radius:8px; background:linear-gradient(135deg, #3498db, #2980b9); border:none;"><i class="fa fa-save"></i> Update Status</button></div>';
             modalHtml += '</form></div></div></div></div>';
-            
-            // Remove existing modal and add new one
-            $('#comment_status_model_' + project.project_Id).remove();
+
+            $('#' + modalId).remove();
             $('#statusModalContainer').append(modalHtml);
-            
-            // Bind form submit
-            $('#comment_reject_' + project.project_Id).off('submit').on('submit', function(e) {
+
+            if (isClosed) {
+                $('#' + modalId).on('shown.bs.modal', function() {
+                    initProjectStatusEndDatepicker(project.project_Id, startDb, endDb);
+                });
+            }
+
+            $('#' + formId).off('submit').on('submit', function(e) {
                 e.preventDefault();
+                var $err = $('#' + errId);
+                $err.hide().text('');
+
+                if (isClosed) {
+                    var endVal = $.trim($('#project_end_date_' + project.project_Id).val() || '');
+                    if (!endDateAfterStartDate(startDb, endVal)) {
+                        $err.text('End Date must be greater than Start Date.').show();
+                        return;
+                    }
+                }
+
                 var formData = $(this).serialize();
                 var projectId = project.project_Id;
-                
+
                 $.ajax({
-                    type: "POST",
-                    url: baseUrl + "projects/update_project_master_status",
+                    type: 'POST',
+                    url: baseUrl + 'projects/update_project_master_status',
                     data: formData,
                     beforeSend: function() {
-                        $('#changeStatusRow_' + projectId).html('<i class="fa fa-spinner"></i>');
+                        $('#changeStatusRow_' + projectId).html('<i class="fa fa-spinner fa-spin"></i>');
                     },
                     success: function(response) {
-                        $('#changeStatusRow_' + projectId).html(response);
-                        $('#comment_status_model_' + projectId).modal('hide');
+                        $('#' + modalId).modal('hide');
+                        if (typeof loadProjects === 'function') {
+                            loadProjects(typeof currentPage !== 'undefined' ? currentPage : 1);
+                        } else {
+                            $('#changeStatusRow_' + projectId).html(response);
+                        }
+                    },
+                    error: function(xhr) {
+                        var msg = (xhr.responseText && $.trim(xhr.responseText)) ? $.trim(xhr.responseText) : 'Unable to update project status.';
+                        $err.text(msg).show();
+                        loadProjects(typeof currentPage !== 'undefined' ? currentPage : 1);
                     }
                 });
             });
@@ -1363,12 +1692,9 @@ html += '<td class="hours-cell">' + (project.estimated_hours || '-') + '</td>';
             padding: 25px;
         }
 
-        /* Filter Section */
+        /* Filter Section - details in inline filter panel styles */
         .filter-section {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         .search-box {
             position: relative;
@@ -1752,6 +2078,25 @@ html += '<td class="hours-cell">' + (project.estimated_hours || '-') + '</td>';
         }
         .status-option:hover .status-option-inner {
             transform: translateY(-3px);
+        }
+        .project-status-modal .project-status-modal-intro {
+            margin-bottom: 16px;
+            color: #7f8c8d;
+        }
+        .project-status-modal .form-group label {
+            font-weight: 600;
+            color: #333;
+        }
+        .project-status-modal .form-control[readonly] {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+        .project-status-modal-actions {
+            margin-top: 20px;
+        }
+        .project-status-error {
+            margin-top: 10px;
+            font-weight: 600;
         }
 
         /* Tooltip alignment - show above/below trigger without clipping */
