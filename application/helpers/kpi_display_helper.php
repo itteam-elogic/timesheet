@@ -178,27 +178,57 @@ if (!function_exists('client_report_client_date_ts')) {
 if (!function_exists('client_report_resolve_client_dates')) {
     function client_report_resolve_client_dates(array $data)
     {
-        $start = isset($data['client_start_date']) ? $data['client_start_date'] : '';
-        $end = isset($data['client_end_date']) ? $data['client_end_date'] : '';
-        if (($start === '' || $start === null) && !empty($data['projects']) && is_array($data['projects'])) {
+        $earliestStart = false;
+        $latestEnd = false;
+
+        $considerStart = function ($dateStr) use (&$earliestStart) {
+            $ts = client_report_client_date_ts($dateStr);
+            if ($ts !== false && ($earliestStart === false || $ts < $earliestStart)) {
+                $earliestStart = $ts;
+            }
+        };
+        $considerEnd = function ($dateStr) use (&$latestEnd) {
+            $ts = client_report_client_date_ts($dateStr);
+            if ($ts !== false && ($latestEnd === false || $ts > $latestEnd)) {
+                $latestEnd = $ts;
+            }
+        };
+
+        if (!empty($data['client_start_date'])) {
+            $considerStart($data['client_start_date']);
+        }
+        if (!empty($data['client_end_date'])) {
+            $considerEnd($data['client_end_date']);
+        }
+
+        if (!empty($data['projects']) && is_array($data['projects'])) {
             foreach ($data['projects'] as $proj) {
                 if (!empty($proj->client_start_date)) {
-                    $start = $proj->client_start_date;
-                    break;
+                    $considerStart($proj->client_start_date);
                 }
-            }
-        }
-        if (($end === '' || $end === null) && !empty($data['projects']) && is_array($data['projects'])) {
-            foreach ($data['projects'] as $proj) {
                 if (!empty($proj->client_end_date)) {
-                    $end = $proj->client_end_date;
-                    break;
+                    $considerEnd($proj->client_end_date);
+                }
+                if (!empty($proj->project_start_date)) {
+                    $considerStart($proj->project_start_date);
+                }
+                $endDateToUse = null;
+                if (!empty($proj->project_end_date)
+                    && $proj->project_end_date != '0000-00-00'
+                    && $proj->project_end_date != '0000-00-00 00:00:00') {
+                    $endDateToUse = $proj->project_end_date;
+                } elseif (!empty($proj->last_work_date)) {
+                    $endDateToUse = $proj->last_work_date;
+                }
+                if ($endDateToUse !== null) {
+                    $considerEnd($endDateToUse);
                 }
             }
         }
+
         return array(
-            'start_ts' => client_report_client_date_ts($start),
-            'end_ts' => client_report_client_date_ts($end),
+            'start_ts' => $earliestStart,
+            'end_ts' => $latestEnd,
         );
     }
 }

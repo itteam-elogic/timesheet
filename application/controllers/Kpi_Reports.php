@@ -1021,6 +1021,17 @@ public function consolidatedReport()
 			if (!isset($grouped[$row->client_Id]['client_start_date'])) {
 				$grouped[$row->client_Id]['client_start_date'] = isset($row->client_start_date) ? $row->client_start_date : '';
 				$grouped[$row->client_Id]['client_end_date'] = isset($row->client_end_date) ? $row->client_end_date : '';
+			} else {
+				$rowStartTs = client_report_client_date_ts(isset($row->client_start_date) ? $row->client_start_date : '');
+				$existingStartTs = client_report_client_date_ts($grouped[$row->client_Id]['client_start_date']);
+				if ($rowStartTs !== false && ($existingStartTs === false || $rowStartTs < $existingStartTs)) {
+					$grouped[$row->client_Id]['client_start_date'] = $row->client_start_date;
+				}
+				$rowEndTs = client_report_client_date_ts(isset($row->client_end_date) ? $row->client_end_date : '');
+				$existingEndTs = client_report_client_date_ts($grouped[$row->client_Id]['client_end_date']);
+				if ($rowEndTs !== false && ($existingEndTs === false || $rowEndTs > $existingEndTs)) {
+					$grouped[$row->client_Id]['client_end_date'] = $row->client_end_date;
+				}
 			}
 			$grouped[$row->client_Id]['projects'][] = $row;
 		}

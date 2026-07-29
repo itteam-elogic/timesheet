@@ -93,24 +93,29 @@ class Empreports extends CI_Controller {
 	if(!empty($this->session->userdata['logged_in_timesheet']['empId'])) :
         
        
-        $count = count($this->input->post('client_Id'));
+        $clientIds = $this->input->post('client_Id');
+        $projectIds = $this->input->post('project_Id');
+        $taskIds = $this->input->post('task_Id');
+        $empTimeHours = $this->input->post('emp_time_hours');
+        $comments = $this->input->post('comments');
+        $empReportDates = $this->input->post('emp_report_dates');
+        $data = array();
         
-        
-        if($count > 0) {
+        if(!empty($clientIds) && is_array($clientIds)) {
          
-            for($i=0; $i<$count; $i++) {
+            foreach($clientIds as $i => $clientId) {
                        
-	if(!empty($this->input->post('client_Id')[$i] && $this->input->post('project_Id')[$i] && $this->input->post('task_Id')[$i])):
+	if(!empty($clientId) && !empty($projectIds[$i]) && !empty($taskIds[$i])):
                 
-		$data[$i] = array(
+		$data[] = array(
 			'empId' 					 => $this->session->userdata['logged_in_timesheet']['empId'],
-			'client_Id' 				 => $this->input->post('client_Id')[$i],
-			'project_Id' 				 => $this->input->post('project_Id')[$i],
-			'task_Id' 			 		 => $this->input->post('task_Id')[$i], // Store task with comma separate
+			'client_Id' 				 => $clientId,
+			'project_Id' 				 => $projectIds[$i],
+			'task_Id' 			 		 => $taskIds[$i], // Store task with comma separate
 			'team_member_type'			 => $this->input->post('team_member_type'),
-			'emp_time_hours'			 => $this->input->post('emp_time_hours')[$i],
-			'comments' 			 		 => $this->input->post('comments')[$i],
-			'emp_report_dates' 			 => $this->input->post('emp_report_dates')[$i],
+			'emp_time_hours'			 => isset($empTimeHours[$i]) ? $empTimeHours[$i] : '',
+			'comments' 			 		 => isset($comments[$i]) ? $comments[$i] : '',
+			'emp_report_dates' 			 => isset($empReportDates[$i]) ? $empReportDates[$i] : '',
 			'created_at'    	 		 => date('Y-m-d H:i:s'),
 			'updated_at' 				 => date('Y-m-d H:i:s')
 			);
