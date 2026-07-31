@@ -18,8 +18,13 @@
 
     $hideDateSection = date('Y-m-d');
 
-    $notenteredMemberlist = array("136"); // Members array list
-  			
+    // Emp IDs who missed the current window — allow last-month dates for these people only
+    $notenteredMemberlist = array("421");
+
+    $loggedEmpId = isset($this->session->userdata['logged_in_timesheet']['empId'])
+        ? (string) $this->session->userdata['logged_in_timesheet']['empId']
+        : '';
+    $allowLastMonthEntry = in_array($loggedEmpId, array_map('strval', $notenteredMemberlist), true);
 ?>
 
 <div class="content-wrapper">
@@ -183,21 +188,34 @@
     }
 
     function initTimesheetDatepicker(selector) {
-        <?php if($hideDateSection >= '2026-06-05') : ?>
+        <?php if ($allowLastMonthEntry) : ?>
+        // Listed in $notenteredMemberlist — last month + current window
         jQuery(selector).datepicker({
             dateFormat: 'yy-mm-dd',
             autoclose: true,
             todayHighlight: true,
             minDate: "2026-06-01",
-            maxDate: "2026-07-05"
+            maxDate: "2026-08-05",
+            beforeShowDay: function(date) {
+                var string = jQuery.datepicker.formatDate('yy-mm-dd', date);
+                return [disabledDates.indexOf(string) == -1];
+            }
+        });
+        <?php elseif ($hideDateSection >= '2026-07-05') : ?>
+        jQuery(selector).datepicker({
+            dateFormat: 'yy-mm-dd',
+            autoclose: true,
+            todayHighlight: true,
+            minDate: "2026-07-01",
+            maxDate: "2026-08-05"
         });
         <?php else: ?>
         jQuery(selector).datepicker({
             dateFormat: 'yy-mm-dd',
             autoclose: true,
             todayHighlight: true,
-            minDate: "2026-05-01",
-            maxDate: "2026-06-05",
+            minDate: "2026-06-01",
+            maxDate: "2026-07-05",
             beforeShowDay: function(date) {
                 var string = jQuery.datepicker.formatDate('yy-mm-dd', date);
                 return [disabledDates.indexOf(string) == -1];

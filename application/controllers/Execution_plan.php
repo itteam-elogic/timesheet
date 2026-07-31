@@ -61,7 +61,7 @@ class Execution_plan extends CI_Controller {
 		if ($isHourlyBilling) {
 			$differenceColumnLabel = 'PEST vs TS Difference';
 		} elseif ($isMonthlyBilling) {
-			$differenceColumnLabel = 'INV vs TS Difference';
+			$differenceColumnLabel = 'Timesheet Hours';
 		}
 
 		require_once APPPATH . 'third_party/PHPExcel/Classes/PHPExcel.php';
@@ -513,19 +513,13 @@ class Execution_plan extends CI_Controller {
 	private function execution_plan_calculate_difference($billingMode, $scheduleHours, $timesheetHours, $invoiceHours) {
 		$scheduleHours = (float)$scheduleHours;
 		$timesheetHours = (float)$timesheetHours;
-		$invoiceHours = (float)$invoiceHours;
 
 		if ($billingMode === 'hourly') {
-			if ($scheduleHours == 0) {
-				return $timesheetHours;
-			}
 			return $scheduleHours - $timesheetHours;
 		}
 
-		if ($invoiceHours == 0) {
-			return $timesheetHours;
-		}
-		return $invoiceHours - $timesheetHours;
+		// Monthly: show timesheet hours only
+		return $timesheetHours;
 	}
 
 	private function normalize_filter_values($value) {

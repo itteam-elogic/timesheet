@@ -322,26 +322,15 @@
 				function execution_plan_calculate_difference($billingMode, $scheduleHours, $timesheetHours, $invoiceHours) {
 					$scheduleHours = (float)$scheduleHours;
 					$timesheetHours = (float)$timesheetHours;
-					$invoiceHours = (float)$invoiceHours;
-					$forceGreen = false;
 
 					if ($billingMode === 'hourly') {
-						if ($scheduleHours == 0) {
-							$diff = $timesheetHours;
-							$forceGreen = true;
-						} else {
-							$diff = $scheduleHours - $timesheetHours;
-						}
+						$diff = $scheduleHours - $timesheetHours;
 					} else {
-						if ($invoiceHours == 0) {
-							$diff = $timesheetHours;
-							$forceGreen = true;
-						} else {
-							$diff = $invoiceHours - $timesheetHours;
-						}
+						// Monthly: show timesheet hours only
+						$diff = $timesheetHours;
 					}
 
-					$diffClass = $forceGreen ? 'diff-green' : (($diff < 0) ? 'diff-red' : 'diff-green');
+					$diffClass = ($diff < 0) ? 'diff-red' : 'diff-green';
 					return array('value' => $diff, 'class' => $diffClass);
 				}
 			}
@@ -373,7 +362,7 @@
 				if ($isHourlyBilling) {
 					$differenceColumnLabel = 'PEST vs TS Difference';
 				} elseif ($isMonthlyBilling) {
-					$differenceColumnLabel = 'INV vs TS Difference';
+					$differenceColumnLabel = 'Timesheet Hours';
 				}
 			?>
 			<?php
