@@ -90,13 +90,13 @@ if(!empty($_REQUEST['reporting_manager'])):
   
   $getListOfProjects   		= $this->project_model->getProjectName($getClientID); // List of Clients
   
-  $getListOfEmployees   	= $this->timesheet_login->getEmployeeName(); // List of Clients
- $getListOfReportingManagers = $this->timesheet_login->getReportManagerName('');
+  $getListOfEmployees   	= $this->timesheet_login->getEmployeeName(true); // Active + Inactive employees
+ $getListOfReportingManagers = $this->timesheet_login->getReportManagerName('', true); // Active + Inactive managers
  
   $getListOfTask		   	= $this->task_model->getTaskName($getProjectID); // List of Clients
  $reportingManagerMap = isset($reportingManagerMap) && is_array($reportingManagerMap) ? $reportingManagerMap : array();
+ $reportingManagerDepartmentMap = isset($reportingManagerDepartmentMap) && is_array($reportingManagerDepartmentMap) ? $reportingManagerDepartmentMap : array();
  $projectManagerMap = isset($projectManagerMap) && is_array($projectManagerMap) ? $projectManagerMap : array();
- $projectManagerDepartmentMap = isset($projectManagerDepartmentMap) && is_array($projectManagerDepartmentMap) ? $projectManagerDepartmentMap : array();
  $taskNameByIdMap = isset($taskNameByIdMap) && is_array($taskNameByIdMap) ? $taskNameByIdMap : array();
 	
 ?>
@@ -190,8 +190,10 @@ if(!empty($_REQUEST['reporting_manager'])):
 							<label class="control-label">Employee's</label>
 							<select class="form-control" id="empId" name="empId[]">
 								<option value="all">All</option>
-								<?php foreach($getListOfEmployees as $key => $employeeName): ?>
-								<option value="<?php echo $employeeName->empId;?>" <?php if($employeeName->empId == $getempId){ echo ' selected="selected"'; } ?>><?php echo ucfirst($employeeName->name);?></option>
+								<?php foreach($getListOfEmployees as $key => $employeeName):
+									$empStatusLabel = (!empty($employeeName->status) && strtolower($employeeName->status) !== 'active') ? ' (Inactive)' : '';
+								?>
+								<option value="<?php echo $employeeName->empId;?>" <?php if($employeeName->empId == $getempId){ echo ' selected="selected"'; } ?>><?php echo ucfirst($employeeName->name).$empStatusLabel;?></option>
 								<?php endforeach; ?>
 							</select>
 						</div>
@@ -201,8 +203,10 @@ if(!empty($_REQUEST['reporting_manager'])):
 							<label class="control-label">Reporting Manager</label>
 							<select class="form-control" id="reporting_manager" name="reporting_manager">
 								<option value="all">All</option>
-								<?php foreach($getListOfReportingManagers as $manager): ?>
-								<option value="<?php echo $manager->empId;?>" <?php if((string)$manager->empId === (string)$getReportingManager){ echo ' selected="selected"'; } ?>><?php echo ucfirst($manager->name);?></option>
+								<?php foreach($getListOfReportingManagers as $manager):
+									$managerStatusLabel = (!empty($manager->status) && strtolower($manager->status) !== 'active') ? ' (Inactive)' : '';
+								?>
+								<option value="<?php echo $manager->empId;?>" <?php if((string)$manager->empId === (string)$getReportingManager){ echo ' selected="selected"'; } ?>><?php echo ucfirst($manager->name).$managerStatusLabel;?></option>
 								<?php endforeach; ?>
 							</select>
 						</div>
@@ -260,10 +264,10 @@ if(!empty($_REQUEST['reporting_manager'])):
 									<th>Name</th>
 									<th>EmpId</th>
                                     <th nowrap="nowrap">Reporting Manager</th>
+                                     <th>Department</th>
 									<th>Client Name</th>
 									<th>Project Name</th>
                                     <th nowrap="nowrap">Project Manager</th>
-                                     <th>Department</th>
                                     <th>Task Name</th>
 									<th>Hours</th>
 									<th>Comments</th>
@@ -295,17 +299,17 @@ if(!empty($_REQUEST['reporting_manager'])):
 	                                
 	                                $managerEmpId = isset($reportResult->project_manager_name) ? (string)$reportResult->project_manager_name : '';
 	                                $ProjectManagerName = isset($projectManagerMap[$managerEmpId]) ? $projectManagerMap[$managerEmpId] : '';
-	                                $managerDepartment = isset($projectManagerDepartmentMap[$managerEmpId]) ? $projectManagerDepartmentMap[$managerEmpId] : '';
+	                                $managerDepartment = isset($reportingManagerDepartmentMap[$reportingManagerId]) ? $reportingManagerDepartmentMap[$reportingManagerId] : '';
 				  ?>
 								<tr <?php echo $showRowColour; ?> id="delRecordsRow<?php echo $reportResult->emp_record_id; ?>">
 									<td><?php echo $i ?></td>
 									<td nowrap="nowrap"><span class="label label-info"><?php echo ucfirst($reportResult->name);?></span></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->emp_com_id);?></td>
-                                    <td nowrap="nowrap"><?php echo htmlspecialchars($reportManagerName);?> </td>                                    
+                                    <td nowrap="nowrap"><?php echo htmlspecialchars($reportManagerName);?> </td>
+                                    <td nowrap="nowrap"><?php echo !empty($managerDepartment) ? $managerDepartment : 'N/A'; ?></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->client_name);?> </td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->project_name);?> </td>
                                     <td nowrap="nowrap"><?php echo $ProjectManagerName?> </td>
-                                    <td nowrap="nowrap"><?php echo !empty($managerDepartment) ? $managerDepartment : 'N/A'; ?></td>
                                     <td nowrap="nowrap"><a href="#" data-toggle="tooltip" title="<?php echo $getListOfProjects;?>"><?php echo character_limiter($getListOfProjects,20);?></a></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->emp_time_hours);?> </td>
 									<td nowrap="nowrap"><a href="#" data-toggle="tooltip" title="<?php echo $reportResult->comments;?>"><?php echo character_limiter($reportResult->comments, 20);?></a></td>

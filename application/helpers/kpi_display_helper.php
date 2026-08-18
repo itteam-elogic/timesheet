@@ -82,6 +82,127 @@ if (!function_exists('client_report_dept_kpi_diff_cell')) {
 }
 
 /**
+ * Roll month-wise department KPI rows into one consolidated row per department.
+ *
+ * @param array $monthRows
+ * @return array
+ */
+if (!function_exists('client_report_dept_kpi_consolidate_rows')) {
+    function client_report_dept_kpi_consolidate_rows(array $monthRows)
+    {
+        $map = array();
+        $order = array();
+        foreach ($monthRows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $label = isset($row['label']) ? (string) $row['label'] : '';
+            if ($label === '') {
+                continue;
+            }
+            if (!isset($map[$label])) {
+                $order[] = $label;
+                $map[$label] = array(
+                    'label' => $label,
+                    'month' => 'Consolidated',
+                    'month_key' => 'consolidated',
+                    'prod_hours' => 0.0,
+                    'pg_hours' => 0.0,
+                    'invoiced_hours' => 0.0,
+                    'quality_sum' => 0.0,
+                    'quality_count' => 0,
+                    'has_hours' => false,
+                    'has_invoice' => false,
+                );
+            }
+            if (isset($row['prod_hours']) && $row['prod_hours'] !== null && $row['prod_hours'] !== '') {
+                $map[$label]['prod_hours'] += (float) $row['prod_hours'];
+                $map[$label]['has_hours'] = true;
+            }
+            if (isset($row['pg_hours']) && $row['pg_hours'] !== null && $row['pg_hours'] !== '') {
+                $map[$label]['pg_hours'] += (float) $row['pg_hours'];
+                $map[$label]['has_hours'] = true;
+            }
+            if (isset($row['invoiced_hours']) && $row['invoiced_hours'] !== null && $row['invoiced_hours'] !== '') {
+                $map[$label]['invoiced_hours'] += (float) $row['invoiced_hours'];
+                $map[$label]['has_invoice'] = true;
+            }
+            if (isset($row['quality_pct']) && $row['quality_pct'] !== null && $row['quality_pct'] !== '') {
+                $map[$label]['quality_sum'] += (float) $row['quality_pct'];
+                $map[$label]['quality_count']++;
+            }
+        }
+
+        $out = array();
+        foreach ($order as $label) {
+            $b = $map[$label];
+            $prod = $b['prod_hours'];
+            $pg = $b['pg_hours'];
+            $total = $prod + $pg;
+            $inv = $b['invoiced_hours'];
+            if (!$b['has_hours'] && !$b['has_invoice'] && $b['quality_count'] === 0) {
+                $out[] = array(
+                    'label' => $label,
+                    'month' => 'Consolidated',
+                    'month_key' => 'consolidated',
+                    'prod_hours' => null,
+                    'pg_hours' => null,
+                    'utilization_hours' => null,
+                    'productivity_pct' => null,
+                    'project_general_pct' => null,
+                    'utilization_pct' => null,
+                    'quality_pct' => null,
+                    'invoiced_hours' => null,
+                    'difference' => null,
+                );
+                continue;
+            }
+            $out[] = array(
+                'label' => $label,
+                'month' => 'Consolidated',
+                'month_key' => 'consolidated',
+                'prod_hours' => $b['has_hours'] ? round($prod, 2) : null,
+                'pg_hours' => $b['has_hours'] ? round($pg, 2) : null,
+                'utilization_hours' => $b['has_hours'] && $total > 0 ? round($total, 2) : null,
+                'productivity_pct' => $total > 0 ? round(($prod / $total) * 100) : null,
+                'project_general_pct' => $total > 0 ? round(($pg / $total) * 100) : null,
+                'utilization_pct' => $total > 0 ? 100 : null,
+                'quality_pct' => $b['quality_count'] > 0 ? round($b['quality_sum'] / $b['quality_count']) : null,
+                'invoiced_hours' => ($b['has_hours'] || $b['has_invoice']) ? round($inv, 2) : null,
+                'difference' => ($b['has_hours'] || $b['has_invoice']) ? round($inv - $total, 2) : null,
+            );
+        }
+        return $out;
+    }
+}
+
+/**
+ * HTML for department KPI metric cells (prod hours through difference).
+ *
+ * @param array $deptRow
+ * @param string $tdBase
+ * @return string
+ */
+if (!function_exists('client_report_dept_kpi_metric_tds_html')) {
+    function client_report_dept_kpi_metric_tds_html(array $deptRow, $tdBase)
+    {
+        $h = function ($s) {
+            return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        };
+        $html = '<td style="' . $tdBase . 'background:#fff;">' . $h(client_report_dept_kpi_hours_cell(isset($deptRow['prod_hours']) ? $deptRow['prod_hours'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff;">' . $h(client_report_dept_kpi_hours_cell(isset($deptRow['pg_hours']) ? $deptRow['pg_hours'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff;">' . $h(client_report_dept_kpi_hours_cell(isset($deptRow['utilization_hours']) ? $deptRow['utilization_hours'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#d4edda;">' . $h(client_report_dept_kpi_pct_cell(isset($deptRow['productivity_pct']) ? $deptRow['productivity_pct'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff3cd;">' . $h(client_report_dept_kpi_pct_cell(isset($deptRow['project_general_pct']) ? $deptRow['project_general_pct'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#e2d5f3;">' . $h(client_report_dept_kpi_pct_cell(isset($deptRow['utilization_pct']) ? $deptRow['utilization_pct'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff;">' . $h(client_report_dept_kpi_pct_cell(isset($deptRow['quality_pct']) ? $deptRow['quality_pct'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff;">' . $h(client_report_dept_kpi_num_cell(isset($deptRow['invoiced_hours']) ? $deptRow['invoiced_hours'] : null)) . '</td>';
+        $html .= '<td style="' . $tdBase . 'background:#fff;">' . client_report_dept_kpi_diff_cell(isset($deptRow['difference']) ? $deptRow['difference'] : null) . '</td>';
+        return $html;
+    }
+}
+
+/**
  * Parse structured client-report grid filters from request-style grid array.
  *
  * @param array $grid Keys: clients, pms, project
@@ -247,6 +368,40 @@ if (!function_exists('client_report_format_client_date_display')) {
         }
         $formattedDate = date('d-M-Y', $timestamp);
         return ($formattedDate != '01-Jan-1970') ? $formattedDate : '';
+    }
+}
+
+/**
+ * Full month name for client-report grid / Excel (April, May; include year when range spans years).
+ *
+ * @param string $from_date
+ * @param string $monthLabel Optional fallback like "April 2026"
+ * @param bool $includeYear
+ * @return string
+ */
+if (!function_exists('client_report_month_display_name')) {
+    function client_report_month_display_name($from_date = '', $monthLabel = '', $includeYear = false)
+    {
+        if (!empty($from_date)) {
+            $ts = strtotime($from_date);
+            if ($ts !== false && $ts > 0) {
+                $formatted = date('Y-m-d', $ts);
+                if ($formatted !== '1970-01-01') {
+                    return $includeYear ? date('F Y', $ts) : date('F', $ts);
+                }
+            }
+        }
+        $label = trim((string) $monthLabel);
+        if ($label === '') {
+            return '--';
+        }
+        if ($includeYear) {
+            return $label;
+        }
+        if (preg_match('/^([A-Za-z]+)/', $label, $m)) {
+            return $m[1];
+        }
+        return $label;
     }
 }
 

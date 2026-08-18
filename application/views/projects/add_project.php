@@ -2,10 +2,26 @@
 <?php $this->load->view('includes/cRMHeader');
 
   $getUpdateId = $this->uri->segment('3'); // Update Segment
+  if (empty($getUpdateId) && !empty($this->input->post('project_id'))) {
+      $getUpdateId = $this->input->post('project_id');
+  }
   
   $getClientNames = $this->client_model->getClientName(); // List of Clients
 
   $loginManagerName =  $this->session->userdata['logged_in_timesheet']['empId'];  //session user name.
+
+  $selectedProjectManagerEmpId = $loginManagerName;
+  $storedProjectManagerName = '';
+  if (!empty($getUpdateId) && !empty($updateProject)) {
+      foreach ($updateProject as $projectRow) {
+          $storedProjectManagerName = isset($projectRow->p_manager) ? trim($projectRow->p_manager) : '';
+          if (!empty($projectRow->empId)) {
+              $selectedProjectManagerEmpId = $projectRow->empId;
+          } elseif (!empty($projectRow->who_allocated_project_empId)) {
+              $selectedProjectManagerEmpId = $projectRow->who_allocated_project_empId;
+          }
+      }
+  }
   	
 ?>
 
@@ -821,15 +837,16 @@
 					<div class="form-group">
 						<label class="control-label col-md-2">Notification on Completion of hours : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-						<input class="form-control" type="number" name="notif_hours" id="notif_hours" placeholder="Enter Notifications Hours" value="">
-							<!--<select class="form-control" id="notif_hours" name="notif_hours">
+							<select class="form-control" id="notif_hours_choice" name="notif_hours_choice">
 								<option value="" selected disabled>Please choose Notification on Completion of hours</option>
-								<option value="20">20</option>
 								<option value="30">30</option>
 								<option value="50">50</option>
-								<option value="70">70</option>
+								<option value="80">80</option>
 								<option value="100">100</option>
-							</select>-->
+								<option value="other">Other</option>
+							</select>
+							<input class="form-control" type="number" name="notif_hours_custom" id="notif_hours_custom" min="1" max="1000" placeholder="Enter hours (1-1000)" value="" style="display:none; margin-top:8px;">
+							<input type="hidden" name="notif_hours" id="notif_hours" value="">
 						</div>
 						<label class="control-label col-md-2">Team Members : <span class="required-star">*</span></label>
 						<div class="col-md-3">
@@ -1826,7 +1843,13 @@
 							<select class="form-control" id="p_manager" name="p_manager">
 								<option value="" selected disabled>Please Choose Project Manager</option>
 								<?php foreach($this->project_model->getManagers() as $managers): ?>
-									<option value="<?php echo $managers->name; ?>" <?php if($managers->empId == $loginManagerName): echo 'selected'; endif;?>><?php echo $managers->name; ?></option>
+									<option value="<?php echo $managers->name; ?>" <?php
+                                        if (!empty($storedProjectManagerName) && $managers->name == $storedProjectManagerName) {
+                                            echo 'selected';
+                                        } elseif ($managers->empId == $selectedProjectManagerEmpId) {
+                                            echo 'selected';
+                                        }
+                                    ?>><?php echo $managers->name; ?></option>
 								<?php endforeach; ?>
 							</select>
 
@@ -1861,16 +1884,22 @@
 					<div class="form-group">
 						<label class="control-label col-md-2">Notification on Completion of hours : <span class="required-star">*</span></label>
 						<div class="col-md-3">
-							
-							<input class="form-control" type="number" name="notif_hours" id="notif_hours" placeholder="Enter Notification Hours" value="<?php echo $getProjectData->notif_hours;?>">
-							<!--<select class="form-control" id="notif_hours" name="notif_hours">
-								<option value="" selected disabled>Please choose Notification on Completion of hours</option>
-								<option value="20" <?php if($getProjectData->notif_hours == '20') echo 'selected="selected"';?>>20</option>
-								<option value="30" <?php if($getProjectData->notif_hours == '30') echo 'selected="selected"';?>>30</option>
-								<option value="50" <?php if($getProjectData->notif_hours == '50') echo 'selected="selected"';?>>50</option>
-								<option value="70" <?php if($getProjectData->notif_hours == '70') echo 'selected="selected"';?>>70</option>
-								<option value="100" <?php if($getProjectData->notif_hours == '100') echo 'selected="selected"';?>>100</option>
-							</select>-->
+							<?php
+								$notifHoursVal = isset($getProjectData->notif_hours) ? (string)$getProjectData->notif_hours : '';
+								$notifPresets = array('30', '50', '80', '100');
+								$notifIsPreset = in_array($notifHoursVal, $notifPresets, true);
+								$notifIsOther = ($notifHoursVal !== '' && !$notifIsPreset);
+							?>
+							<select class="form-control" id="notif_hours_choice" name="notif_hours_choice">
+								<option value="" disabled <?php if($notifHoursVal === '') echo 'selected="selected"'; ?>>Please choose Notification on Completion of hours</option>
+								<option value="30" <?php if($notifHoursVal === '30') echo 'selected="selected"'; ?>>30</option>
+								<option value="50" <?php if($notifHoursVal === '50') echo 'selected="selected"'; ?>>50</option>
+								<option value="80" <?php if($notifHoursVal === '80') echo 'selected="selected"'; ?>>80</option>
+								<option value="100" <?php if($notifHoursVal === '100') echo 'selected="selected"'; ?>>100</option>
+								<option value="other" <?php if($notifIsOther) echo 'selected="selected"'; ?>>Other</option>
+							</select>
+							<input class="form-control" type="number" name="notif_hours_custom" id="notif_hours_custom" min="1" max="1000" placeholder="Enter hours (1-1000)" value="<?php echo $notifIsOther ? $notifHoursVal : ''; ?>" style="<?php echo $notifIsOther ? 'margin-top:8px;' : 'display:none; margin-top:8px;'; ?>">
+							<input type="hidden" name="notif_hours" id="notif_hours" value="<?php echo $notifHoursVal; ?>">
 						</div>
 						<label class="control-label col-md-2">Team Members : <span class="required-star">*</span></label>
 						<div class="col-md-3">
@@ -2126,6 +2155,28 @@
 			return endDate.getTime() > startDate.getTime();
 		}, "End Date must be greater than Start Date. Record not entered.");
 
+		function syncNotifHoursField() {
+			var $choice = $("#notif_hours_choice");
+			var $custom = $("#notif_hours_custom");
+			var $hours = $("#notif_hours");
+			var choice = $choice.val();
+			if (choice === "other") {
+				$custom.show();
+				$hours.val($custom.val());
+			} else if (choice) {
+				$custom.hide().val("");
+				$hours.val(choice);
+			} else {
+				$custom.hide().val("");
+				$hours.val("");
+			}
+		}
+
+		$("#notif_hours_choice").on("change", syncNotifHoursField);
+		$("#notif_hours_custom").on("input", function() {
+			$("#notif_hours").val($(this).val());
+		});
+
 		$("form[name='add_project_info']").validate({
 			rules: {
 				client_Id: {
@@ -2167,8 +2218,16 @@
 				estimated_hours: {
 					required: true
 				},
-				notif_hours: {
+				notif_hours_choice: {
 					required: true
+				},
+				notif_hours_custom: {
+					required: function() {
+						return $("#notif_hours_choice").val() === "other";
+					},
+					number: true,
+					min: 1,
+					max: 1000
 				},
 				construction_technology: {
 					required: true
@@ -2218,7 +2277,13 @@
 				contact_info: "Please enter primary project contact info",
 				p_manager: "Please choose project manager",
 				estimated_hours: "Please enter estimated hours",
-				notif_hours: "Please choose notification on completion of hours",
+				notif_hours_choice: "Please choose notification on completion of hours",
+				notif_hours_custom: {
+					required: "Please enter notification hours",
+					number: "Please enter a valid number",
+					min: "Please enter a value between 1 and 1000",
+					max: "Please enter a value between 1 and 1000"
+				},
 				construction_technology: "Please choose construction technology",
 				building_typology: "Please choose building typology",
 				scope_category: "Please choose scope category",
@@ -2241,6 +2306,7 @@
 				error.css({ "display": "block", "color": "#a94442" });
 			},
 			submitHandler: function(form) {
+				syncNotifHoursField();
 				form.submit();
 			}
 		});

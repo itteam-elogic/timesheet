@@ -153,9 +153,12 @@ class Timesheet_Login extends CI_Model {
 	
 	 }
   
-  public function getEmployeeName(){ // Getting List of Users
-	
-		 $employeeNQ  = $this->db->select('empId,username,name')->from('employee_details')->where('status','Active')->order_by('empId' , 'desc')->get();
+  public function getEmployeeName($includeInactive = false){ // Getting List of Users
+		 $this->db->select('empId,username,name,status')->from('employee_details');
+		 if (!$includeInactive) {
+			 $this->db->where('status','Active');
+		 }
+		 $employeeNQ  = $this->db->order_by('empId' , 'desc')->get();
 		 
 		 return $employeeNQ->result();
 		
@@ -288,13 +291,16 @@ public function getEmployeeMetaMapByIds($empIds){
 	}
 /********************************************************* Reporting Manager ************************************************/
     
-    public function getReportManagerName($managerId){
+    public function getReportManagerName($managerId, $includeInactive = false){
 		
 	   if(!empty($managerId)):	
     
-	   $teamMembersQuery  = $this->db->select('empId,name')->from('employee_details')
-							->where('empId',$managerId)
-							->where('status','Active')->order_by('name' , 'asc')->get()->result();
+	   $this->db->select('empId,name,status')->from('employee_details')
+							->where('empId',$managerId);
+		if (!$includeInactive) {
+			$this->db->where('status','Active');
+		}
+		$teamMembersQuery = $this->db->order_by('name' , 'asc')->get()->result();
 		foreach($teamMembersQuery as $getManager){
             
             return $getManager->name;
@@ -303,9 +309,12 @@ public function getEmployeeMetaMapByIds($empIds){
     else:
     
     
-    $teamMembersQuery  = $this->db->select('empId,name')->from('employee_details')
-							->where_in('user_type',array('manager','admin'))
-							->where('status','Active')->order_by('name' , 'asc')->get()->result();
+    $this->db->select('empId,name,status')->from('employee_details')
+							->where_in('user_type',array('manager','admin'));
+		if (!$includeInactive) {
+			$this->db->where('status','Active');
+		}
+		$teamMembersQuery = $this->db->order_by('name' , 'asc')->get()->result();
 		return $teamMembersQuery;
     
     endif;

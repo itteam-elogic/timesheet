@@ -235,6 +235,7 @@ public function qualitySearchReportQuery($search_data){
         $project_manager   = $search_data['project_manager'];
         $analyzer          = $search_data['analyzer'];
         $client            = $search_data['client'];
+        $project           = isset($search_data['project']) ? $search_data['project'] : 'all';
         $self_checker      = $search_data['self_checker'];
         $form_date         = $search_data['form_date'];
         $to_date           = $search_data['to_date'];
@@ -275,6 +276,11 @@ public function qualitySearchReportQuery($search_data){
         // Apply client filter if provided
         if ($client && $client !== 'all') {
             $this->db->where('qr.qty_client_Id', $client);
+        }
+
+        // Apply project filter if provided
+        if ($project && $project !== 'all') {
+            $this->db->where('qr.qty_project_Id', $project);
         }
 
         // Apply self checker filter if provided

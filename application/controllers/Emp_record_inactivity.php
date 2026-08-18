@@ -12,6 +12,13 @@ class Emp_record_inactivity extends CI_Controller {
         if (empty($this->session->userdata['logged_in_timesheet'])) {
             redirect('home/login');
         }
+
+        $username = isset($this->session->userdata['logged_in_timesheet']['username'])
+            ? $this->session->userdata['logged_in_timesheet']['username']
+            : '';
+        if ($username !== 'kanth') {
+            redirect('home');
+        }
     }
 
     public function index() {

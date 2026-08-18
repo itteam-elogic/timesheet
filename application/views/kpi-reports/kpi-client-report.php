@@ -1479,12 +1479,54 @@ $deptKpiRows = (!empty($deptKpiSummary['has_data']) && !empty($deptKpiSummary['r
     ? $deptKpiSummary['rows']
     : array();
 $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid #c9d4e2;font-size:15px;';
+$deptKpiMonthKeys = array();
+foreach ($deptKpiRows as $deptKpiScan) {
+    if (!empty($deptKpiScan['month_key'])) {
+        $deptKpiMonthKeys[(string) $deptKpiScan['month_key']] = true;
+    }
+}
+$hasMultipleDeptKpiMonths = count($deptKpiMonthKeys) > 1;
+$consolidatedDeptKpiRows = $hasMultipleDeptKpiMonths ? client_report_dept_kpi_consolidate_rows($deptKpiRows) : array();
+$crMonthTabItems = array();
+if ($hasMultipleDeptKpiMonths && !empty($monthsCovered) && is_array($monthsCovered)) {
+    $crTabYears = array();
+    foreach ($monthsCovered as $crTabInfo) {
+        if (!empty($crTabInfo['year'])) {
+            $crTabYears[(string) $crTabInfo['year']] = true;
+        }
+    }
+    $crTabIncludeYear = count($crTabYears) > 1;
+    foreach ($monthsCovered as $crTabKey => $crTabInfo) {
+        $crMonthTabItems[(string) $crTabKey] = $crTabIncludeYear
+            ? (isset($crTabInfo['label']) ? $crTabInfo['label'] : (string) $crTabKey)
+            : (isset($crTabInfo['short']) ? $crTabInfo['short'] : (string) $crTabKey);
+    }
+}
+if ($hasMultipleDeptKpiMonths && empty($crMonthTabItems)) {
+    foreach ($deptKpiRows as $deptKpiScan) {
+        $crTabKey = isset($deptKpiScan['month_key']) ? (string) $deptKpiScan['month_key'] : '';
+        if ($crTabKey === '' || isset($crMonthTabItems[$crTabKey])) {
+            continue;
+        }
+        $crMonthTabItems[$crTabKey] = isset($deptKpiScan['month']) ? (string) $deptKpiScan['month'] : $crTabKey;
+    }
+}
 ?>
 <?php if (!empty($deptKpiRows)): ?>
 <div class="row mt-3 mb-2 client-report-dept-kpi-wrap">
     <div class="col-md-12">
         <h4 class="client-report-dept-kpi-heading">Department &amp; Project Manager Client Summary Report</h4>
-        <div class="client-report-dept-kpi-table-wrap">
+        <?php if ($hasMultipleDeptKpiMonths && !empty($crMonthTabItems)): ?>
+        <div class="cr-month-tabs" id="clientReportMonthTabs" role="tablist">
+            <button type="button" class="cr-month-tab active" data-month-tab="consolidated">Consolidated</button>
+            <?php foreach ($crMonthTabItems as $crTabKey => $crTabLabel): ?>
+            <button type="button" class="cr-month-tab" data-month-tab="<?= htmlspecialchars($crTabKey, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($crTabLabel, ENT_QUOTES, 'UTF-8') ?></button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($hasMultipleDeptKpiMonths && !empty($consolidatedDeptKpiRows)): ?>
+        <div class="client-report-dept-kpi-table-wrap cr-dept-kpi-view" id="crDeptKpiConsolidated">
             <table class="table table-bordered client-report-dept-kpi-table">
                 <thead>
                     <tr>
@@ -1501,21 +1543,72 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($deptKpiRows as $deptRow): ?>
+                    <?php foreach ($consolidatedDeptKpiRows as $deptRow): ?>
                     <tr>
                         <td style="text-align:left;font-weight:600;background:#eef2f7;padding:12px 14px;border:1px solid #c9d4e2;font-size:15px;color:#1f5076;"><?= htmlspecialchars(isset($deptRow['label']) ? $deptRow['label'] : '', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['prod_hours']) ? $deptRow['prod_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['pg_hours']) ? $deptRow['pg_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_hours_cell(isset($deptRow['utilization_hours']) ? $deptRow['utilization_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#d4edda;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['productivity_pct']) ? $deptRow['productivity_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff3cd;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['project_general_pct']) ? $deptRow['project_general_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#e2d5f3;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['utilization_pct']) ? $deptRow['utilization_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_pct_cell(isset($deptRow['quality_pct']) ? $deptRow['quality_pct'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= htmlspecialchars(client_report_dept_kpi_num_cell(isset($deptRow['invoiced_hours']) ? $deptRow['invoiced_hours'] : null), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="<?= $tdBase ?>background:#fff;"><?= client_report_dept_kpi_diff_cell(isset($deptRow['difference']) ? $deptRow['difference'] : null) ?></td>
+                        <?= client_report_dept_kpi_metric_tds_html($deptRow, $tdBase) ?>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <div class="client-report-dept-kpi-table-wrap cr-dept-kpi-view<?= $hasMultipleDeptKpiMonths ? ' cr-view-hidden' : '' ?>" id="crDeptKpiMonthWise">
+            <table class="table table-bordered client-report-dept-kpi-table">
+                <thead>
+                    <tr>
+                        <th class="cr-dept-kpi-th cr-dept-kpi-th-month">Month</th>
+                        <th class="cr-dept-kpi-th cr-dept-kpi-th-label">Departments</th>
+                        <th class="cr-dept-kpi-th">Prod<br>Hours</th>
+                        <th class="cr-dept-kpi-th">PG<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Utilization<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Productivity<br>%</th>
+                        <th class="cr-dept-kpi-th">Project General<br>%</th>
+                        <th class="cr-dept-kpi-th">Utilization<br>%</th>
+                        <th class="cr-dept-kpi-th">Quality<br>%</th>
+                        <th class="cr-dept-kpi-th">Invoiced<br>Hours</th>
+                        <th class="cr-dept-kpi-th">Difference</th>
+                    </tr>
+                </thead>
+                    <?php
+                    $deptKpiRowCount = count($deptKpiRows);
+                    $deptKpiIdx = 0;
+                    while ($deptKpiIdx < $deptKpiRowCount):
+                        $deptRow = $deptKpiRows[$deptKpiIdx];
+                        $monthKey = isset($deptRow['month_key']) ? (string) $deptRow['month_key'] : '';
+                        $monthName = isset($deptRow['month']) ? (string) $deptRow['month'] : '';
+                        $monthSpan = 1;
+                        while (($deptKpiIdx + $monthSpan) < $deptKpiRowCount) {
+                            $nextKey = isset($deptKpiRows[$deptKpiIdx + $monthSpan]['month_key'])
+                                ? (string) $deptKpiRows[$deptKpiIdx + $monthSpan]['month_key']
+                                : '';
+                            if ($nextKey !== $monthKey) {
+                                break;
+                            }
+                            $monthSpan++;
+                        }
+                    ?>
+                <tbody class="cr-dept-month-group" id="cr-month-group-<?= htmlspecialchars($monthKey, ENT_QUOTES, 'UTF-8') ?>" data-month-key="<?= htmlspecialchars($monthKey, ENT_QUOTES, 'UTF-8') ?>">
+                    <?php
+                        for ($deptKpiOffset = 0; $deptKpiOffset < $monthSpan; $deptKpiOffset++):
+                            $deptRow = $deptKpiRows[$deptKpiIdx + $deptKpiOffset];
+                    ?>
+                    <tr>
+                        <?php if ($deptKpiOffset === 0): ?>
+                        <td rowspan="<?= (int) $monthSpan ?>" class="cr-dept-kpi-month-cell" data-month-key="<?= htmlspecialchars($monthKey, ENT_QUOTES, 'UTF-8') ?>" style="text-align:center;font-weight:700;background:#e8f0f8;padding:12px 14px;border:1px solid #c9d4e2;font-size:15px;color:#1f5076;vertical-align:middle;cursor:pointer;"><?= htmlspecialchars($monthName, ENT_QUOTES, 'UTF-8') ?></td>
+                        <?php endif; ?>
+                        <td style="text-align:left;font-weight:600;background:#eef2f7;padding:12px 14px;border:1px solid #c9d4e2;font-size:15px;color:#1f5076;"><?= htmlspecialchars(isset($deptRow['label']) ? $deptRow['label'] : '', ENT_QUOTES, 'UTF-8') ?></td>
+                        <?= client_report_dept_kpi_metric_tds_html($deptRow, $tdBase) ?>
+                    </tr>
+                    <?php
+                        endfor;
+                    ?>
+                </tbody>
+                    <?php
+                        $deptKpiIdx += $monthSpan;
+                    endwhile;
+                    ?>
             </table>
         </div>
     </div>
@@ -1529,17 +1622,26 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
     margin-bottom: 14px;
     font-size: 18px;
 }
-.client-report-dept-kpi-wrap {
-    margin-bottom: 20px;
+.client-report-ep #content-wrapper {
+    overflow: visible;
 }
 .client-report-dept-kpi-table-wrap {
     display: flex;
     justify-content: center;
     overflow-x: auto;
 }
+.client-report-dept-kpi-table-wrap.cr-view-hidden {
+    display: none !important;
+}
+.client-report-dept-kpi-table tbody.cr-dept-month-group {
+    display: table-row-group;
+}
+.client-report-dept-kpi-table tbody.cr-dept-month-group.cr-month-hidden {
+    display: none !important;
+}
 .client-report-dept-kpi-table {
     width: 100%;
-    min-width: 1100px;
+    min-width: 1180px;
     max-width: 100%;
     border-collapse: collapse;
     margin: 0 auto;
@@ -1561,12 +1663,50 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
     background: linear-gradient(to bottom, #337ab7, #2c5aa0);
     min-width: 88px;
 }
+.client-report-dept-kpi-table .cr-dept-kpi-th-month {
+    text-align: center;
+    min-width: 110px;
+}
 .client-report-dept-kpi-table .cr-dept-kpi-th-label {
     text-align: left;
     min-width: 140px;
 }
 .client-report-dept-kpi-table tbody td {
     font-size: 15px;
+}
+.cr-month-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+    padding: 8px 0;
+}
+.cr-month-tab {
+    border: 1px solid #2c5aa0;
+    background: #fff;
+    color: #1f5076;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 7px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    line-height: 1.2;
+}
+.cr-month-tab:hover {
+    background: #e8f0f8;
+}
+.cr-month-tab.active {
+    background: linear-gradient(to bottom, #337ab7, #2c5aa0);
+    color: #fff;
+    border-color: #2c5aa0;
+}
+.cr-dept-kpi-month-cell:hover {
+    text-decoration: underline;
 }
 </style>
 
@@ -1585,6 +1725,7 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
         <tr>
             <th title="Client Name">Client Name</th>
             <th title="Project Manager">Project<br>Manager</th>
+            <th title="Month">Month</th>
             <th title="Department">Department</th>
             <th title="Start Date">Start<br>Date</th>
             <th title="End Date">End<br>Date</th>
@@ -1605,8 +1746,19 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
         $from_date = isset($from_date) ? $from_date : '';
         $to_date = isset($to_date) ? $to_date : '';
         
+        $clientReportMonthIncludeYear = false;
+        if (!empty($monthsCovered) && is_array($monthsCovered)) {
+            $gridMonthYears = array();
+            foreach ($monthsCovered as $monthInfo) {
+                if (!empty($monthInfo['year'])) {
+                    $gridMonthYears[(string) $monthInfo['year']] = true;
+                }
+            }
+            $clientReportMonthIncludeYear = count($gridMonthYears) > 1;
+        }
+
         // Function to render client and project rows (reusable)
-        function renderClientProjects($data, $clientId, $from_date, $to_date, $monthLabel = '') {
+        function renderClientProjects($data, $clientId, $from_date, $to_date, $monthLabel = '', $includeYear = false, $monthKey = '') {
             $clientPmName = '--';
             if (!empty($data['client_pm_name'])) {
                 $clientPmName = $data['client_pm_name'];
@@ -1696,44 +1848,25 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                 }
             }
             
-            // Helper function to validate and format date
-            $isValidDate = function($dateStr) {
-                if (empty($dateStr) || $dateStr == '0000-00-00' || $dateStr == '0000-00-00 00:00:00') {
-                    return false;
-                }
-                $timestamp = strtotime($dateStr);
-                if ($timestamp === false || $timestamp < 0) {
-                    return false;
-                }
-                // Check if date is not 1970-01-01 (invalid date fallback)
-                $formatted = date('Y-m-d', $timestamp);
-                if ($formatted == '1970-01-01') {
-                    return false;
-                }
-                return $timestamp;
-            };
-            
             // Client row dates: MIN/MAX across all non-general projects (same as Execution Plan / Excel export).
             $clientDates = client_report_resolve_client_dates($data);
             $clientStartDateTs = $clientDates['start_ts'];
             $clientEndDateTs = $clientDates['end_ts'];
             
-            // Calculate month abbreviation from date range or client start date
-            $monthDisplay = '--';
-            if (!empty($from_date)) {
-                $monthTimestamp = $isValidDate($from_date);
-                if ($monthTimestamp !== false) {
-                    $monthDisplay = date('M', $monthTimestamp);
+            $monthNameDisplay = client_report_month_display_name($from_date, $monthLabel, $includeYear);
+            if ($monthKey === '' && !empty($from_date)) {
+                $monthTs = strtotime($from_date);
+                if ($monthTs !== false) {
+                    $monthKey = date('Y-m', $monthTs);
                 }
-            } elseif ($clientStartDateTs !== false) {
-                $monthDisplay = date('M', $clientStartDateTs);
             }
-            
+
             $startDateDisplay = client_report_format_client_date_display($clientStartDateTs);
             $endDateDisplay = client_report_format_client_date_display($clientEndDateTs);
             $clientMonthId = md5($clientId . '_' . (isset($from_date) ? $from_date : '') . '_' . (isset($to_date) ? $to_date : '') . '_' . $monthLabel);
             ?>
-            <tr class="client-row"
+            <tr class="client-row cr-grid-row"
+                data-month-key="<?php echo htmlspecialchars($monthKey, ENT_QUOTES, 'UTF-8'); ?>"
                 data-client="<?php echo $data['client_name']; ?>"
                 data-project=""
                 data-manager="<?php echo $clientPmName; ?>"
@@ -1747,6 +1880,7 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                 <td title="Project Manager">
                     <?php echo explode(' ', trim($clientPmName))[0]; ?>
                 </td>
+                <td title="Month"><?php echo htmlspecialchars($monthNameDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                 <td title="Department"><?php echo $data['department']; ?></td>
                 <td title="Start Date"><?php echo $startDateDisplay; ?></td>
                 <td title="End Date"><?php echo $endDateDisplay; ?></td>
@@ -1799,7 +1933,8 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                     $k_QualityErrorPercentage_22 = (100 - $projectTotalErrors) . '%';
                 }
                 ?>
-                <tr class="project-row project-<?php echo $clientMonthId; ?>" style="display: none;"
+                <tr class="project-row cr-grid-row project-<?php echo $clientMonthId; ?>" style="display: none;"
+                    data-month-key="<?php echo htmlspecialchars($monthKey, ENT_QUOTES, 'UTF-8'); ?>"
                     data-client="<?php echo $data['client_name']; ?>"
                     data-project="<?php echo $proj->project_name; ?>"
                     data-manager="<?php echo $proj->pm_name; ?>"
@@ -1808,6 +1943,7 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                     <td title="Project Manager">
                         <?php echo explode(' ', trim($proj->pm_name))[0]; ?>
                     </td>
+                    <td title="Month"><?php echo htmlspecialchars($monthNameDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                     <td title="Department"><?php echo $proj->department; ?></td>
                     <td title="Start Date">
                         <?php 
@@ -1869,13 +2005,13 @@ $tdBase = 'text-align:center;padding:12px 14px;font-weight:600;border:1px solid 
                     return strcasecmp($nameA, $nameB);
                 });
                 foreach ($sortedMonthData as $clientId => $data):
-                    renderClientProjects($data, $clientId, $monthFromDate, $monthToDate, $monthLabel);
+                    renderClientProjects($data, $clientId, $monthFromDate, $monthToDate, $monthLabel, $clientReportMonthIncludeYear, $monthKey);
                 endforeach;
             endforeach;
         } else {
             // Display regular grouped data
             foreach ($grouped as $clientId => $data):
-                renderClientProjects($data, $clientId, $from_date, $to_date);
+                renderClientProjects($data, $clientId, $from_date, $to_date, '', $clientReportMonthIncludeYear);
             endforeach;
         }
         ?> 
@@ -1940,6 +2076,80 @@ $(document).ready(function () {
             }
         });
     }
+    function scrollToClientReportEl(el) {
+        if (!el) {
+            return;
+        }
+        var top = 0;
+        if (el.getBoundingClientRect) {
+            top = el.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop || 0) - 100;
+        }
+        if (top < 0) {
+            top = 0;
+        }
+        if (typeof window.scrollTo === 'function') {
+            try {
+                window.scrollTo({ top: top, behavior: 'smooth' });
+            } catch (e) {
+                window.scrollTo(0, top);
+            }
+        }
+        $('html, body').stop(true).animate({ scrollTop: top }, 350);
+    }
+    function applyClientReportMonthView(monthKey) {
+        var isCons = !monthKey || monthKey === 'consolidated';
+        var key = String(monthKey || '');
+        $('.cr-month-tab').removeClass('active');
+        $('.cr-month-tab[data-month-tab="' + (isCons ? 'consolidated' : key) + '"]').addClass('active');
+
+        if (isCons) {
+            $('#crDeptKpiConsolidated').removeClass('cr-view-hidden');
+            $('#crDeptKpiMonthWise').addClass('cr-view-hidden');
+            $('#crDeptKpiMonthWise tbody.cr-dept-month-group').removeClass('cr-month-hidden');
+            $('#employeeTable tbody tr.client-row').css('display', 'table-row');
+            $('#employeeTable tbody tr.project-row').css('display', 'none');
+            $('#employeeTable .toggle-projects i').removeClass('fa-minus').addClass('fa-plus');
+            scrollToClientReportEl(document.getElementById('crDeptKpiConsolidated') || document.getElementById('clientReportMonthTabs'));
+            return;
+        }
+
+        $('#crDeptKpiConsolidated').addClass('cr-view-hidden');
+        $('#crDeptKpiMonthWise').removeClass('cr-view-hidden');
+        var $groups = $('#crDeptKpiMonthWise tbody.cr-dept-month-group');
+        $groups.addClass('cr-month-hidden');
+        var $match = $groups.filter(function () {
+            return String($(this).attr('data-month-key') || '') === key;
+        });
+        if ($match.length) {
+            $match.removeClass('cr-month-hidden');
+        } else {
+            $groups.removeClass('cr-month-hidden');
+        }
+
+        $('#employeeTable tbody tr.client-row').each(function () {
+            var rowKey = String($(this).attr('data-month-key') || '');
+            this.style.display = (rowKey === key) ? 'table-row' : 'none';
+        });
+        $('#employeeTable tbody tr.project-row').css('display', 'none');
+        $('#employeeTable .toggle-projects i').removeClass('fa-minus').addClass('fa-plus');
+
+        var scrollEl = $match.length ? $match.get(0) : document.getElementById('crDeptKpiMonthWise');
+        scrollToClientReportEl(scrollEl);
+    }
+    $(document).on('click', '.cr-month-tab', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        applyClientReportMonthView($(this).attr('data-month-tab'));
+        return false;
+    });
+    $(document).on('click', '.cr-dept-kpi-month-cell', function (e) {
+        e.preventDefault();
+        var key = $(this).attr('data-month-key');
+        if (key) {
+            applyClientReportMonthView(key);
+        }
+        return false;
+    });
 });
 </script>
 <script>
@@ -1967,7 +2177,7 @@ function redirectToClient() {
 /* Table styling - Execution Plan aligned */
 #employeeTable.client-report-table {
     width: 100%;
-    min-width: 1500px;
+    min-width: 1620px;
     border-collapse: collapse;
     border-spacing: 0;
     margin-bottom: 0;
@@ -2018,29 +2228,31 @@ function redirectToClient() {
 #employeeTable thead th:nth-child(2),
 #employeeTable tbody td:nth-child(2) { min-width: 110px; }
 #employeeTable thead th:nth-child(3),
-#employeeTable tbody td:nth-child(3) { min-width: 120px; }
+#employeeTable tbody td:nth-child(3) { min-width: 110px; }
 #employeeTable thead th:nth-child(4),
+#employeeTable tbody td:nth-child(4) { min-width: 120px; }
 #employeeTable thead th:nth-child(5),
-#employeeTable tbody td:nth-child(4),
-#employeeTable tbody td:nth-child(5) { min-width: 95px; }
 #employeeTable thead th:nth-child(6),
-#employeeTable tbody td:nth-child(6) { min-width: 80px; }
+#employeeTable tbody td:nth-child(5),
+#employeeTable tbody td:nth-child(6) { min-width: 95px; }
 #employeeTable thead th:nth-child(7),
-#employeeTable tbody td:nth-child(7) { min-width: 95px; }
+#employeeTable tbody td:nth-child(7) { min-width: 80px; }
 #employeeTable thead th:nth-child(8),
-#employeeTable tbody td:nth-child(8) { min-width: 115px; }
+#employeeTable tbody td:nth-child(8) { min-width: 95px; }
 #employeeTable thead th:nth-child(9),
-#employeeTable tbody td:nth-child(9),
+#employeeTable tbody td:nth-child(9) { min-width: 115px; }
 #employeeTable thead th:nth-child(10),
-#employeeTable tbody td:nth-child(10) { min-width: 90px; }
+#employeeTable tbody td:nth-child(10),
 #employeeTable thead th:nth-child(11),
-#employeeTable tbody td:nth-child(11) { min-width: 95px; }
+#employeeTable tbody td:nth-child(11) { min-width: 90px; }
 #employeeTable thead th:nth-child(12),
-#employeeTable tbody td:nth-child(12),
+#employeeTable tbody td:nth-child(12) { min-width: 95px; }
 #employeeTable thead th:nth-child(13),
-#employeeTable tbody td:nth-child(13) { min-width: 105px; }
+#employeeTable tbody td:nth-child(13),
 #employeeTable thead th:nth-child(14),
-#employeeTable tbody td:nth-child(14) { min-width: 95px; }
+#employeeTable tbody td:nth-child(14) { min-width: 105px; }
+#employeeTable thead th:nth-child(15),
+#employeeTable tbody td:nth-child(15) { min-width: 95px; }
 
 #employeeTable tbody td {
     padding: 12px 14px;
@@ -2127,11 +2339,11 @@ function redirectToClient() {
 
 #employeeTable td:nth-child(3),
 #employeeTable td:nth-child(4),
-#employeeTable td:nth-child(5) {
+#employeeTable td:nth-child(5),
+#employeeTable td:nth-child(6) {
     text-align: center;
 }
 
-#employeeTable td:nth-child(6),
 #employeeTable td:nth-child(7),
 #employeeTable td:nth-child(8),
 #employeeTable td:nth-child(9),
@@ -2139,15 +2351,16 @@ function redirectToClient() {
 #employeeTable td:nth-child(11),
 #employeeTable td:nth-child(12),
 #employeeTable td:nth-child(13),
-#employeeTable td:nth-child(14) {
+#employeeTable td:nth-child(14),
+#employeeTable td:nth-child(15) {
     text-align: center;
     padding-right: 12px;
 }
 
-#employeeTable td:nth-child(7),
 #employeeTable td:nth-child(8),
 #employeeTable td:nth-child(9),
-#employeeTable td:nth-child(10) {
+#employeeTable td:nth-child(10),
+#employeeTable td:nth-child(11) {
     font-weight: 500;
 }
 
@@ -2207,8 +2420,8 @@ function redirectToClient() {
 }
 
 /* Date columns styling */
-#employeeTable tbody td:nth-child(4),
-#employeeTable tbody td:nth-child(5) {
+#employeeTable tbody td:nth-child(5),
+#employeeTable tbody td:nth-child(6) {
     color: #555;
     font-size: 15px;
     text-align: center;
@@ -2216,20 +2429,20 @@ function redirectToClient() {
 }
 
 /* Percentage columns styling */
-#employeeTable tbody td:nth-child(11),
 #employeeTable tbody td:nth-child(12),
-#employeeTable tbody td:nth-child(13) {
+#employeeTable tbody td:nth-child(13),
+#employeeTable tbody td:nth-child(14) {
     font-weight: 600;
     color: #2c3e50;
     font-size: 15px;
 }
 
 /* Number columns styling */
-#employeeTable tbody td:nth-child(6),
 #employeeTable tbody td:nth-child(7),
 #employeeTable tbody td:nth-child(8),
 #employeeTable tbody td:nth-child(9),
-#employeeTable tbody td:nth-child(10) {
+#employeeTable tbody td:nth-child(10),
+#employeeTable tbody td:nth-child(11) {
     color: #1f2937;
     font-weight: 500;
     font-size: 15px;

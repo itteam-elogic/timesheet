@@ -57,12 +57,7 @@ class Execution_plan extends CI_Controller {
 		$hideResourceColumn = ($selectedBillingType === 'hourly');
 		$isHourlyBilling = ($selectedBillingType === 'hourly');
 		$isMonthlyBilling = ($selectedBillingType === 'monthly');
-		$differenceColumnLabel = 'Difference';
-		if ($isHourlyBilling) {
-			$differenceColumnLabel = 'PEST vs TS Difference';
-		} elseif ($isMonthlyBilling) {
-			$differenceColumnLabel = 'Timesheet Hours';
-		}
+		$differenceColumnLabel = "Difference\nP. EST - TS";
 
 		require_once APPPATH . 'third_party/PHPExcel/Classes/PHPExcel.php';
 		$objPHPExcel = new PHPExcel();
@@ -99,9 +94,11 @@ class Execution_plan extends CI_Controller {
 
 		$headerStyle = array(
 			'font' => array('bold' => true, 'color' => array('rgb' => 'FFFFFF')),
-			'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '2C5AA0'))
+			'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '2C5AA0')),
+			'alignment' => array('wrap' => true, 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER, 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER)
 		);
 		$sheet->getStyle($hideResourceColumn ? 'A1:K1' : 'A1:L1')->applyFromArray($headerStyle);
+		$sheet->getRowDimension(1)->setRowHeight(30);
 
 		$formatDate = function($value) {
 			if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -116,6 +113,13 @@ class Execution_plan extends CI_Controller {
 				return (string)(int)$value;
 			}
 			return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
+		};
+		$formatEstimatedHours = function($value) use ($formatHours) {
+			$value = (float)$value;
+			if ($value == 0) {
+				return 'As Per Actual';
+			}
+			return $formatHours($value);
 		};
 		$formatBillingType = function($value) {
 			$value = trim((string)$value);
@@ -172,7 +176,7 @@ class Execution_plan extends CI_Controller {
 				$sheet->setCellValue('E' . $line, $clientBillingTypeDisplay);
 				$sheet->setCellValue('F' . $line, $clientTimesheetEntryDate);
 				$sheet->setCellValue('G' . $line, $clientStatus);
-				$sheet->setCellValue('H' . $line, $formatHours($clientScheduleTotal));
+				$sheet->setCellValue('H' . $line, $formatEstimatedHours($clientScheduleTotal));
 				$sheet->setCellValue('I' . $line, $formatHours($clientTimesheetTotal));
 				$sheet->setCellValue('J' . $line, $formatHours($clientInvoiceTotal));
 				$sheet->setCellValue('K' . $line, $formatHours($clientDiff));
@@ -186,7 +190,7 @@ class Execution_plan extends CI_Controller {
 				$sheet->setCellValue('F' . $line, '');
 				$sheet->setCellValue('G' . $line, $clientTimesheetEntryDate);
 				$sheet->setCellValue('H' . $line, $clientStatus);
-				$sheet->setCellValue('I' . $line, $formatHours($clientScheduleTotal));
+				$sheet->setCellValue('I' . $line, $formatEstimatedHours($clientScheduleTotal));
 				$sheet->setCellValue('J' . $line, $formatHours($clientTimesheetTotal));
 				$sheet->setCellValue('K' . $line, $formatHours($clientInvoiceTotal));
 				$sheet->setCellValue('L' . $line, $formatHours($clientDiff));
@@ -211,7 +215,7 @@ class Execution_plan extends CI_Controller {
 					$sheet->setCellValue('E' . $line, $formatBillingType(isset($projectRow->man_days) ? $projectRow->man_days : ''));
 					$sheet->setCellValue('F' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
 					$sheet->setCellValue('G' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
-					$sheet->setCellValue('H' . $line, $formatHours($schedule));
+					$sheet->setCellValue('H' . $line, $formatEstimatedHours($schedule));
 					$sheet->setCellValue('I' . $line, $formatHours($timesheet));
 					$sheet->setCellValue('J' . $line, $formatHours($invoice));
 					$sheet->setCellValue('K' . $line, $formatHours($diff));
@@ -224,7 +228,7 @@ class Execution_plan extends CI_Controller {
 					$sheet->setCellValue('F' . $line, $countTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
 					$sheet->setCellValue('G' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
 					$sheet->setCellValue('H' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
-					$sheet->setCellValue('I' . $line, $formatHours($schedule));
+					$sheet->setCellValue('I' . $line, $formatEstimatedHours($schedule));
 					$sheet->setCellValue('J' . $line, $formatHours($timesheet));
 					$sheet->setCellValue('K' . $line, $formatHours($invoice));
 					$sheet->setCellValue('L' . $line, $formatHours($diff));
@@ -513,6 +517,11 @@ class Execution_plan extends CI_Controller {
 	private function execution_plan_calculate_difference($billingMode, $scheduleHours, $timesheetHours, $invoiceHours) {
 		$scheduleHours = (float)$scheduleHours;
 		$timesheetHours = (float)$timesheetHours;
+
+		// As Per Actual (0 estimated hours): show timesheet hours in Difference column
+		if ($scheduleHours == 0) {
+			return $timesheetHours;
+		}
 
 		if ($billingMode === 'hourly') {
 			return $scheduleHours - $timesheetHours;

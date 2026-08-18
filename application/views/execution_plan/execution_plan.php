@@ -215,6 +215,15 @@
 					return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
 				}
 			}
+			if (!function_exists('execution_plan_estimated_hours_display')) {
+				function execution_plan_estimated_hours_display($value) {
+					$value = (float)$value;
+					if ($value == 0) {
+						return 'As Per Actual';
+					}
+					return execution_plan_hours_display($value);
+				}
+			}
 			if (!function_exists('execution_plan_date_display')) {
 				function execution_plan_date_display($value) {
 					if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -322,15 +331,20 @@
 				function execution_plan_calculate_difference($billingMode, $scheduleHours, $timesheetHours, $invoiceHours) {
 					$scheduleHours = (float)$scheduleHours;
 					$timesheetHours = (float)$timesheetHours;
+					$forceGreen = false;
 
-					if ($billingMode === 'hourly') {
+					// As Per Actual (0 estimated hours): show timesheet hours in green in Difference column
+					if ($scheduleHours == 0) {
+						$diff = $timesheetHours;
+						$forceGreen = true;
+					} elseif ($billingMode === 'hourly') {
 						$diff = $scheduleHours - $timesheetHours;
 					} else {
 						// Monthly: show timesheet hours only
 						$diff = $timesheetHours;
 					}
 
-					$diffClass = ($diff < 0) ? 'diff-red' : 'diff-green';
+					$diffClass = $forceGreen ? 'diff-green' : (($diff < 0) ? 'diff-red' : 'diff-green');
 					return array('value' => $diff, 'class' => $diffClass);
 				}
 			}
@@ -358,12 +372,7 @@
 				$hideResourceColumn = isset($selectedBillingType) && $selectedBillingType === 'hourly';
 				$isHourlyBilling = isset($selectedBillingType) && $selectedBillingType === 'hourly';
 				$isMonthlyBilling = isset($selectedBillingType) && $selectedBillingType === 'monthly';
-				$differenceColumnLabel = 'Difference';
-				if ($isHourlyBilling) {
-					$differenceColumnLabel = 'PEST vs TS Difference';
-				} elseif ($isMonthlyBilling) {
-					$differenceColumnLabel = 'Timesheet Hours';
-				}
+				$differenceColumnLabel = 'Difference<br/>P. EST - TS';
 			?>
 			<?php
 				$projectStatusSummary = isset($projectStatusSummary) && is_array($projectStatusSummary) ? $projectStatusSummary : array(
@@ -426,7 +435,7 @@
 							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Project Estimated Hours</th>
 							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Timesheet Hours</th>
 							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Invoice Hours</th>
-							<th style="text-align:center; width: 6% !important; text-transform:none !important;" class="ep-col-hours"><?php echo htmlspecialchars($differenceColumnLabel, ENT_QUOTES, 'UTF-8'); ?></th>
+							<th style="text-align:center; width: 6% !important; text-transform:none !important;" class="ep-col-hours"><?php echo $differenceColumnLabel; ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -466,7 +475,7 @@
 							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($clientTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_client_status_badge($clientStatus); ?></td>
-							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientScheduleTotal); ?></strong></td>
+							<td class="num-cell"><strong><?php echo execution_plan_estimated_hours_display($clientScheduleTotal); ?></strong></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientTimesheetTotal); ?></strong></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientInvoiceTotal); ?></strong></td>
 							<td class="num-cell diff-cell <?php echo $clientDiffClass; ?>"><strong><?php echo execution_plan_hours_display($clientDiff); ?></strong></td>
@@ -499,7 +508,7 @@
 							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($projectTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_project_status_badge(isset($projectRow->project_status) ? $projectRow->project_status : ''); ?></td>
-							<td class="num-cell"><?php echo execution_plan_hours_display($scheduleHours); ?></td>
+							<td class="num-cell"><?php echo execution_plan_estimated_hours_display($scheduleHours); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($timesheetHours); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($invoiceHours); ?></td>
 							<td class="num-cell <?php echo $projectDiffClass; ?>"><?php echo execution_plan_hours_display($projectDiff); ?></td>

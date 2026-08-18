@@ -88,7 +88,6 @@ class Emptimelog_Model extends CI_Model {
 	   	$this->db->insert_batch('emp_record_details', $data);
 
 		$emp_reportlog_id = $this->db->insert_id();
-		
 					 
 			if(!empty($emp_reportlog_id)){
 			
@@ -272,7 +271,6 @@ class Emptimelog_Model extends CI_Model {
 	    $update = $this->db->update('emp_record_details', $data);
 		
 		if($update):
-			
 			  return true; 
 			
 		endif;
@@ -643,6 +641,7 @@ class Emptimelog_Model extends CI_Model {
         $to_date		 = 	 $params['to_date'];
 		$department      =	 isset($params['department']) && is_array($params['department']) ? array_filter($params['department']) : array();
 		$reporting_manager = isset($params['reporting_manager']) ? trim((string)$params['reporting_manager']) : 'all';
+		$this->db->where("(er.status IS NULL OR er.status = '' OR er.status != 'Rejected')", null, false);
 		
 		
 		if($client_Id == 'all' && $project_Id == 'all' && $empId == 'all' && $task_Id == 'all') :   // Checking all records based on from and to dates only.

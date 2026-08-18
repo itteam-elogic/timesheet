@@ -273,9 +273,11 @@ if (!empty($search)) {
     /**
      * Empty department summary row (dashes in UI).
      */
-    private function client_report_dept_kpi_empty_row($deptLabel)
+    private function client_report_dept_kpi_empty_row($deptLabel, $monthLabel = '', $monthKey = '')
     {
         return array(
+            'month' => $monthLabel,
+            'month_key' => $monthKey,
             'label' => $deptLabel,
             'prod_hours' => null,
             'pg_hours' => null,
@@ -287,6 +289,66 @@ if (!empty($search)) {
             'invoiced_hours' => null,
             'difference' => null,
         );
+    }
+
+    /**
+     * Calendar months in a client-report date range (Y-m keys, April-style labels).
+     *
+     * @param string $from_date
+     * @param string $to_date
+     * @return array<string, array{key:string,label:string,label_with_year:string,year:string,from_date:string,to_date:string}>
+     */
+    private function client_report_months_in_range($from_date, $to_date)
+    {
+        $months = array();
+        if (empty($from_date) || empty($to_date)) {
+            return $months;
+        }
+        try {
+            $start = new DateTime($from_date);
+            $end = new DateTime($to_date);
+        } catch (Exception $e) {
+            return $months;
+        }
+        $current = clone $start;
+        $current->modify('first day of this month');
+        $endMonth = clone $end;
+        $endMonth->modify('first day of this month');
+        while ($current <= $endMonth) {
+            $key = $current->format('Y-m');
+            $months[$key] = array(
+                'key' => $key,
+                'label' => $current->format('F'),
+                'label_with_year' => $current->format('F Y'),
+                'year' => $current->format('Y'),
+                'from_date' => $current->format('Y-m-01'),
+                'to_date' => $current->format('Y-m-t'),
+            );
+            $current->modify('first day of next month');
+        }
+        return $months;
+    }
+
+    /**
+     * Resolve a project row to a Y-m key inside the selected range.
+     *
+     * @param object $proj
+     * @param array $monthsCovered
+     * @return string
+     */
+    private function client_report_project_month_key($proj, array $monthsCovered)
+    {
+        if (!empty($proj->report_month)) {
+            $key = (string) $proj->report_month;
+            if (isset($monthsCovered[$key])) {
+                return $key;
+            }
+        }
+        if (count($monthsCovered) === 1) {
+            $keys = array_keys($monthsCovered);
+            return $keys[0];
+        }
+        return '';
     }
 
     /**
@@ -346,6 +408,7 @@ if (!empty($search)) {
 
     /**
      * Department KPI summary from filtered client-project hours (matches visible grid totals).
+     * One row per month in the selected range, then department.
      *
      * @param string $from_date
      * @param string $to_date
@@ -360,6 +423,16 @@ if (!empty($search)) {
         if (empty($from_date) || empty($to_date)) {
             return array('rows' => $rows, 'has_data' => false);
         }
+
+        $monthsCovered = $this->client_report_months_in_range($from_date, $to_date);
+        if (empty($monthsCovered)) {
+            return array('rows' => $rows, 'has_data' => false);
+        }
+        $yearsInRange = array();
+        foreach ($monthsCovered as $monthInfo) {
+            $yearsInRange[$monthInfo['year']] = true;
+        }
+        $useYearInMonthLabel = count($yearsInRange) > 1;
 
         $deptOrder = function_exists('ts_primary_delivery_departments')
             ? ts_primary_delivery_departments()
@@ -393,35 +466,57 @@ if (!empty($search)) {
         if (is_array($projectRows)) {
             $projects = $projectRows;
         } else {
-            $projects = $this->getAllClientInformation('', $search, $from_date, $to_date, $department);
+            $projects = $this->getAllClientInformation('', $search, $from_date, $to_date, $department, count($monthsCovered) > 1);
+            $projects = $this->apply_client_report_row_filters($projects, $grid, $search);
+        }
+
+        $hasReportMonth = false;
+        foreach ($projects as $proj) {
+            if (!empty($proj->report_month)) {
+                $hasReportMonth = true;
+                break;
+            }
+        }
+        if (count($monthsCovered) > 1 && !$hasReportMonth && !empty($projects)) {
+            $projects = $this->getAllClientInformation('', $search, $from_date, $to_date, $department, true);
             $projects = $this->apply_client_report_row_filters($projects, $grid, $search);
         }
 
         $searchHasFilter = trim((string) $search) !== ''
             || (is_array($grid) && (!empty($grid['clients']) || !empty($grid['pms']) || !empty($grid['project'])));
 
+        $monthDeptHours = array();
+        foreach ($monthsCovered as $monthKey => $monthInfo) {
+            $monthDeptHours[$monthKey] = array();
+            foreach ($deptOrder as $dKey) {
+                $monthDeptHours[$monthKey][$dKey] = array(
+                    'production' => 0.0,
+                    'general' => 0.0,
+                    'invoiced' => 0.0,
+                    'quality_sum' => 0.0,
+                    'quality_count' => 0,
+                );
+            }
+        }
+
         if (empty($projects)) {
             if ($searchHasFilter) {
                 return array('rows' => array(), 'has_data' => false);
             }
-            foreach ($displayDeptOrder as $deptLabel) {
-                $rows[] = $this->client_report_dept_kpi_empty_row($deptLabel);
+            foreach ($monthsCovered as $monthKey => $monthInfo) {
+                $monthLabel = $useYearInMonthLabel ? $monthInfo['label_with_year'] : $monthInfo['label'];
+                foreach ($displayDeptOrder as $deptLabel) {
+                    $rows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
+                }
             }
             return array('rows' => $rows, 'has_data' => !empty($rows));
         }
 
-        $deptHours = array();
-        foreach ($deptOrder as $dKey) {
-            $deptHours[$dKey] = array(
-                'production' => 0.0,
-                'general' => 0.0,
-                'invoiced' => 0.0,
-                'quality_sum' => 0.0,
-                'quality_count' => 0,
-            );
-        }
-
         foreach ($projects as $proj) {
+            $monthKey = $this->client_report_project_month_key($proj, $monthsCovered);
+            if ($monthKey === '' || !isset($monthDeptHours[$monthKey])) {
+                continue;
+            }
             $rawDept = isset($proj->department) ? (string) $proj->department : '';
             $dept = $this->client_report_resolve_department_bucket($rawDept, $deptOrder);
             if ($dept === '') {
@@ -429,50 +524,67 @@ if (!empty($search)) {
             }
             $production = isset($proj->total_hours) ? (float) $proj->total_hours : 0.0;
             $general = isset($proj->general_hours) ? (float) $proj->general_hours : 0.0;
-            $deptHours[$dept]['production'] += $production;
-            $deptHours[$dept]['general'] += $general;
+            $monthDeptHours[$monthKey][$dept]['production'] += $production;
+            $monthDeptHours[$monthKey][$dept]['general'] += $general;
             if (isset($proj->project_invoice_amt) && $proj->project_invoice_amt !== '' && $proj->project_invoice_amt !== null) {
-                $deptHours[$dept]['invoiced'] += (float) $proj->project_invoice_amt;
+                $monthDeptHours[$monthKey][$dept]['invoiced'] += (float) $proj->project_invoice_amt;
             }
-            $qualityPct = $this->client_report_project_quality_pct($proj, $from_date, $to_date);
+            $monthFrom = $monthsCovered[$monthKey]['from_date'];
+            $monthTo = $monthsCovered[$monthKey]['to_date'];
+            $qualityPct = $this->client_report_project_quality_pct($proj, $monthFrom, $monthTo);
             if ($qualityPct !== null) {
-                $deptHours[$dept]['quality_sum'] += $qualityPct;
-                $deptHours[$dept]['quality_count']++;
+                $monthDeptHours[$monthKey][$dept]['quality_sum'] += $qualityPct;
+                $monthDeptHours[$monthKey][$dept]['quality_count']++;
             }
         }
 
-        foreach ($displayDeptOrder as $deptLabel) {
-            $production = $deptHours[$deptLabel]['production'];
-            $general = $deptHours[$deptLabel]['general'];
-            $invoiced = $deptHours[$deptLabel]['invoiced'];
-            $total = $production + $general;
-            $utilHours = $total;
+        foreach ($monthsCovered as $monthKey => $monthInfo) {
+            $monthLabel = $useYearInMonthLabel ? $monthInfo['label_with_year'] : $monthInfo['label'];
+            $monthRows = array();
+            foreach ($displayDeptOrder as $deptLabel) {
+                $bucket = $monthDeptHours[$monthKey][$deptLabel];
+                $production = $bucket['production'];
+                $general = $bucket['general'];
+                $invoiced = $bucket['invoiced'];
+                $total = $production + $general;
+                $utilHours = $total;
 
-            if ($total <= 0 && $invoiced <= 0 && $deptHours[$deptLabel]['quality_count'] === 0) {
-                if ($searchHasFilter) {
+                if ($total <= 0 && $invoiced <= 0 && $bucket['quality_count'] === 0) {
+                    if ($searchHasFilter) {
+                        continue;
+                    }
+                    $monthRows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
                     continue;
                 }
-                $rows[] = $this->client_report_dept_kpi_empty_row($deptLabel);
-                continue;
-            }
 
-            $qualityPct = null;
-            if ($deptHours[$deptLabel]['quality_count'] > 0) {
-                $qualityPct = round($deptHours[$deptLabel]['quality_sum'] / $deptHours[$deptLabel]['quality_count']);
-            }
+                $qualityPct = null;
+                if ($bucket['quality_count'] > 0) {
+                    $qualityPct = round($bucket['quality_sum'] / $bucket['quality_count']);
+                }
 
-            $rows[] = array(
-                'label' => $deptLabel,
-                'prod_hours' => $production > 0 ? round($production, 2) : ($total > 0 ? 0 : null),
-                'pg_hours' => $general > 0 ? round($general, 2) : ($total > 0 ? 0 : null),
-                'utilization_hours' => $utilHours > 0 ? round($utilHours, 2) : null,
-                'productivity_pct' => $total > 0 ? round(($production / $total) * 100) : null,
-                'project_general_pct' => $total > 0 ? round(($general / $total) * 100) : null,
-                'utilization_pct' => $total > 0 ? round(($utilHours / $total) * 100) : null,
-                'quality_pct' => $qualityPct,
-                'invoiced_hours' => ($total > 0 || $invoiced != 0) ? round($invoiced, 2) : null,
-                'difference' => ($total > 0 || $invoiced != 0) ? round($invoiced - $total, 2) : null,
-            );
+                $monthRows[] = array(
+                    'month' => $monthLabel,
+                    'month_key' => $monthKey,
+                    'label' => $deptLabel,
+                    'prod_hours' => $production > 0 ? round($production, 2) : ($total > 0 ? 0 : null),
+                    'pg_hours' => $general > 0 ? round($general, 2) : ($total > 0 ? 0 : null),
+                    'utilization_hours' => $utilHours > 0 ? round($utilHours, 2) : null,
+                    'productivity_pct' => $total > 0 ? round(($production / $total) * 100) : null,
+                    'project_general_pct' => $total > 0 ? round(($general / $total) * 100) : null,
+                    'utilization_pct' => $total > 0 ? round(($utilHours / $total) * 100) : null,
+                    'quality_pct' => $qualityPct,
+                    'invoiced_hours' => ($total > 0 || $invoiced != 0) ? round($invoiced, 2) : null,
+                    'difference' => ($total > 0 || $invoiced != 0) ? round($invoiced - $total, 2) : null,
+                );
+            }
+            if (empty($monthRows)) {
+                foreach ($displayDeptOrder as $deptLabel) {
+                    $monthRows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
+                }
+            }
+            foreach ($monthRows as $monthRow) {
+                $rows[] = $monthRow;
+            }
         }
 
         if (empty($rows)) {
@@ -2109,7 +2221,11 @@ $isMEPManager = in_array($empId, $mepManagers);
             'left'
         );
     }
-    $this->db->join('quality_error_log', 'quality_error_log.qty_project_Id = project_hours.project_Id AND quality_error_log.qty_client_Id = project_hours.client_Id', 'left');
+    $this->db->join(
+        'quality_error_log',
+        $this->_client_report_quality_join_on('project_hours.project_Id', 'project_hours.client_Id', $from_date, $to_date),
+        'left'
+    );
     $this->db->join('employee_details', 'employee_details.empId = project_details.empId', 'left');
 
     // Apply filters to main query
@@ -2660,7 +2776,24 @@ private function _client_cons_hours_subquery_sql($department, $range)
     return $sql;
 }
 
-private function _client_cons_quality_subquery_sql()
+/**
+ * LEFT JOIN ON for quality_error_log, scoped to selected month/date range.
+ * When $reportMonthExpr is set (month-wise rows), match that YYYY-MM; otherwise use from/to dates.
+ */
+private function _client_report_quality_join_on($projectIdExpr, $clientIdExpr, $from_date = '', $to_date = '', $reportMonthExpr = null)
+{
+    $on = 'quality_error_log.qty_project_Id = ' . $projectIdExpr
+        . ' AND quality_error_log.qty_client_Id = ' . $clientIdExpr;
+    if (!empty($reportMonthExpr)) {
+        $on .= ' AND DATE_FORMAT(quality_error_log.analyzer_report_date, \'%Y-%m\') = ' . $reportMonthExpr;
+    } elseif (!empty($from_date) && !empty($to_date)) {
+        $on .= ' AND quality_error_log.analyzer_report_date >= ' . $this->db->escape($from_date)
+            . ' AND quality_error_log.analyzer_report_date <= ' . $this->db->escape($to_date);
+    }
+    return $on;
+}
+
+private function _client_cons_quality_subquery_sql($from_date = '', $to_date = '')
 {
     $q = $this->db->select('
         qty_client_Id,
@@ -2669,8 +2802,12 @@ private function _client_cons_quality_subquery_sql()
         SUM(COALESCE(analyzer_num_of_errors, 0)) AS analyzer_num_of_errors,
         SUM(COALESCE(reviewer_num_of_errors, 0)) AS reviewer_num_of_errors
     ', false)
-        ->from('quality_error_log')
-        ->group_by('qty_project_Id, qty_client_Id')
+        ->from('quality_error_log');
+    if (!empty($from_date) && !empty($to_date)) {
+        $q->where('analyzer_report_date >=', $from_date)
+            ->where('analyzer_report_date <=', $to_date);
+    }
+    $q = $q->group_by('qty_project_Id, qty_client_Id')
         ->get_compiled_select();
     $this->db->reset_query();
     return $q;
@@ -2805,7 +2942,7 @@ private function _client_cons_build_general_project_map(array $clientIds, array 
 public function ClientInformationConsolidated($limit, $offset, $search = '', $from_date = '', $to_date = '', $department = '') {
     $range = $this->_client_cons_date_range($from_date, $to_date);
     $hoursSubquerySQL = $this->_client_cons_hours_subquery_sql($department, $range);
-    $qualitySubquerySQL = $this->_client_cons_quality_subquery_sql();
+    $qualitySubquerySQL = $this->_client_cons_quality_subquery_sql($range['from'], $range['to']);
     $invoiceSubquerySQL = $this->_client_cons_invoice_subquery_sql($range['from_key'], $range['to_key']);
 
     $invoiceSelect = $invoiceSubquerySQL
@@ -2965,13 +3102,11 @@ $isMEPManager = in_array($empId, $mepManagers);
     }  
 
 // Handle date range - if not provided, show all data
-// Note: Only filter emp_record_details dates, not quality_error_log dates, to show all projects with hours in the date range
+// Hours are filtered here; quality_error_log is date-scoped in the main client-report joins.
 if (!empty($from_date) && !empty($to_date)) {
     // Date range filter for employee record details
     $this->db->where('emp_record_details.emp_report_dates >=', $from_date);
     $this->db->where('emp_record_details.emp_report_dates <=', $to_date);
-    // Do NOT filter quality_error_log by date range - show all projects that have hours in the range
-    // Quality error log date filtering is handled in the view for display purposes only
 }
 // If no date range provided, show all data (no date filter applied)
 
@@ -3209,7 +3344,18 @@ $isMEPManager = in_array($empId, $mepManagers);
     $this->db->from('(' . $hoursSubquerySQL . ') as project_hours');
     $this->db->join('client_details', 'client_details.client_Id = project_hours.client_Id', 'inner');
     $this->db->join('project_details', 'project_details.project_id = project_hours.project_Id', 'inner');
-    $this->db->join('quality_error_log', 'quality_error_log.qty_project_Id = project_hours.project_Id AND quality_error_log.qty_client_Id = project_hours.client_Id', 'left');
+    $qualityReportMonthExpr = $aggregate_by_month ? 'project_hours.report_month' : null;
+    $this->db->join(
+        'quality_error_log',
+        $this->_client_report_quality_join_on(
+            'project_hours.project_Id',
+            'project_hours.client_Id',
+            $from_date,
+            $to_date,
+            $qualityReportMonthExpr
+        ),
+        'left'
+    );
     $this->db->join('employee_details', 'employee_details.empId = project_details.empId', 'left');
     $this->db->join('employee_details client_pm_ed', 'client_pm_ed.empId = client_details.empId', 'left');
 
@@ -3809,10 +3955,21 @@ if ($currentMonth == 1) {
         MAX(quality_error_log.analyzer_report_date) as analyzer_report_date,
         project_hours.total_hours
     ');
+    $qualityFromDate = $from_date;
+    $qualityToDate = $to_date;
+    if (empty($qualityFromDate) || empty($qualityToDate)) {
+        $qualityFromDate = sprintf('%04d-01-01', $queryYear);
+        $qualityToDate = date('Y-m-t', mktime(0, 0, 0, $endMonth, 1, $queryYear));
+    }
+
     $this->db->from('(' . $hoursSubquerySQL . ') as project_hours');
     $this->db->join('client_details', 'client_details.client_Id = project_hours.client_Id', 'inner');
     $this->db->join('project_details', 'project_details.project_id = project_hours.project_Id', 'inner');
-    $this->db->join('quality_error_log', 'quality_error_log.qty_project_Id = project_hours.project_Id AND quality_error_log.qty_client_Id = project_hours.client_Id', 'left');
+    $this->db->join(
+        'quality_error_log',
+        $this->_client_report_quality_join_on('project_hours.project_Id', 'project_hours.client_Id', $qualityFromDate, $qualityToDate),
+        'left'
+    );
     $this->db->join('employee_details', 'employee_details.empId = project_details.empId', 'left');
 
     $this->db->where('client_details.status', 'Active');

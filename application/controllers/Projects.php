@@ -380,7 +380,7 @@ public function getProjectsByClient()
 		
 		$this->form_validation->set_error_delimiters('<label class="error">', '</label>');
 	
-	    $this->form_validation->set_rules('project_name', 'Project name already exit. Please try another project', 'required|trim|callback_exists_projects');
+	    $this->form_validation->set_rules('project_name', 'Project Name', 'required|trim');
         
         //$this->form_validation->set_rules('project_number', 'Project number already exit in another project. Please try to different number', 'required|trim|callback_exists_project_number');
 
@@ -432,11 +432,17 @@ public function getProjectsByClient()
 			return;
 
 	    }else{
+
+			$existingProject = $this->project_model->getProjects($projct_Id);
+			$existingWhoAllocated = $this->session->userdata['logged_in_timesheet']['empId'];
+			if (!empty($existingProject[0]->who_allocated_project_empId)) {
+				$existingWhoAllocated = $existingProject[0]->who_allocated_project_empId;
+			}
 						
 			$data = array(
 				'client_Id' 				 => $this->input->post('client_Id'),
 				'empId'						 => $who_allocated_project_empId,
-				'who_allocated_project_empId' => $this->session->userdata['logged_in_timesheet']['empId'],
+				'who_allocated_project_empId' => $existingWhoAllocated,
 				'project_name' 				 => $this->input->post('project_name'),
 				'city' 				 		 => $this->input->post('city'),
 				'state' 					 => $this->input->post('state'),
@@ -502,15 +508,21 @@ public function getProjectsByClient()
   }
 	
   #uniqueness of task based on client and projects
-    function exists_projects($str){ #uniqueness of Car Model
+    function exists_projects($str){ #uniqueness of project name per client
 	
         $client_Id = $this->input->post('client_Id');
 		
 		$project_name = $this->input->post('project_name');
+
+		$project_id = $this->input->post('project_id');
 		
-		$query = $this->db->get_where('project_details',array('project_name'=>$project_name,'client_Id'=>$client_Id));
-	
-		$countClientProject = $query->num_rows(); 
+		$this->db->from('project_details');
+		$this->db->where('project_name', $project_name);
+		$this->db->where('client_Id', $client_Id);
+		if (!empty($project_id)) {
+			$this->db->where('project_Id !=', $project_id);
+		}
+		$countClientProject = $this->db->get()->num_rows();
 		
         if ($countClientProject  == 0){
 		
@@ -1052,6 +1064,65 @@ public function update_project_master_status(){
 
 /************************************************************  Project master status update feature function END *************************************/    
 
+	private function requireKanthUser()
+	{
+		$username = isset($this->session->userdata['logged_in_timesheet']['username'])
+			? $this->session->userdata['logged_in_timesheet']['username']
+			: '';
+		if ($username !== 'kanth') {
+			redirect('home');
+		}
+	}
 
+	public function hours_notifications()
+	{
+		$this->requireKanthUser();
+		$data['projects'] = $this->project_model->getHoursNotificationGridProjects();
+		$this->load->view('projects/hours_notifications', $data);
+	}
+
+	public function send_hours_notification()
+	{
+		$this->requireKanthUser();
+		header('Content-Type: application/json');
+		$projectId = (int)$this->input->post('project_Id');
+		if (empty($projectId)) {
+			echo json_encode(array('success' => false, 'message' => 'Please choose a project.'));
+			return;
+		}
+		$result = $this->project_model->sendManualHoursNotification($projectId);
+		echo json_encode($result);
+	}
+
+	public function send_hours_notifications_bulk()
+	{
+		$this->requireKanthUser();
+		header('Content-Type: application/json');
+		$projectIds = $this->input->post('project_Ids');
+		if (empty($projectIds) || !is_array($projectIds)) {
+			echo json_encode(array('success' => false, 'message' => 'Please choose at least one project.'));
+			return;
+		}
+		$sent = 0;
+		$failed = 0;
+		$messages = array();
+		foreach ($projectIds as $projectId) {
+			$result = $this->project_model->sendManualHoursNotification((int)$projectId);
+			if (!empty($result['success'])) {
+				$sent++;
+			} else {
+				$failed++;
+				if (!empty($result['message'])) {
+					$messages[] = $result['message'];
+				}
+			}
+		}
+		echo json_encode(array(
+			'success' => $sent > 0,
+			'sent' => $sent,
+			'failed' => $failed,
+			'message' => 'Sent ' . $sent . ' notification(s)' . ($failed ? ', failed ' . $failed : '') . '.'
+		));
+	}
 
 }

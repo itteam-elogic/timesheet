@@ -38,18 +38,12 @@ function refreshProjects() {
     $('#manager_name').val(null).trigger('change');
 
     // From / To reset
-    $('#from_year').val('').removeClass('selected-box');
-    $('#from_month').val('').removeClass('selected-box');
-
-    $('#to_year').val('').removeClass('selected-box');
-    $('#to_month').val('').removeClass('selected-box');
-
-    // Hide clear icons
-    $('#from_year').siblings('.clear-icon').hide();
-    $('#from_month').siblings('.clear-icon').hide();
-
-    $('#to_year').siblings('.clear-icon').hide();
-    $('#to_month').siblings('.clear-icon').hide();
+    $('#from_year, #from_month, #to_year, #to_month').each(function() {
+        $(this).val(null).trigger('change');
+        if (typeof syncProjectYmClearState === 'function') {
+            syncProjectYmClearState($(this));
+        }
+    });
 
     // Reset status
     window.projectStatus = '';
@@ -347,120 +341,101 @@ $selectedManagers = (array) $this->input->post('manager_name');
 
     </div><!-- /.project-filter-main-row -->
 
-    <div class="row project-filter-dates-row">
+    <div class="project-filter-bottom-row">
 
-    <!-- FROM -->
-    <div class="col-md-6 col-sm-12">
-        <div class="form-group project-filter-form-group project-date-group">
+        <div class="project-date-group pf-date-block">
             <label class="control-label">From</label>
             <div class="project-date-fields select-row">
-            <div class="select-container">
-                <select class="dropdown-box clearable-select project-filter-select" id="from_year" name="from_year">
-                    <option value="">Select Year</option>
-                    <option value="ALL">ALL</option>
-                    <option value="2026">2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                    <option value="2021">2021</option>
-                    <option value="2020">2020</option>
-                    <option value="2019">2019</option>
-                    <option value="2018">2018</option>
-                    <option value="2017">2017</option>
-                    <option value="2016">2016</option>
-                </select>
-
-                <span class="clear-icon" onclick="clearDropdown('from_year')">&times;</span>
-            </div>
-
-            <!-- From Month -->
-            <div class="select-container">
-               <select class="dropdown-box clearable-select project-filter-select" id="from_month" name="from_month">
-                    <option value="">Select Month</option>
-                    <option value="01">January</option>
-                    <option value="02">February</option>
-                    <option value="03">March</option>
-                    <option value="04">April</option>
-                    <option value="05">May</option>
-                    <option value="06">June</option>
-                    <option value="07">July</option>
-                    <option value="08">August</option>
-                    <option value="09">September</option>
-                    <option value="10">October</option>
-                    <option value="11">November</option>
-                    <option value="12">December</option>
-                </select>
-
-                <span class="clear-icon" onclick="clearDropdown('from_month')">&times;</span>
-            </div>
+                <div class="select-container pf-ym-select-wrap">
+                    <select class="dropdown-box clearable-select project-filter-select" id="from_year" name="from_year">
+                        <option value="">Select Year</option>
+                        <option value="ALL">ALL</option>
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        <option value="2019">2019</option>
+                        <option value="2018">2018</option>
+                        <option value="2017">2017</option>
+                        <option value="2016">2016</option>
+                    </select>
+                </div>
+                <div class="select-container pf-ym-select-wrap">
+                    <select class="dropdown-box clearable-select project-filter-select" id="from_month" name="from_month">
+                        <option value="">Select Month</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- TO -->
-    <div class="col-md-6 col-sm-12">
-        <div class="form-group project-filter-form-group project-date-group">
+        <div class="project-date-group pf-date-block">
             <label class="control-label">To</label>
             <div class="project-date-fields select-row">
-            <div class="select-container">
-               <select class="dropdown-box clearable-select project-filter-select" id="to_year" name="to_year">
-                    <option value="">Select Year</option>
-                    <option value="ALL">ALL</option>
-                    <option value="2026">2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                    <option value="2021">2021</option>
-                    <option value="2020">2020</option>
-                    <option value="2019">2019</option>
-                    <option value="2018">2018</option>
-                    <option value="2017">2017</option>
-                    <option value="2016">2016</option>
-                </select>
-
-                <span class="clear-icon" onclick="clearDropdown('to_year')">&times;</span>
-            </div>
-
-            <!-- To Month -->
-            <div class="select-container">
-                <select class="dropdown-box clearable-select project-filter-select" id="to_month" name="to_month">
-                    <option value="">Select Month</option>
-                    <option value="01">January</option>
-                    <option value="02">February</option>
-                    <option value="03">March</option>
-                    <option value="04">April</option>
-                    <option value="05">May</option>
-                    <option value="06">June</option>
-                    <option value="07">July</option>
-                    <option value="08">August</option>
-                    <option value="09">September</option>
-                    <option value="10">October</option>
-                    <option value="11">November</option>
-                    <option value="12">December</option>
-                </select>
-
-                <span class="clear-icon" onclick="clearDropdown('to_month')">&times;</span>
-            </div>
+                <div class="select-container pf-ym-select-wrap">
+                    <select class="dropdown-box clearable-select project-filter-select" id="to_year" name="to_year">
+                        <option value="">Select Year</option>
+                        <option value="ALL">ALL</option>
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        <option value="2019">2019</option>
+                        <option value="2018">2018</option>
+                        <option value="2017">2017</option>
+                        <option value="2016">2016</option>
+                    </select>
+                </div>
+                <div class="select-container pf-ym-select-wrap">
+                    <select class="dropdown-box clearable-select project-filter-select" id="to_month" name="to_month">
+                        <option value="">Select Month</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
             </div>
         </div>
-    </div>
 
-    </div><!-- /.project-filter-dates-row -->
+        <div class="project-filter-actions pf-inline-actions">
+            <button type="button" class="btn btn-primary" onclick="loadProjects(1)">
+                <i class="fa fa-search"></i> Search
+            </button>
+            <button type="button" class="btn btn-hourly" onclick="filterStatus('Hourly')">Hourly</button>
+            <button type="button" class="btn btn-monthly" onclick="filterStatus('Monthly')">Monthly</button>
+            <button type="button" class="btn btn-success" onclick="filterStatus('Process')">In Process</button>
+            <button type="button" class="btn btn-warning" onclick="filterStatus('On Hold')">On Hold</button>
+            <button type="button" class="btn btn-danger" onclick="filterStatus('Closed')">Closed</button>
+            <button type="button" class="btn btn-info" onclick="filterStatus('All')">All</button>
+        </div>
 
-    <div class="project-filter-actions">
-    <button type="button" class="btn btn-primary" onclick="loadProjects(1)">
-        <i class="fa fa-search"></i> Search
-    </button>
-
-    <button type="button" class="btn btn-hourly" onclick="filterStatus('Hourly')">Hourly</button>
-    <button type="button" class="btn btn-monthly" onclick="filterStatus('Monthly')">Monthly</button>
-    <button type="button" class="btn btn-success" onclick="filterStatus('Process')">In Process</button>
-    <button type="button" class="btn btn-warning" onclick="filterStatus('On Hold')">On Hold</button>
-    <button type="button" class="btn btn-danger" onclick="filterStatus('Closed')">Closed</button>
-    <button type="button" class="btn btn-info" onclick="filterStatus('All')">All</button>
-    </div>
+    </div><!-- /.project-filter-bottom-row -->
 
 </div><!-- /.filter-section -->
 
@@ -496,37 +471,70 @@ $selectedManagers = (array) $this->input->post('manager_name');
     padding-left: 8px;
     padding-right: 8px;
 }
-.project-date-group {
+.project-filter-bottom-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 18px;
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid #eef2f6;
+    width: 100%;
+}
+.project-date-group.pf-date-block {
+    flex: 1 1 420px;
+    min-width: 380px;
+    max-width: 540px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
-    padding: 10px 12px 12px;
+    padding: 10px 14px 12px;
     margin-bottom: 0;
+}
+.project-date-group.pf-date-block > .control-label {
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
 }
 .project-date-fields {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
 }
-.project-filter-actions {
+.project-date-fields .select-container {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+}
+.project-date-fields .select-container:first-child {
+    flex: 0 0 158px;
+    min-width: 158px;
+}
+.project-date-fields .select-container:last-child {
+    flex: 1 1 200px;
+    min-width: 200px;
+}
+.project-filter-actions.pf-inline-actions {
+    flex: 1 1 100%;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
+    align-content: flex-end;
+    justify-content: flex-start;
     gap: 8px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid #eef2f6;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
 }
-.project-filter-actions .btn {
+.project-filter-actions.pf-inline-actions .btn {
     margin: 0;
     min-width: 96px;
     border-radius: 6px;
     font-weight: 600;
     font-size: 13px;
-    padding: 8px 12px;
-    text-transform: none;
-    letter-spacing: 0;
+    padding: 8px 14px;
+    white-space: nowrap;
 }
 .filter-section .project-filter-form-group {
     margin-bottom: 12px;
@@ -579,6 +587,51 @@ $selectedManagers = (array) $this->input->post('manager_name');
     flex: 1 1 0;
     min-width: 0;
 }
+.filter-section .pf-ym-select-wrap .select2-container.pf-ym-selected-bg .select2-selection--single {
+    background-color: #673ab7 !important;
+    border-color: #673ab7 !important;
+}
+.filter-section .pf-ym-select-wrap .select2-container.pf-ym-selected-bg .select2-selection__rendered {
+    color: #fff !important;
+    font-weight: 600;
+    padding-right: 48px !important;
+}
+.filter-section .pf-ym-select-wrap .select2-container.pf-ym-selected-bg .select2-selection__arrow b {
+    border-color: #fff transparent transparent transparent !important;
+}
+.filter-section .pf-ym-select-wrap .select2-selection--single {
+    position: relative;
+}
+.filter-section .pf-ym-select-wrap .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    color: #64748b;
+    cursor: pointer;
+    z-index: 2;
+}
+.filter-section .pf-ym-select-wrap .select2-container.pf-ym-selected-bg .select2-selection__clear {
+    color: #fff;
+    opacity: 0.95;
+}
+.filter-section .pf-ym-select-wrap .select2-container.pf-ym-selected-bg .select2-selection__clear:hover {
+    color: #fff;
+    opacity: 1;
+}
+.filter-section .pf-ym-select-wrap .select2-selection--single .select2-selection__arrow {
+    width: 26px;
+    right: 2px;
+}
 
 /* Dropdown Styling */
 .dropdown-box {
@@ -601,20 +654,6 @@ $selectedManagers = (array) $this->input->post('manager_name');
     font-weight: 600;
 }
 
-/* Clear Icon */
-.clear-icon {
-    position: absolute;
-    right: 22px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #666;
-    font-size: 15px;
-    cursor: pointer;
-    display: none;
-    z-index: 10;
-    line-height: 1;
-}
-.dropdown-box.selected-box + .clear-icon,
 .select-container .select2-hidden-accessible.selected-box ~ .select2-container .select2-selection--single {
     background-color: #673ab7 !important;
     border-color: #673ab7 !important;
@@ -639,8 +678,8 @@ $selectedManagers = (array) $this->input->post('manager_name');
     border-radius: 8px;
     background: #fff;
 }
-.filter-section .select2-container .select2-selection__rendered,
-.filter-box .select2-container .select2-selection__rendered {
+.filter-section .select2-container .select2-selection--single .select2-selection__rendered,
+.filter-box .select2-container .select2-selection--single .select2-selection__rendered {
     line-height: calc(var(--pf-control-height) - 2px) !important;
     font-size: 14px;
     padding-left: 10px;
@@ -652,26 +691,79 @@ $selectedManagers = (array) $this->input->post('manager_name');
 }
 .filter-section .select2-container--default .select2-selection--multiple {
     min-height: var(--pf-control-height) !important;
-    height: var(--pf-control-height) !important;
+    height: auto !important;
     border: 1px solid #cfd6df;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     background: #fff;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 .filter-section .select2-container--default .select2-selection--multiple .select2-selection__rendered {
-    padding: 2px 8px;
-    line-height: calc(var(--pf-control-height) - 6px);
-    max-height: var(--pf-control-height);
-    overflow: hidden;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 0 !important;
+    line-height: normal !important;
+    max-height: none !important;
+    overflow: visible !important;
+    float: none !important;
 }
 .filter-section .select2-container--default .select2-selection--multiple .select2-selection__choice {
-    margin-top: 4px;
-    line-height: 18px;
-    font-size: 13px;
-    padding: 0 6px;
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    font-size: 12px;
+    padding: 4px 10px 4px 8px !important;
+    border-radius: 14px;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-right: 4px !important;
+    line-height: 1 !important;
+    position: static !important;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-selection__placeholder {
+    float: none !important;
+    margin-top: 0 !important;
+    line-height: 28px !important;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-selection__clear {
+    float: none !important;
+    margin-top: 0 !important;
+    align-self: center;
+    font-size: 16px;
+    color: #64748b;
+    cursor: pointer;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-search--inline {
+    float: none !important;
+}
+.filter-section .select2-container--default .select2-selection--multiple .select2-search__field {
+    margin-top: 0 !important;
 }
 .filter-section .select2-container--default .select2-selection--single .select2-selection__clear {
-    margin-right: 18px;
+    margin-right: 22px;
+    font-size: 16px;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+}
+.filter-section .select2-hidden-accessible.selected-box ~ .select2-container .select2-selection--single .select2-selection__clear {
+    color: #fff;
+    opacity: 0.95;
+}
+.filter-section .select2-hidden-accessible.selected-box ~ .select2-container .select2-selection--single .select2-selection__clear:hover {
+    color: #fff;
+    opacity: 1;
 }
 .filter-section .select2-dropdown,
 .filter-box .select2-dropdown {
@@ -688,33 +780,32 @@ $selectedManagers = (array) $this->input->post('manager_name');
     margin-top: 0;
     width: 100%;
 }
+@media (max-width: 992px) {
+    .project-date-group.pf-date-block {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: none;
+    }
+    .project-date-fields .select-container:first-child,
+    .project-date-fields .select-container:last-child {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 140px;
+    }
+}
 </style>
 
 
 <script>
 function syncProjectYmClearState($select) {
-    var clearBtn = $select.closest('.select-container').find('.clear-icon');
     var val = $select.val();
     var hasValue = val !== null && val !== undefined && String(val).trim() !== '';
     var $s2 = $select.next('.select2-container');
     if (hasValue) {
-        clearBtn.show();
         $select.addClass('selected-box');
-        $s2.find('.select2-selection--single').css({
-            'background-color': '#673ab7',
-            'border-color': '#673ab7',
-            'color': '#fff'
-        });
-        $s2.find('.select2-selection__rendered').css('color', '#fff');
+        $s2.addClass('pf-ym-selected-bg');
     } else {
-        clearBtn.hide();
         $select.removeClass('selected-box');
-        $s2.find('.select2-selection--single').css({
-            'background-color': '',
-            'border-color': '',
-            'color': ''
-        });
-        $s2.find('.select2-selection__rendered').css('color', '');
+        $s2.removeClass('pf-ym-selected-bg');
     }
 }
 
@@ -765,10 +856,16 @@ function initProjectFilterSelect2() {
         $el.select2({
             width: '100%',
             allowClear: true,
+            placeholder: $el.find('option[value=""]').first().text() || 'Select',
             minimumResultsForSearch: 0,
             dropdownParent: $('body')
         });
         syncProjectYmClearState($el);
+        $el.off('change.pfYm select2:clear.pfYm').on('change.pfYm', function () {
+            syncProjectYmClearState($(this));
+        }).on('select2:clear.pfYm', function () {
+            loadProjects(1);
+        });
     });
 
     var $perPage = $('#perPage');
@@ -809,13 +906,6 @@ $(document).ready(function () {
 
 });
 
-/* Clear Dropdown */
-function clearDropdown(id) {
-    var $el = $('#' + id);
-    $el.val(null).trigger('change');
-    syncProjectYmClearState($el);
-    loadProjects(1);
-}
 </script>
 
 <style>

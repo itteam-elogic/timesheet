@@ -1376,23 +1376,38 @@ $(function() {
                 + '<div style="display:flex;justify-content:center;overflow-x:auto;">'
                 + '<table class="table table-bordered client-report-dept-kpi-table" style="width:100%;max-width:1200px;border-collapse:collapse;margin:0 auto;">'
                 + '<thead><tr style="background-color:#014b88;">'
+                + '<th style="' + thS + '">Month</th>'
                 + '<th style="text-align:left;font-weight:bold;color:white;padding:12px 14px;border:1px solid #0a3d66;">Departments</th>'
                 + '<th style="' + thS + '">Prod Hours</th><th style="' + thS + '">PG Hours</th><th style="' + thS + '">Utilization Hours</th>'
                 + '<th style="' + thS + '">Productivity%</th><th style="' + thS + '">Project General%</th><th style="' + thS + '">Utilization%</th>'
                 + '<th style="' + thS + '">Quality %</th><th style="' + thS + '">Invoiced hours</th><th style="' + thS + '">Difference</th>'
                 + '</tr></thead><tbody>';
-            for (var i = 0; i < res.rows.length; i++) {
-                var r = res.rows[i];
-                html += '<tr><td style="text-align:left;font-weight:bold;background:#fff;padding:12px 14px;border:1px solid #ccc;">' + escHtml(r.label) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.prod_hours) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.pg_hours) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.utilization_hours) + '</td>'
-                    + '<td style="' + tdS + 'background:#d4edda;">' + pctCell(r.productivity_pct) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff3cd;">' + pctCell(r.project_general_pct) + '</td>'
-                    + '<td style="' + tdS + 'background:#e2d5f3;">' + pctCell(r.utilization_pct) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + pctCell(r.quality_pct) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + numCell(r.invoiced_hours) + '</td>'
-                    + '<td style="' + tdS + 'background:#fff;">' + diffCell(r.difference) + '</td></tr>';
+            var i = 0;
+            while (i < res.rows.length) {
+                var monthKey = res.rows[i].month_key || '';
+                var monthName = res.rows[i].month || '';
+                var span = 1;
+                while ((i + span) < res.rows.length && (res.rows[i + span].month_key || '') === monthKey) {
+                    span++;
+                }
+                for (var j = 0; j < span; j++) {
+                    var r = res.rows[i + j];
+                    html += '<tr>';
+                    if (j === 0) {
+                        html += '<td rowspan="' + span + '" style="text-align:center;font-weight:bold;background:#e8f0f8;padding:12px 14px;border:1px solid #ccc;vertical-align:middle;">' + escHtml(monthName) + '</td>';
+                    }
+                    html += '<td style="text-align:left;font-weight:bold;background:#fff;padding:12px 14px;border:1px solid #ccc;">' + escHtml(r.label) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.prod_hours) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.pg_hours) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + hoursCell(r.utilization_hours) + '</td>'
+                        + '<td style="' + tdS + 'background:#d4edda;">' + pctCell(r.productivity_pct) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff3cd;">' + pctCell(r.project_general_pct) + '</td>'
+                        + '<td style="' + tdS + 'background:#e2d5f3;">' + pctCell(r.utilization_pct) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + pctCell(r.quality_pct) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + numCell(r.invoiced_hours) + '</td>'
+                        + '<td style="' + tdS + 'background:#fff;">' + diffCell(r.difference) + '</td></tr>';
+                }
+                i += span;
             }
             html += '</tbody></table></div></div>';
             $host.html(html);

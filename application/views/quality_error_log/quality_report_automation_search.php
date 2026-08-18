@@ -8,7 +8,8 @@ $createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
 		$fromDate = $_REQUEST['form_date'];
 		$toDate = $_REQUEST['to_date'];
 		$departM = isset($_REQUEST['department']) ? $_REQUEST['department'] : '';
-		$clientN = isset($_REQUEST['client_Id']) ? $_REQUEST['client_Id'] : '';
+		$clientN = isset($_REQUEST['client']) ? $_REQUEST['client'] : '';
+		$projectN = isset($_REQUEST['project']) ? $_REQUEST['project'] : '';
 		$pManagerN = isset($_REQUEST['project_manager']) ? $_REQUEST['project_manager'] : '';
 		$analyzerrN = isset($_REQUEST['analyzer']) ? $_REQUEST['analyzer'] : '';
 		$self_checkerN = isset($_REQUEST['self_checker']) ? $_REQUEST['self_checker'] : '';
@@ -18,11 +19,17 @@ $createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
 		$toDate = '';
 		$departM = '';
 		$clientN = '';
+		$projectN = '';
 		$pManagerN = '';
 		$analyzerrN = '';
 		$self_checkerN = '';
 		$selectBGC = '';
-	endif; 
+	endif;
+
+	$getListOfProjects = array();
+	if(!empty($clientN) && $clientN !== 'all'):
+		$getListOfProjects = $this->project_model->getProjectName($clientN);
+	endif;
 
 ?>
 <!-- Inlude Header here END 3ced9f5d191c6ab6b400cb93b9f52146 -->
@@ -98,10 +105,10 @@ $createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
 												</select>
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-group">
 												<label class="control-label">Client</label>
-												<select class="form-control" id="client" name="client">
+												<select class="form-control" id="client" name="client" onChange="getProjects(this.value);">
 													    <option value="all">ALL</option>
 														<?php foreach($getClientNames as $key => $clientName): ?>
 													<option value="<?php echo $clientName->client_Id;?>" <?=$clientN == $clientName->client_Id ? 'selected="selected"' : '';?>><?php echo ucfirst($clientName->client_name);?></option>
@@ -109,7 +116,21 @@ $createdUser = $this->session->userdata['logged_in_timesheet']['empId'];
 												</select>
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-2">
+											<div class="form-group">
+												<label class="control-label">Project</label>
+												<select class="form-control" id="project" name="project" <?php echo (empty($clientN) || $clientN === 'all') ? 'disabled="disabled"' : ''; ?>>
+													    <option value="all">ALL</option>
+														<?php foreach($getListOfProjects as $key => $projectName):
+															$hideGeneral = str_replace(" - (General)", "", $projectName->project_name);
+															if($hideGeneral == $projectName->project_name):
+														?>
+														<option value="<?php echo $projectName->project_Id;?>" <?=$projectN == $projectName->project_Id ? 'selected="selected"' : '';?>><?php echo ucfirst($projectName->project_name);?></option>
+														<?php endif; endforeach; ?>
+												</select>
+											</div>
+										</div>
+										<div class="col-md-2">
 											<div class="form-group">
 												<label class="control-label">Self Checker</label>
 												<select class="form-control" id="self_checker" name="self_checker">
@@ -302,7 +323,23 @@ $(document).ready(function() {
 			}
 		});
 	})
-  $('#department,#project_manager,#analyzer,#client,#self_checker').select2(); // Autosuggest list on clients
+  $('#department,#project_manager,#analyzer,#client,#project,#self_checker').select2(); // Autosuggest list on clients
+
+	function getProjects(client_Id) {
+		if(!client_Id || client_Id === 'all') {
+			$('#project').html('<option value="all">ALL</option>').val('all').prop('disabled', true).trigger('change');
+			return;
+		}
+		jQuery.ajax({
+			type: "POST",
+			url: "<?php echo base_url('quality_error_log/getListOfProjectsWithClient');?>",
+			data: 'client_Id=' + client_Id,
+			success: function(data) {
+				var options = '<option value="all">ALL</option>' + data.replace(/<option value="">Please Select Project<\/option>/i, '');
+				$('#project').html(options).prop('disabled', false).trigger('change');
+			}
+		});
+	}
 
 </script>
 <style>

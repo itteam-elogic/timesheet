@@ -545,6 +545,7 @@ public function consolidatedReport()
      */
     protected function write_client_report_dept_kpi_summary_excel($sheet, array $summary, $startRow)
     {
+        $this->load->helper('kpi_display');
         if (empty($summary['has_data']) || empty($summary['rows']) || !is_array($summary['rows'])) {
             return (int) $startRow;
         }
@@ -571,89 +572,142 @@ public function consolidatedReport()
             }
             return number_format((float) $v, 2, '.', '');
         };
-
-        $titleRow = (int) $startRow;
-        $sheet->setCellValue('A' . $titleRow, 'Department & Project Manager Client Summary Report');
-        $sheet->getStyle('A' . $titleRow)->getFont()->setBold(true)->setSize(12);
-        $headerRow = $titleRow + 1;
-
-        $summaryHeaders = array(
-            'Departments', 'Prod Hours', 'PG Hours', 'Utilization Hours',
-            'Productivity%', 'Project General%', 'Utilization%', 'Quality %',
-            'Invoiced hours', 'Difference',
+        $metricKeys = array(
+            array('prod_hours', $formatHours),
+            array('pg_hours', $formatHours),
+            array('utilization_hours', $formatHours),
+            array('productivity_pct', $formatPct),
+            array('project_general_pct', $formatPct),
+            array('utilization_pct', $formatPct),
+            array('quality_pct', $formatPct),
+            array('invoiced_hours', $formatNumber),
+            array('difference', $formatNumber),
         );
-        $sheet->fromArray($summaryHeaders, null, 'A' . $headerRow);
+        $writeMetricValues = function ($sheet, $deptRow, $rowNum, array $cols) use ($metricKeys) {
+            foreach ($metricKeys as $i => $metric) {
+                $val = isset($deptRow[$metric[0]]) ? $deptRow[$metric[0]] : null;
+                $sheet->setCellValueExplicit($cols[$i] . $rowNum, $metric[1]($val), PHPExcel_Cell_DataType::TYPE_STRING);
+            }
+        };
 
         $headerStyle = array(
-            'font' => array('bold' => true, 'color' => array('rgb' => 'FFFFFF')),
+            'font' => array('bold' => true, 'color' => array('rgb' => 'FFFFFF'), 'size' => 10),
             'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '014B88')),
-            'alignment' => array('horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+            ),
         );
-        $sheet->getStyle('A' . $headerRow . ':J' . $headerRow)->applyFromArray($headerStyle);
-        $sheet->getStyle('A' . $headerRow)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
-
-        $colFills = array(
-            'B' => 'FFFFFF',
-            'C' => 'FFFFFF',
-            'D' => 'FFFFFF',
-            'E' => 'D4EDDA',
-            'F' => 'FFF3CD',
-            'G' => 'E2D5F3',
-            'H' => 'FFFFFF',
-            'I' => 'FFFFFF',
-            'J' => 'FFFFFF',
+        $sectionStyle = array(
+            'font' => array('bold' => true, 'color' => array('rgb' => 'FFFFFF'), 'size' => 11),
+            'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '2C5AA0')),
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_LEFT,
+                'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+            ),
         );
-        $colKeys = array(
-            'B' => 'prod_hours',
-            'C' => 'pg_hours',
-            'D' => 'utilization_hours',
-            'E' => 'productivity_pct',
-            'F' => 'project_general_pct',
-            'G' => 'utilization_pct',
-            'H' => 'quality_pct',
-            'I' => 'invoiced_hours',
-            'J' => 'difference',
-        );
-        $colFormatters = array(
-            'B' => $formatHours,
-            'C' => $formatHours,
-            'D' => $formatHours,
-            'E' => $formatPct,
-            'F' => $formatPct,
-            'G' => $formatPct,
-            'H' => $formatPct,
-            'I' => $formatNumber,
-            'J' => $formatNumber,
-        );
-
-        $row = $headerRow + 1;
-        foreach ($summary['rows'] as $deptRow) {
-            $sheet->setCellValue('A' . $row, isset($deptRow['label']) ? $deptRow['label'] : '');
-            foreach ($colKeys as $col => $key) {
-                $val = isset($deptRow[$key]) ? $deptRow[$key] : null;
-                $sheet->setCellValue($col . $row, $colFormatters[$col]($val));
-                $sheet->getStyle($col . $row)->getFill()
-                    ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB($colFills[$col]);
-                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle($col . $row)->getFont()->setBold(true);
-            }
-            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-            $row++;
-        }
-
-        $summaryEndRow = $row - 1;
         $borderStyle = array(
             'borders' => array(
                 'allborders' => array(
                     'style' => PHPExcel_Style_Border::BORDER_THIN,
-                    'color' => array('rgb' => 'CCCCCC'),
+                    'color' => array('rgb' => 'B8C4D4'),
                 ),
             ),
         );
-        $sheet->getStyle('A' . $headerRow . ':J' . $summaryEndRow)->applyFromArray($borderStyle);
+        $centerStyle = array(
+            'alignment' => array(
+                'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+                'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+            ),
+        );
+        $deptHeaders = array(
+            'Departments', 'Prod Hours', 'PG Hours', 'Utilization Hours',
+            'Productivity%', 'Project General%', 'Utilization%', 'Quality %',
+            'Invoiced Hours', 'Difference',
+        );
 
-        return $row + 1;
+        $writeDeptTable = function ($sheet, $title, $deptRows, &$row) use (
+            $writeMetricValues, $headerStyle, $sectionStyle, $borderStyle, $centerStyle, $deptHeaders
+        ) {
+            $sheet->setCellValue('A' . $row, $title);
+            $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($sectionStyle);
+            $sheet->getRowDimension($row)->setRowHeight(22);
+            $row++;
+            $headerRow = $row;
+            $sheet->fromArray($deptHeaders, null, 'A' . $headerRow);
+            $sheet->getStyle('A' . $headerRow . ':J' . $headerRow)->applyFromArray($headerStyle);
+            $sheet->getRowDimension($headerRow)->setRowHeight(22);
+            $row++;
+            $dataStart = $row;
+            foreach ($deptRows as $deptRow) {
+                $sheet->setCellValue('A' . $row, isset($deptRow['label']) ? $deptRow['label'] : '');
+                $writeMetricValues($sheet, $deptRow, $row, array('B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'));
+                $sheet->getRowDimension($row)->setRowHeight(18);
+                $row++;
+            }
+            if ($row > $dataStart) {
+                $dataEnd = $row - 1;
+                $sheet->getStyle('A' . $headerRow . ':J' . $dataEnd)->applyFromArray($borderStyle);
+                $sheet->getStyle('A' . $dataStart . ':A' . $dataEnd)->getFont()->setBold(true);
+                $sheet->getStyle('A' . $dataStart . ':A' . $dataEnd)->getFill()
+                    ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EEF2F7');
+                $sheet->getStyle('B' . $dataStart . ':J' . $dataEnd)->applyFromArray($centerStyle);
+                $sheet->getStyle('E' . $dataStart . ':E' . $dataEnd)->getFill()
+                    ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('D4EDDA');
+                $sheet->getStyle('F' . $dataStart . ':F' . $dataEnd)->getFill()
+                    ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3CD');
+                $sheet->getStyle('G' . $dataStart . ':G' . $dataEnd)->getFill()
+                    ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('E2D5F3');
+            }
+            $row++;
+        };
+
+        $monthsGrouped = array();
+        $monthOrder = array();
+        foreach ($summary['rows'] as $scanRow) {
+            $monthKey = isset($scanRow['month_key']) ? (string) $scanRow['month_key'] : '';
+            if ($monthKey === '') {
+                $monthKey = '_none';
+            }
+            if (!isset($monthsGrouped[$monthKey])) {
+                $monthOrder[] = $monthKey;
+                $monthsGrouped[$monthKey] = array(
+                    'label' => isset($scanRow['month']) ? (string) $scanRow['month'] : '',
+                    'rows' => array(),
+                );
+            }
+            $monthsGrouped[$monthKey]['rows'][] = $scanRow;
+        }
+        $hasMultipleMonths = count($monthOrder) > 1;
+
+        $row = (int) $startRow;
+        $sheet->setCellValue('A' . $row, 'Department & Project Manager Client Summary Report');
+        $sheet->getStyle('A' . $row . ':J' . $row)->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('014B88');
+        $sheet->getStyle('A' . $row . ':J' . $row)->getAlignment()
+            ->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT)
+            ->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension($row)->setRowHeight(24);
+        $row += 2;
+
+        if ($hasMultipleMonths) {
+            $writeDeptTable($sheet, 'Consolidated', client_report_dept_kpi_consolidate_rows($summary['rows']), $row);
+        }
+
+        foreach ($monthOrder as $monthKey) {
+            $monthBlock = $monthsGrouped[$monthKey];
+            $monthTitle = $monthBlock['label'] !== '' ? $monthBlock['label'] : 'Month';
+            $writeDeptTable($sheet, $monthTitle, $monthBlock['rows'], $row);
+        }
+
+        $sheet->getColumnDimension('A')->setWidth(22);
+        $sheet->getColumnDimension('B')->setWidth(14);
+        foreach (range('C', 'J') as $widthCol) {
+            $sheet->getColumnDimension($widthCol)->setWidth(16);
+        }
+        $sheet->getSheetView()->setZoomScale(100);
+        $sheet->setSelectedCell('A1');
+
+        return $row;
     }
 
     /**
@@ -926,18 +980,6 @@ public function consolidatedReport()
 			$endYear = (int) $endDate->format('Y');
 
 			$spansMultipleMonths = ($startYear != $endYear) || ($startMonth != $endMonth);
-			if ($spansMultipleMonths) {
-				$monthCounter = 0;
-				$tmpDate = clone $startDate;
-				while ($tmpDate <= $endDate) {
-					$monthCounter++;
-					if ($monthCounter > 6) {
-						$spansMultipleMonths = false;
-						break;
-					}
-					$tmpDate->modify('first day of next month');
-				}
-			}
 
 			if ($spansMultipleMonths) {
 				$allMonthRows = $this->kpi_reports_model->getAllClientInformation('', $dbSearch, $from_date, $to_date, $department, true);
@@ -3421,10 +3463,10 @@ public function generateClientReportExcel() {
                                 ->setSubject("Client Performance Report")
                                 ->setDescription("Client performance report for date range");
 
-    // Create a worksheet
+    // Create worksheets: summary (scrollable months) then client grid
     $objPHPExcel->setActiveSheetIndex(0);
-    $sheet = $objPHPExcel->getActiveSheet();
-    $sheet->setTitle('Client Report');
+    $summarySheet = $objPHPExcel->getActiveSheet();
+    $summarySheet->setTitle('Dept Summary');
 
     $deptKpiSummary = $this->build_client_report_dept_kpi_summary(
         $from_date,
@@ -3435,27 +3477,45 @@ public function generateClientReportExcel() {
         $reportData,
         $exportData
     );
-    $clientTableStartRow = $this->write_client_report_dept_kpi_summary_excel($sheet, $deptKpiSummary, 1);
+    $this->write_client_report_dept_kpi_summary_excel($summarySheet, $deptKpiSummary, 1);
+
+    $sheet = $objPHPExcel->createSheet();
+    $sheet->setTitle('Client Report');
+    $clientTableStartRow = 1;
+
+    $clientReportMonthIncludeYear = false;
+    if (!empty($from_date) && !empty($to_date)) {
+        $fromYearKey = date('Y', strtotime($from_date));
+        $toYearKey = date('Y', strtotime($to_date));
+        $clientReportMonthIncludeYear = ($fromYearKey !== false && $toYearKey !== false && $fromYearKey !== $toYearKey);
+    }
 
     // Headers matching grid view exactly (same columns and order)
     $headers = [
-        'Client Name', 'Project Manager', 'Department', 'Start Date', 'End Date', 'Billing',
+        'Client Name', 'Project Manager', 'Month', 'Department', 'Start Date', 'End Date', 'Billing',
         'Production Hours', 'Project General Hours', 'Total Hours', 'Invoiced', 'Quality Errors', 'Productivity %', 'Project General %', 'Difference'
     ];
     $sheet->fromArray($headers, NULL, 'A' . $clientTableStartRow);
 
     $headerStyle = [
-        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
         'fill' => ['type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => ['rgb' => '5B9BD5']],
-        'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER]
+        'alignment' => [
+            'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+            'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+        ]
     ];
-    $sheet->getStyle('A' . $clientTableStartRow . ':N' . $clientTableStartRow)->applyFromArray($headerStyle);
+    $sheet->getStyle('A' . $clientTableStartRow . ':O' . $clientTableStartRow)->applyFromArray($headerStyle);
+    $sheet->getRowDimension($clientTableStartRow)->setRowHeight(32);
 
     // Data starts after client table header row
     $rowNum = $clientTableStartRow + 1;
+    $clientExcelRows = array();
+    $posDiffRows = array();
+    $negDiffRows = array();
 
     // Helper function to write client and project rows
-    $writeClientProjects = function($data, $clientId, $monthFromDate, $monthToDate, $monthLabel, &$rowNum, $sheet) use ($from_date, $to_date) {
+    $writeClientProjects = function($data, $clientId, $monthFromDate, $monthToDate, $monthLabel, &$rowNum, $sheet) use ($from_date, $to_date, $clientReportMonthIncludeYear, &$clientExcelRows, &$posDiffRows, &$negDiffRows) {
         // Get client PM name once (same source as grid view)
         $clientPmName = '--';
         if (!empty($data['client_pm_name'])) {
@@ -3547,34 +3607,19 @@ public function generateClientReportExcel() {
         }
         $billableFormatted = $billable !== '' && $billable !== null ? ucfirst((string) $billable) : '';
 
-        // Helper function to validate and format date
-        $isValidDate = function($dateStr) {
-            if (empty($dateStr) || $dateStr == '0000-00-00' || $dateStr == '0000-00-00 00:00:00') {
-                return false;
-            }
-            $timestamp = strtotime($dateStr);
-            if ($timestamp === false || $timestamp < 0) {
-                return false;
-            }
-            // Check if date is not 1970-01-01 (invalid date fallback)
-            $formatted = date('Y-m-d', $timestamp);
-            if ($formatted == '1970-01-01') {
-                return false;
-            }
-            return $timestamp;
-        };
-        
         // Client row dates: same SQL MIN/MAX logic as on-screen grid (Execution Plan pattern).
         $clientDates = client_report_resolve_client_dates($data);
         $clientStartDateTs = $clientDates['start_ts'];
         $clientEndDateTs = $clientDates['end_ts'];
         $startDateDisplay = client_report_format_client_date_display($clientStartDateTs);
         $endDateDisplay = client_report_format_client_date_display($clientEndDateTs);
+        $monthNameDisplay = client_report_month_display_name($monthFromDate, $monthLabel, $clientReportMonthIncludeYear);
 
-        // Add client row (same columns as grid: Client Name, PM, Dept, Start, End, Billing, ...)
+        // Add client row (same columns as grid: Client Name, PM, Month, Dept, Start, End, Billing, ...)
         $clientRow = [
             $data['client_name'],
             $clientPmDisplay,
+            $monthNameDisplay,
             $data['department'],
             $startDateDisplay,
             $endDateDisplay,
@@ -3589,22 +3634,13 @@ public function generateClientReportExcel() {
             number_format($clientDifference, 2)
         ];
         
-        $sheet->fromArray($clientRow, NULL, 'A' . $rowNum);
-        
-        // Style client row
-        $clientStyle = [
-            'font' => ['bold' => true],
-            'fill' => ['type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => ['rgb' => 'E7E6E6']]
-        ];
-        $sheet->getStyle('A' . $rowNum . ':N' . $rowNum)->applyFromArray($clientStyle);
-        
-        // Apply color to Difference column for client row (column N)
-        $diffCell = 'N' . $rowNum;
-        $diffColor = $clientDifference >= 0 ? '28a745' : 'dc3545'; // Green for positive, red for negative
-        $diffStyle = [
-            'font' => ['bold' => true, 'color' => ['rgb' => $diffColor]]
-        ];
-        $sheet->getStyle($diffCell)->applyFromArray($diffStyle);
+        $sheet->fromArray($clientRow, '__xlsx_null__', 'A' . $rowNum);
+        $clientExcelRows[] = $rowNum;
+        if ($clientDifference >= 0) {
+            $posDiffRows[] = $rowNum;
+        } else {
+            $negDiffRows[] = $rowNum;
+        }
         $rowNum++;
 
         // Add project rows (same calculation as grid view)
@@ -3663,19 +3699,7 @@ public function generateClientReportExcel() {
                 return $timestamp;
             };
             
-            // Calculate month abbreviation for project
-            $projMonthDisplay = '--';
-            if (!empty($monthFromDate)) {
-                $monthTimestamp = $isValidDateProj($monthFromDate);
-                if ($monthTimestamp !== false) {
-                    $projMonthDisplay = date('M', $monthTimestamp);
-                }
-            } elseif (!empty($proj->project_start_date)) {
-                $monthTimestamp = $isValidDateProj($proj->project_start_date);
-                if ($monthTimestamp !== false) {
-                    $projMonthDisplay = date('M', $monthTimestamp);
-                }
-            }
+            $monthNameDisplay = client_report_month_display_name($monthFromDate, $monthLabel, $clientReportMonthIncludeYear);
             
             // Format individual project dates
             $projStartDateDisplay = '';
@@ -3708,10 +3732,11 @@ public function generateClientReportExcel() {
             // Billing: same as grid (raw man_days value)
             $projBilling = isset($proj->man_days) ? $proj->man_days : '';
             
-            // Project row: first column = Project Name (same as grid), then PM, Dept, Start, End, Billing, ...
+            // Project row: first column = Project Name (same as grid), then PM, Month, Dept, Start, End, Billing, ...
             $projectRow = [
                 $proj->project_name ?: '',
                 $pmName ?: '--',
+                $monthNameDisplay,
                 $proj->department ?: '',
                 $projStartDateDisplay,
                 $projEndDateDisplay,
@@ -3726,22 +3751,26 @@ public function generateClientReportExcel() {
                 number_format($projectDifference, 2)
             ];
             
-            $sheet->fromArray($projectRow, NULL, 'A' . $rowNum);
-            
-            // Apply color to Difference column for project row (column N)
-            $diffCell = 'N' . $rowNum;
-            $diffColor = $projectDifference >= 0 ? '28a745' : 'dc3545'; // Green for positive, red for negative
-            $diffStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => $diffColor]]
-            ];
-            $sheet->getStyle($diffCell)->applyFromArray($diffStyle);
+            $sheet->fromArray($projectRow, '__xlsx_null__', 'A' . $rowNum);
+            if ($projectDifference >= 0) {
+                $posDiffRows[] = $rowNum;
+            } else {
+                $negDiffRows[] = $rowNum;
+            }
             $rowNum++;
         }
     };
 
-    // Write month-wise data or regular grouped data (without month header rows)
+    // Write month-wise data stacked top-to-bottom (April, then May, ...)
+    $monthBannerStyle = array(
+        'font' => array('bold' => true, 'color' => array('rgb' => 'FFFFFF'), 'size' => 11),
+        'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '2C5AA0')),
+        'alignment' => array(
+            'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_LEFT,
+            'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+        ),
+    );
     if ($hasMonthWiseData && !empty($monthWiseData)) {
-        // Write month-wise (without month header row), sorted like grid view
         foreach ($monthWiseData as $monthKey => $monthData) {
             $monthLabel = $monthData['label'];
             $monthFromDate = $monthData['from_date'];
@@ -3753,62 +3782,99 @@ public function generateClientReportExcel() {
                 return strcasecmp($nameA, $nameB);
             });
 
+            $sheet->setCellValue('A' . $rowNum, $monthLabel);
+            $sheet->getStyle('A' . $rowNum . ':O' . $rowNum)->applyFromArray($monthBannerStyle);
+            $sheet->getRowDimension($rowNum)->setRowHeight(22);
+            $rowNum++;
+
             foreach ($sortedMonthData as $clientId => $data) {
                 $writeClientProjects($data, $clientId, $monthFromDate, $monthToDate, $monthLabel, $rowNum, $sheet);
             }
         }
     } else {
-        // Write regular grouped data
         foreach ($grouped as $clientId => $data) {
             $writeClientProjects($data, $clientId, $from_date, $to_date, '', $rowNum, $sheet);
         }
     }
 
-    // Auto-size columns (A–N to match grid)
-    foreach (range('A', 'N') as $columnID) {
-        $sheet->getColumnDimension($columnID)->setAutoSize(true);
+    $gridColWidths = array(
+        'A' => 32, 'B' => 16, 'C' => 16, 'D' => 20, 'E' => 14, 'F' => 14, 'G' => 12,
+        'H' => 14, 'I' => 18, 'J' => 14, 'K' => 14, 'L' => 14, 'M' => 14, 'N' => 16, 'O' => 14,
+    );
+    foreach ($gridColWidths as $columnID => $width) {
+        $sheet->getColumnDimension($columnID)->setWidth($width);
     }
 
-    // Add borders
-    $borderStyle = [
-        'borders' => [
-            'allborders' => [
+    $borderStyle = array(
+        'borders' => array(
+            'allborders' => array(
                 'style' => PHPExcel_Style_Border::BORDER_THIN,
-                'color' => ['rgb' => 'DDDDDD']
-            ]
-        ]
-    ];
+                'color' => array('rgb' => 'B8C4D4'),
+            ),
+        ),
+    );
+    $clientRowStyle = array(
+        'font' => array('bold' => true),
+        'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => 'E7E6E6')),
+        'alignment' => array('vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER),
+    );
     if ($rowNum > $clientTableStartRow + 1) {
-        $sheet->getStyle('A' . $clientTableStartRow . ':N' . ($rowNum - 1))->applyFromArray($borderStyle);
+        $gridDataStart = $clientTableStartRow + 1;
+        $gridDataEnd = $rowNum - 1;
+        $sheet->getStyle('A' . $clientTableStartRow . ':O' . $gridDataEnd)->applyFromArray($borderStyle);
+        $sheet->getStyle('A' . $gridDataStart . ':O' . $gridDataEnd)->getAlignment()
+            ->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('A' . $gridDataStart . ':A' . $gridDataEnd)->getAlignment()
+            ->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle('B' . $gridDataStart . ':O' . $gridDataEnd)->getAlignment()
+            ->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+        foreach ($clientExcelRows as $clientRowNum) {
+            $sheet->getStyle('A' . $clientRowNum . ':O' . $clientRowNum)->applyFromArray($clientRowStyle);
+            $sheet->getRowDimension($clientRowNum)->setRowHeight(20);
+        }
+        $sheet->getStyle('C' . $gridDataStart . ':C' . $gridDataEnd)->getFont()->setBold(true);
+        $sheet->getStyle('C' . $gridDataStart . ':C' . $gridDataEnd)->getFill()
+            ->setFillType(PHPExcel_Style_Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('E8F0F8');
+        foreach ($posDiffRows as $diffRowNum) {
+            $sheet->getStyle('O' . $diffRowNum)->getFont()->setBold(true)->getColor()->setRGB('28a745');
+        }
+        foreach ($negDiffRows as $diffRowNum) {
+            $sheet->getStyle('O' . $diffRowNum)->getFont()->setBold(true)->getColor()->setRGB('dc3545');
+        }
     }
-
-    // Client Name column (A) left-aligned; rest of columns (B–N) centered
-    $leftStyle = ['alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_LEFT]];
-    $centerStyle = ['alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER]];
-    if ($rowNum > $clientTableStartRow + 1) {
-        $sheet->getStyle('A' . ($clientTableStartRow + 1) . ':A' . ($rowNum - 1))->applyFromArray($leftStyle);
-        $sheet->getStyle('B' . ($clientTableStartRow + 1) . ':N' . ($rowNum - 1))->applyFromArray($centerStyle);
-    }
-    // Client Name header left-aligned
-    $sheet->getStyle('A' . $clientTableStartRow)->applyFromArray($leftStyle);
-
-    // Freeze client detail header row
-    $sheet->freezePane('A' . ($clientTableStartRow + 1));
-
-    header('Content-Type: application/vnd.ms-excel');
+    $sheet->getStyle('A' . $clientTableStartRow)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+    $sheet->getRowDimension($clientTableStartRow)->setRowHeight(22);
+    $sheet->freezePane('A2');
+    $sheet->getSheetView()->setZoomScale(100);
+    $sheet->setSelectedCell('A1');
+    $objPHPExcel->setActiveSheetIndex(0);
 
     if (!empty($from_date) && !empty($to_date)) {
         $fromDateFormatted = date('d-m-Y', strtotime($from_date));
         $toDateFormatted = date('d-m-Y', strtotime($to_date));
-        $fileName = 'client_report_' . $fromDateFormatted . '_to_' . $toDateFormatted . '.xls';
+        $fileName = 'client_report_' . $fromDateFormatted . '_to_' . $toDateFormatted . '.xlsx';
     } else {
-        $fileName = 'client_report_' . date('Y-m-d') . '.xls';
+        $fileName = 'client_report_' . date('Y-m-d') . '.xlsx';
     }
 
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    $useXlsx = class_exists('ZipArchive');
+    if ($useXlsx) {
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+    } else {
+        $fileName = preg_replace('/\.xlsx$/i', '.xls', $fileName);
+        header('Content-Type: application/vnd.ms-excel');
+        $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+    }
     header('Content-Disposition: attachment;filename="' . $fileName . '"');
     header('Cache-Control: max-age=0');
-
-    $objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+    header('Pragma: public');
+    $objWriter->setPreCalculateFormulas(false);
     $objWriter->save('php://output');
     exit();
 }
