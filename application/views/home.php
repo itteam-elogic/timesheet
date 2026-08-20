@@ -12,7 +12,7 @@
 	
 	$totalTask     	     				  =  $this->task_model->getTaskList(); // Total count of projects
 	
-	$totalDevloperReportLog     	      =  $this->emptimelog_model->getRecords($this->session->userdata['logged_in_timesheet']['user_type']); // Total count of projects
+	$totalDevloperReportLog     	      =  $this->emptimelog_model->getRecordsCount($this->session->userdata['logged_in_timesheet']['user_type']); // Total count of timesheet logs
 	
 	$totalDevloperReportLogList     	      =  $this->emptimelog_model->getRecentApprovedReportLog($this->session->userdata['logged_in_timesheet']['user_type']); // Total count of projects
    
@@ -114,7 +114,7 @@ $getWeekDates = $this->defaulter_model->weeklyDays();
         </a>
         <div class="circle-tile-content purple">
           <div class="circle-tile-description text-faded"> Timesheet Logs </div>
-          <div class="circle-tile-number text-faded"> ( <span class="count"><?php echo count( $totalDevloperReportLog);?></span> )  </div>
+          <div class="circle-tile-number text-faded"> ( <span class="count"><?php echo (int)$totalDevloperReportLog;?></span> )  </div>
           <a href="<?php echo base_url('empreports');?>" class="circle-tile-footer">More Info <i class="fa fa-chevron-circle-right"></i></a> </div>
       </div>
     </div>	
@@ -346,7 +346,7 @@ $this->session->userdata['logged_in_timesheet']['name'];?>
         </a>
         <div class="circle-tile-content green">
           <div class="circle-tile-description text-faded"> Timesheet Logs </div>
-          <div class="circle-tile-number text-faded"> ( <span class="count"><?php echo count( $totalDevloperReportLog);?></span> )  </div>
+          <div class="circle-tile-number text-faded"> ( <span class="count"><?php echo (int)$totalDevloperReportLog;?></span> )  </div>
           <a href="<?php echo base_url('empreports');?>" class="circle-tile-footer">More Info <i class="fa fa-chevron-circle-right"></i></a> </div>
       </div>
     </div>

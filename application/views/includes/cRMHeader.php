@@ -169,6 +169,7 @@ if(
                     
                     <li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i><span>Timesheet Inactivity (6 Months)</span></a></li>
                     <li><a href="<?php echo base_url(); ?>projects/hours_notifications"><i class="fa fa-envelope"></i><span>Hours Notifications</span></a></li>
+                    <li><a href="<?php echo base_url(); ?>data_allocation"><i class="fa fa-exchange"></i><span>Data Allocation</span></a></li>
                     
 					<!-- <li><a href="<?php echo base_url(); ?>lmscategory"><i class="fa fa-users"></i><span>LMS Categories</span></a></li> -->
                     

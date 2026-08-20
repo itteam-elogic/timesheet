@@ -662,40 +662,21 @@ class Empreports extends CI_Controller {
 		
 		 $userType = $this->session->userdata['logged_in_timesheet']['user_type'];
 		
-			$getProjectId = $this->emptimelog_model->getProjects($empId);	
-        
-			if(!empty($getProjectId)){
-                
-				$eProjectIds  = $getProjectId;
-                
-			}else{
-                
-				$eProjectIds  = '';
-                
-			}
-		
 	   if($userType == 'developer'):	
 		
 	  		$post['where'] = array('er.empId' => $empId);
 			$post['or_where'] = array();
         	$post['where_in'] = array();
+			$post['manager_visibility'] = array();
 		
 		
 		elseif($userType == 'manager'):
 			$post['where'] = array();
 			$post['or_where'] = array();
-			$post['manager_visibility'] = array();
-			if(!empty($eProjectIds)){
-				// Match getRecords(): managed projects OR the manager's own entries
-				$post['manager_visibility'] = array(
-					'project_ids' => $eProjectIds,
-					'emp_id' => $empId
-				);
-				$post['where_in'] = array();
-			}else{
-				$post['where'] = array('er.empId' => $empId);
-				$post['where_in'] = array();
-			}
+			$post['where_in'] = array();
+			$post['manager_visibility'] = array(
+				'emp_id' => $empId
+			);
 		
 		else:
 		

@@ -228,13 +228,12 @@ $getListOfManagers = $this->timesheet_login->getReportingManagers(null);
 
 <link href="<?php echo HTTP_CSS_PATH; ?>kpi-style.css" rel="stylesheet" />
 <body id="kpiPage" class="client-report-ep">
-<div class="content-wrapper">
+<div class="content-wrapper client-report-ep">
     <div class="page-title">
         <div>
             <h1>Manage KPI</h1>
         </div>
         <div>
-            <a class="btn btn-primary btn-flat" href="#" onclick="clearAllFilters(); return false;"><i class="fa fa-refresh"></i> Reset</a>
             <button type="button" id="generateBtn" onclick="downloadExcel()" class="btn btn-success btn-flat">
                 <i class="fa fa-download"></i>
                 <span id="btnText">Export Report</span>
@@ -397,20 +396,39 @@ if (!is_array($getempId)) {
 #kpiPage.client-report-ep .page-title .btn-success.btn-flat {
     min-width: 130px;
 }
-#kpiPage.client-report-ep .ep-filter-refresh-btn {
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    border-radius: 8px;
-    padding: 8px 16px;
-    min-width: 110px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+.crf-btn-row .crf-clear-filters-btn,
+.client-report-filter-grid .crf-clear-filters-btn {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    color: #fff !important;
+    background: #f37021 !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 3px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    letter-spacing: 1px !important;
+    line-height: 1.428571429 !important;
+    text-transform: uppercase !important;
+    padding: 8px 15px !important;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(243, 112, 33, 0.35);
 }
-#kpiPage.client-report-ep .ep-filter-refresh-btn:hover,
-#kpiPage.client-report-ep .ep-filter-refresh-btn:focus {
-    color: #fff;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+.crf-btn-row .crf-clear-filters-btn i,
+.client-report-filter-grid .crf-clear-filters-btn i {
+    margin-right: 5px;
+    color: #fff !important;
+}
+.crf-btn-row .crf-clear-filters-btn:hover,
+.crf-btn-row .crf-clear-filters-btn:focus,
+.client-report-filter-grid .crf-clear-filters-btn:hover,
+.client-report-filter-grid .crf-clear-filters-btn:focus {
+    color: #fff !important;
+    background: #d95f12 !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(217, 95, 18, 0.4);
 }
 .client-report-filter-bar {
     background: #ffffff;
@@ -860,7 +878,7 @@ if (!is_array($getempId)) {
             </div>
             <div class="crf-btn-row">
                 <button type="submit" class="btn btn-primary icon-btn"><i class="fa fa-fw fa-lg fa-check-circle"></i> Search</button>
-                <button type="button" class="btn btn-primary btn-flat ep-filter-refresh-btn" onclick="clearAllFilters();"><i class="fa fa-refresh"></i> Reset</button>
+                <button type="button" class="btn crf-clear-filters-btn" onclick="clearAllFilters();"><i class="fa fa-refresh"></i> CLEAR ALL FILTERS</button>
             </div>
         </div>
     </div>
@@ -1485,30 +1503,57 @@ foreach ($deptKpiRows as $deptKpiScan) {
         $deptKpiMonthKeys[(string) $deptKpiScan['month_key']] = true;
     }
 }
+if (!empty($monthWiseData) && is_array($monthWiseData)) {
+    foreach ($monthWiseData as $gridMonthKey => $gridMonthData) {
+        $gridMonthKey = (string) $gridMonthKey;
+        if ($gridMonthKey === '') {
+            continue;
+        }
+        $deptKpiMonthKeys[$gridMonthKey] = true;
+    }
+}
 $hasMultipleDeptKpiMonths = count($deptKpiMonthKeys) > 1;
 $consolidatedDeptKpiRows = $hasMultipleDeptKpiMonths ? client_report_dept_kpi_consolidate_rows($deptKpiRows) : array();
 $crMonthTabItems = array();
-if ($hasMultipleDeptKpiMonths && !empty($monthsCovered) && is_array($monthsCovered)) {
+if ($hasMultipleDeptKpiMonths) {
     $crTabYears = array();
-    foreach ($monthsCovered as $crTabInfo) {
-        if (!empty($crTabInfo['year'])) {
-            $crTabYears[(string) $crTabInfo['year']] = true;
+    foreach ($deptKpiMonthKeys as $dataMonthKey => $unusedMonth) {
+        if (!empty($monthsCovered[$dataMonthKey]['year'])) {
+            $crTabYears[(string) $monthsCovered[$dataMonthKey]['year']] = true;
+        } else {
+            $yearPart = substr((string) $dataMonthKey, 0, 4);
+            if ($yearPart !== '') {
+                $crTabYears[$yearPart] = true;
+            }
         }
     }
     $crTabIncludeYear = count($crTabYears) > 1;
-    foreach ($monthsCovered as $crTabKey => $crTabInfo) {
-        $crMonthTabItems[(string) $crTabKey] = $crTabIncludeYear
-            ? (isset($crTabInfo['label']) ? $crTabInfo['label'] : (string) $crTabKey)
-            : (isset($crTabInfo['short']) ? $crTabInfo['short'] : (string) $crTabKey);
+    if (!empty($monthsCovered) && is_array($monthsCovered)) {
+        foreach ($monthsCovered as $crTabKey => $crTabInfo) {
+            $crTabKey = (string) $crTabKey;
+            if (!isset($deptKpiMonthKeys[$crTabKey])) {
+                continue;
+            }
+            $crMonthTabItems[$crTabKey] = $crTabIncludeYear
+                ? (isset($crTabInfo['label']) ? $crTabInfo['label'] : $crTabKey)
+                : (isset($crTabInfo['short']) ? $crTabInfo['short'] : $crTabKey);
+        }
     }
-}
-if ($hasMultipleDeptKpiMonths && empty($crMonthTabItems)) {
     foreach ($deptKpiRows as $deptKpiScan) {
         $crTabKey = isset($deptKpiScan['month_key']) ? (string) $deptKpiScan['month_key'] : '';
         if ($crTabKey === '' || isset($crMonthTabItems[$crTabKey])) {
             continue;
         }
         $crMonthTabItems[$crTabKey] = isset($deptKpiScan['month']) ? (string) $deptKpiScan['month'] : $crTabKey;
+    }
+    if (!empty($monthWiseData) && is_array($monthWiseData)) {
+        foreach ($monthWiseData as $crTabKey => $gridMonthData) {
+            $crTabKey = (string) $crTabKey;
+            if ($crTabKey === '' || isset($crMonthTabItems[$crTabKey])) {
+                continue;
+            }
+            $crMonthTabItems[$crTabKey] = isset($gridMonthData['label']) ? (string) $gridMonthData['label'] : $crTabKey;
+        }
     }
 }
 ?>

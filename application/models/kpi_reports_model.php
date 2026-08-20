@@ -500,16 +500,7 @@ if (!empty($search)) {
         }
 
         if (empty($projects)) {
-            if ($searchHasFilter) {
-                return array('rows' => array(), 'has_data' => false);
-            }
-            foreach ($monthsCovered as $monthKey => $monthInfo) {
-                $monthLabel = $useYearInMonthLabel ? $monthInfo['label_with_year'] : $monthInfo['label'];
-                foreach ($displayDeptOrder as $deptLabel) {
-                    $rows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
-                }
-            }
-            return array('rows' => $rows, 'has_data' => !empty($rows));
+            return array('rows' => array(), 'has_data' => false);
         }
 
         foreach ($projects as $proj) {
@@ -541,6 +532,7 @@ if (!empty($search)) {
         foreach ($monthsCovered as $monthKey => $monthInfo) {
             $monthLabel = $useYearInMonthLabel ? $monthInfo['label_with_year'] : $monthInfo['label'];
             $monthRows = array();
+            $monthHasData = false;
             foreach ($displayDeptOrder as $deptLabel) {
                 $bucket = $monthDeptHours[$monthKey][$deptLabel];
                 $production = $bucket['production'];
@@ -548,15 +540,16 @@ if (!empty($search)) {
                 $invoiced = $bucket['invoiced'];
                 $total = $production + $general;
                 $utilHours = $total;
+                $hasDeptData = ($total > 0 || $invoiced != 0 || $bucket['quality_count'] > 0);
 
-                if ($total <= 0 && $invoiced <= 0 && $bucket['quality_count'] === 0) {
-                    if ($searchHasFilter) {
-                        continue;
+                if (!$hasDeptData) {
+                    if (!$searchHasFilter) {
+                        $monthRows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
                     }
-                    $monthRows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
                     continue;
                 }
 
+                $monthHasData = true;
                 $qualityPct = null;
                 if ($bucket['quality_count'] > 0) {
                     $qualityPct = round($bucket['quality_sum'] / $bucket['quality_count']);
@@ -577,10 +570,8 @@ if (!empty($search)) {
                     'difference' => ($total > 0 || $invoiced != 0) ? round($invoiced - $total, 2) : null,
                 );
             }
-            if (empty($monthRows)) {
-                foreach ($displayDeptOrder as $deptLabel) {
-                    $monthRows[] = $this->client_report_dept_kpi_empty_row($deptLabel, $monthLabel, $monthKey);
-                }
+            if (!$monthHasData) {
+                continue;
             }
             foreach ($monthRows as $monthRow) {
                 $rows[] = $monthRow;

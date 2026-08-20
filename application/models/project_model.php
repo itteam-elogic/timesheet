@@ -192,6 +192,16 @@ public function __construct() {
 
 	}
 
+	public function getAllProjectManagers(){
+		return $this->db->select('empId, name, status')
+			->from('employee_details')
+			->where_in('user_type', array('manager', 'business_head'))
+			->order_by("CASE WHEN status = 'Active' THEN 0 ELSE 1 END", '', false)
+			->order_by('name', 'asc')
+			->get()
+			->result();
+	}
+
 		public function teamMembers(){
 
 			$teamMembersQuery  = $this->db->select('empId,name')->from('employee_details')
@@ -1053,7 +1063,7 @@ public function getProjectsPaginated(
 		$emails = array(
 			'laxmikanth@elogictech.com',
 			'jaishree@elogictech.com',
-			'accounts@elogictech.com'
+			//'accounts@elogictech.com'
 		);
 		if (!empty($project->manager_email) && filter_var($project->manager_email, FILTER_VALIDATE_EMAIL)) {
 			$emails[] = strtolower(trim($project->manager_email));

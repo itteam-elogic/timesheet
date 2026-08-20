@@ -140,28 +140,13 @@ class Emptimelog_Model extends CI_Model {
 		
 			$empId =  $this->session->userdata['logged_in_timesheet']['empId'];
 			
-			$getProjectId = $this->getProjects($empId);	
-      
-			if(!empty($getProjectId)){
-                
-				    $eProjectIds  = $getProjectId;
-                
-			}else{
-                
-				    $eProjectIds  = '';
-                
-			}
-			
-			//$exp_projectIds = implode(',' ,$getProjectId);
-			
 			$this->db->select('er.* ,emp.empId,emp.name,c.client_Id,c.client_name,p.project_Id,p.project_name,t.task_name');
             $this->db->from('emp_record_details er'); 
             $this->db->join('employee_details as emp', 'emp.empId=er.empId', 'left');
 			$this->db->join('client_details as c', 'c.client_Id=er.client_Id', 'left');
             $this->db->join('project_details as p', 'p.project_Id=er.project_Id', 'left');
 			$this->db->join('task_details as t', 't.task_Id=er.task_Id', 'left');
-			$this->db->where_in('er.project_Id',$eProjectIds);
-			$this->db->or_where('er.empId',$empId);
+			$this->applyManagerTimesheetScope($empId);
             $this->db->order_by('er.emp_record_id','desc'); 
 		   
 		else: 
@@ -372,13 +357,6 @@ class Emptimelog_Model extends CI_Model {
 	  elseif($this->session->userdata['logged_in_timesheet']['user_type'] == 'manager') { // Only Search on usertype manager only it's get it's particular project details only....
 	  
 		$empId =  $this->session->userdata['logged_in_timesheet']['empId'];
-			
-			$getProjectId = $this->getProjects($empId);			
-			if(!empty($getProjectId)){
-				$eProjectIds  = $getProjectId;
-			}else{
-				$eProjectIds  = '';
-		}
 		
 		if($client_Id == 'all' && $project_Id == 'all') :   // Checking all records based on from and to dates only.
 		 $this->db->select('er.* ,emp.empId,emp.name,c.client_Id,c.client_name,p.project_Id,p.project_name,t.task_name')
@@ -388,10 +366,9 @@ class Emptimelog_Model extends CI_Model {
             ->join('employee_details as emp', 'emp.empId=er.empId', 'left')
 			->join('client_details as c', 'c.client_Id=er.client_Id', 'left')
             ->join('project_details as p', 'p.project_Id=er.project_Id', 'left')
-			->join('task_details as t', 't.task_Id=er.task_Id', 'left')
-			->where_in('er.project_Id',$eProjectIds)
-			->or_where('er.empId',$empId)
-            ->order_by('er.emp_record_id','desc');
+			->join('task_details as t', 't.task_Id=er.task_Id', 'left');
+			$this->applyManagerTimesheetScope($empId);
+            $this->db->order_by('er.emp_record_id','desc');
 			
 			$recordsQ = $this->db->get(); 
 			
@@ -411,9 +388,9 @@ class Emptimelog_Model extends CI_Model {
             ->join('employee_details as emp', 'emp.empId=er.empId', 'left')
 			->join('client_details as c', 'c.client_Id=er.client_Id', 'left')
             ->join('project_details as p', 'p.project_Id=er.project_Id', 'left')
-			->join('task_details as t', 't.task_Id=er.task_Id', 'left')
-            ->where_in('er.project_Id',$eProjectIds)
-            ->order_by('er.emp_record_id','desc');
+			->join('task_details as t', 't.task_Id=er.task_Id', 'left');
+			$this->applyManagerTimesheetScope($empId);
+            $this->db->order_by('er.emp_record_id','desc');
 			
 			$recordsQ = $this->db->get(); 
 			//echo '--project--'.$this->db->last_query(); 
@@ -433,9 +410,9 @@ class Emptimelog_Model extends CI_Model {
             ->join('employee_details as emp', 'emp.empId=er.empId', 'left')
 			->join('client_details as c', 'c.client_Id=er.client_Id', 'left')
             ->join('project_details as p', 'p.project_Id=er.project_Id', 'left')
-			->join('task_details as t', 't.task_Id=er.task_Id', 'left')
-            ->where_in('er.project_Id',$eProjectIds)
-            ->order_by('er.emp_record_id','desc');
+			->join('task_details as t', 't.task_Id=er.task_Id', 'left');
+			$this->applyManagerTimesheetScope($empId);
+            $this->db->order_by('er.emp_record_id','desc');
 			
 			$recordsQ = $this->db->get(); 
 			
@@ -941,6 +918,31 @@ class Emptimelog_Model extends CI_Model {
 
  /******************** Project Manager get it's created project list *********************************/
   
+  private function applyManagerTimesheetScope($empId){
+	  $empId = (int)$empId;
+	  $this->db->group_start();
+	  $this->db->where('p.empId', $empId);
+	  $this->db->or_where('er.empId', $empId);
+	  $this->db->group_end();
+  }
+
+  public function getRecordsCount($userType){
+	  $empId = isset($this->session->userdata['logged_in_timesheet']['empId'])
+		  ? $this->session->userdata['logged_in_timesheet']['empId']
+		  : 0;
+
+	  $this->db->from('emp_record_details er');
+	  $this->db->join('project_details as p', 'p.project_Id=er.project_Id', 'left');
+
+	  if ($userType == 'developer') {
+		  $this->db->where('er.empId', $empId);
+	  } elseif ($userType == 'manager') {
+		  $this->applyManagerTimesheetScope($empId);
+	  }
+
+	  return (int)$this->db->count_all_results();
+  }
+
   public function getProjects($empId){
 	  
 	  //echo 'testing---------------'.$empId;
@@ -1170,10 +1172,7 @@ class Emptimelog_Model extends CI_Model {
            
 		
         if (!empty($post['manager_visibility'])) {
-            $this->db->group_start();
-            $this->db->where_in('er.project_Id', $post['manager_visibility']['project_ids']);
-            $this->db->or_where('er.empId', $post['manager_visibility']['emp_id']);
-            $this->db->group_end();
+            $this->applyManagerTimesheetScope($post['manager_visibility']['emp_id']);
         } elseif (!empty($post['where'])) {
             $this->db->where($post['where']);
         }
@@ -1239,12 +1238,10 @@ class Emptimelog_Model extends CI_Model {
         
 				$this->db->select('er.*')->from('emp_record_details er');
 				$this->db->join('employee_details as emp', 'emp.empId=er.empId', 'left');
+				$this->db->join('project_details as p', 'p.project_Id=er.project_Id', 'left');
 
 				if (!empty($post['manager_visibility'])) {
-					$this->db->group_start();
-					$this->db->where_in('er.project_Id', $post['manager_visibility']['project_ids']);
-					$this->db->or_where('er.empId', $post['manager_visibility']['emp_id']);
-					$this->db->group_end();
+					$this->applyManagerTimesheetScope($post['manager_visibility']['emp_id']);
 				} elseif (!empty($post['where'])) {
 					$this->db->where($post['where']);
 				}
@@ -1263,12 +1260,7 @@ class Emptimelog_Model extends CI_Model {
     function count_filtered($post){
 		
         $this->_get_order_list_query($post);
-		
-        $query = $this->db->get();
-        
-		//	echo $this->db->last_query();
-		
-		return $query->num_rows();
+        return (int)$this->db->count_all_results();
 		
     }
 	

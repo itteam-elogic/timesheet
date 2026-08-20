@@ -323,18 +323,21 @@ $selectedManagers = (array) $this->input->post('manager_name');
 ?>
 
 <select name="manager_name[]" id="manager_name" class="form-control project-filter-select" multiple>
-
-<option value="41" <?php if(in_array('41',$selectedManagers)) echo "selected"; ?>>Sandeep Anupati</option>
-<option value="394" <?php if(in_array('394',$selectedManagers)) echo "selected"; ?>>Shivani Patil</option>
-<option value="71" <?php if(in_array('71',$selectedManagers)) echo "selected"; ?>>Siva Krishna</option>
-<option value="448" <?php if(in_array('448',$selectedManagers)) echo "selected"; ?>>Rahul Kumar</option>
-<option value="230" <?php if(in_array('230',$selectedManagers)) echo "selected"; ?>>Srinivas Gollakonda</option>
-<option value="146" <?php if(in_array('146',$selectedManagers)) echo "selected"; ?>>Syed Afsar</option>
-<option value="149" <?php if(in_array('149',$selectedManagers)) echo "selected"; ?>>Syed Farhan</option>
-<option value="47" <?php if(in_array('47',$selectedManagers)) echo "selected"; ?>>Pradip Chauhan</option>
-<option value="53" <?php if(in_array('53',$selectedManagers)) echo "selected"; ?>>Rajanikanth Bhasuthkar</option>
-<option value="523" <?php if(in_array('523',$selectedManagers)) echo "selected"; ?>>Nikhil Bachawal</option>
-
+<?php
+$allProjectManagers = $this->project_model->getAllProjectManagers();
+if (!empty($allProjectManagers)):
+    foreach ($allProjectManagers as $manager):
+        $managerId = (string) $manager->empId;
+        $isActive = !empty($manager->status) && strtolower($manager->status) === 'active';
+        $managerLabel = $manager->name . ($isActive ? '' : ' (Inactive)');
+?>
+    <option value="<?php echo htmlspecialchars($managerId, ENT_QUOTES, 'UTF-8'); ?>" <?php if (in_array($managerId, $selectedManagers) || in_array((int)$managerId, $selectedManagers, true)) echo 'selected'; ?>>
+        <?php echo htmlspecialchars($managerLabel, ENT_QUOTES, 'UTF-8'); ?>
+    </option>
+<?php
+    endforeach;
+endif;
+?>
 </select>
 </div>
 </div>
