@@ -1,4 +1,3 @@
-    <!-- Include Header here -->
     <?php 
     $this->load->view('includes/cRMHeader'); 
 
@@ -282,13 +281,16 @@
                                 <div class="col-md-12">
                                     <style>
                                             #table22excel_all thead th { text-align: center; vertical-align: middle; padding: 12px 8px; white-space: nowrap; }
+                                            #table22excel_all thead th.wrap-heading { white-space: normal; line-height: 1.25; max-width: 110px; }
                                             #table22excel_all thead th:nth-child(1),
                                             #table22excel_all thead th:nth-child(2) { text-align: center; }
+                                            #table22excel_all thead th:nth-child(3),
                                             #table22excel_all thead th:nth-child(4),
                                             #table22excel_all thead th:nth-child(5),
                                             #table22excel_all thead th:nth-child(6),
                                             #table22excel_all thead th:nth-child(7),
-                                            #table22excel_all thead th:nth-child(8) { text-align: center; }
+                                            #table22excel_all thead th:nth-child(8),
+                                            #table22excel_all thead th:nth-child(9) { text-align: center; }
                                             #table22excel_all td { vertical-align: middle !important; padding: 10px 8px; }
                                             #table22excel_all .num-col { text-align: right; min-width: 4em; }
                                             #table22excel_all .center-col { text-align: center; }
@@ -301,6 +303,8 @@
 													<th>Project Manager</th>
                                                     <th>Client Name</th>
                                                     <th>Billing Type</th>
+                                                    <th class="wrap-heading">Production<br>Hours</th>
+                                                    <th class="wrap-heading">Project General<br>Hours</th>
                                                     <th>Total Hours</th>
                                                     <th>Invoice</th>
                                                     <th>Difference</th>
@@ -313,9 +317,13 @@
                                                 $clientIndex = 0;
                                                 foreach ($byClient as $clientName => $clientData):
                                                     $clientIndex++;
+                                                    $clientProductionHours = 0;
+                                                    $clientGeneralHours = 0;
                                                     $clientTotalHours = 0;
                                                     $clientTotalInvoiceHours = 0;
                                                     foreach ($clientData['projects'] as $r) {
+                                                        $clientProductionHours += isset($r->production_hours) ? (float) $r->production_hours : (float) $r->total_hours;
+                                                        $clientGeneralHours += isset($r->general_hours) ? (float) $r->general_hours : 0;
                                                         $clientTotalHours += $r->total_hours;
                                                         $clientTotalInvoiceHours += !empty($r->project_invoice_amt) ? (float)$r->project_invoice_amt : 0;
                                                     }
@@ -340,17 +348,24 @@
                                                         <span class="client-toggle-icon" data-client-index="<?php echo $clientIndex; ?>" style="cursor: pointer; margin-left: 8px; font-weight: bold; font-size: 16px; display: inline-block; transition: color 0.2s;"><i class="fa fa-plus"></i></span>
                                                     </td>
                                                     <td class="center-col" style="background-color: #e8f4fc;"><?php echo htmlspecialchars($clientBillingLabel); ?></td>
+                                                    <td class="num-col" style="font-weight: bold; font-size: 16px; color: #0d47a1; background-color: #e8f4fc;"><?php echo $fmtNum($clientProductionHours); ?></td>
+                                                    <td class="num-col" style="font-weight: bold; font-size: 16px; color: #0d47a1; background-color: #e8f4fc;"><?php echo $fmtNum($clientGeneralHours); ?></td>
                                                     <td class="num-col" style="font-weight: bold; font-size: 16px; color: #0d47a1; background-color: #e8f4fc;"><?php echo $fmtNum($clientTotalHours); ?></td>
                                                     <td class="num-col" style="font-weight: bold; font-size: 16px; color: #0d47a1; background-color: #e8f4fc;"><?php echo $fmtNum($clientTotalInvoiceHours); ?></td>
                                                     <td class="num-col" style="font-weight: bold; color: <?php echo $clientDiffColor; ?>; background-color: #e8f4fc;"><?php echo $clientDiffSign . $fmtNum(abs($clientDiff)); ?></td>
                                                     <td style="background-color: #e8f4fc;"></td>
                                                     <td style="background-color: #e8f4fc;"></td>
                                                 </tr>
-                                                <?php foreach ($clientData['projects'] as $reportResult): ?>
+                                                <?php foreach ($clientData['projects'] as $reportResult):
+                                                    $projProductionHours = isset($reportResult->production_hours) ? (float) $reportResult->production_hours : (float) $reportResult->total_hours;
+                                                    $projGeneralHours = isset($reportResult->general_hours) ? (float) $reportResult->general_hours : 0;
+                                                ?>
                                                 <tr class="client-project-row client-projects-<?php echo $clientIndex; ?>" style="display: none;">
                                                     <td style="font-size: 14px; font-weight: bold; color: #555; text-align: center;"><?php echo htmlspecialchars(!empty($reportResult->project_manager_name) ? $reportResult->project_manager_name : ''); ?></td>
                                                     <td style="padding-left: 28px; color: #666;"><i class="fa fa-angle-right" style="margin-right: 6px;"></i><i class="fa fa-folder" style="margin-right: 4px; color: #5cb85c;"></i><?php echo htmlspecialchars($reportResult->project_name); ?></td>
                                                     <td class="center-col"><?php echo !empty($reportResult->man_days) ? ucfirst(strtolower($reportResult->man_days)) : ''; ?></td>
+                                                    <td class="num-col"><?php echo $fmtNum($projProductionHours); ?></td>
+                                                    <td class="num-col"><?php echo $fmtNum($projGeneralHours); ?></td>
                                                     <td class="num-col"><?php echo $fmtNum($reportResult->total_hours); ?></td>
                                                     <td class="num-col" data-invoice-amt="<?php echo !empty($reportResult->project_invoice_amt) && $reportResult->project_invoice_amt > 0 ? $fmtNum($reportResult->project_invoice_amt) : '0'; ?>">
                                                         <span id="invoice_amt_<?php echo $reportResult->project_Id; ?>" class="invoice-amount-cell">
@@ -375,7 +390,7 @@
                                                 </tr>
                                                 <?php endforeach; ?>
                                                 <tr class="client-total-row client-projects-<?php echo $clientIndex; ?>" style="display: none; background-color: #e8e8e8;">
-                                                    <td colspan="8" style="background-color: #e8e8e8; height: 20px;"></td>
+                                                    <td colspan="10" style="background-color: #e8e8e8; height: 20px;"></td>
                                                 </tr>
                                                 <?php endforeach; ?>
                                             </tbody>

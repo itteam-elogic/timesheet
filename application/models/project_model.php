@@ -1066,7 +1066,7 @@ public function getProjectsPaginated(
 			//'accounts@elogictech.com'
 		);
 		if (!empty($project->manager_email) && filter_var($project->manager_email, FILTER_VALIDATE_EMAIL)) {
-			$emails[] = strtolower(trim($project->manager_email));
+			//$emails[] = strtolower(trim($project->manager_email));
 		} elseif (!empty($project->creator_email) && filter_var($project->creator_email, FILTER_VALIDATE_EMAIL)) {
 			$emails[] = strtolower(trim($project->creator_email));
 		}
@@ -1143,46 +1143,160 @@ public function getProjectsPaginated(
 		$completedLabel = $this->formatNotificationHours($completedHours);
 		$remainingLabel = $this->formatNotificationHours($remainingHours);
 
-		$subject = 'Invoice reminder - ' . $projectName . ' hours completed';
-		if ($isFinal) {
-			$body = '<!doctype html>
-			<html>
-			<head>
-				<meta charset="utf-8">
-				<title>Hours Completion Notification</title>
-			</head>
-			<body style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #222; line-height: 1.6;">
-				<p>Hi ' . htmlspecialchars($pmName) . ',</p>
-				<p>
-					Project: ' . htmlspecialchars($projectName) . '<br>
-					Estimated Hours: ' . htmlspecialchars($estimatedLabel) . '<br>
-					Completed Hours: ' . htmlspecialchars($completedLabel) . '
-				</p>
-				<p>Please raise the invoice for the completed hours.</p>
-				<p>If the project is completed, please close the project. If it is still active, please update the Estimated hours and Notification reminder hours.</p>
-				<p>Thank you<br>eLogicTech</p>
-			</body>
-			</html>';
-		} else {
-			$body = '<!doctype html>
-			<html>
-			<head>
-				<meta charset="utf-8">
-				<title>Hours Completion Notification</title>
-			</head>
-			<body style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #222; line-height: 1.6;">
-				<p>Hi ' . htmlspecialchars($pmName) . ',</p>
-				<p>
-					Project: ' . htmlspecialchars($projectName) . '<br>
-					Estimated Hours: ' . htmlspecialchars($estimatedLabel) . '<br>
-					Completed Hours: ' . htmlspecialchars($completedLabel) . '<br>
-					Remaining Hours : ' . htmlspecialchars($remainingLabel) . '
-				</p>
-				<p>For Project ' . htmlspecialchars($projectName) . ', ' . htmlspecialchars($completedLabel) . ' hours have been completed out of the estimated ' . htmlspecialchars($estimatedLabel) . ' hours. Please raise the invoice for the completed hours.</p>
-				<p>Thank you.<br>eLogicTech</p>
-			</body>
-			</html>';
+		$clientName = !empty($project->client_name) ? $project->client_name : 'N/A';
+		$projectNumber = !empty($project->project_number) ? $project->project_number : 'N/A';
+		$headerTitle = $isFinal ? 'Final Invoice Reminder' : 'Invoice Reminder';
+		$headerColor = $isFinal ? '#b45309' : '#004b88';
+		$percentComplete = ($estimatedHours > 0) ? min(100, round(($completedHours / $estimatedHours) * 100, 1)) : 0;
+		$progressWidth = max(4, (int)round($percentComplete));
+		$subjectPrefix = $isFinal ? 'Final Invoice Reminder' : 'Invoice Reminder';
+		$subject = $subjectPrefix . ' - ';
+		if ($clientName !== '' && $clientName !== 'N/A') {
+			$subject .= $clientName . ' - ';
 		}
+		$subject .= $projectName . ' hours completed';
+
+		$statCell = 'width:33.33%; padding:4px;';
+		$statInner = 'width:100%; border:1px solid #dce3ea; background:#f8fafc;';
+		$statLabel = 'padding:12px 8px 2px 8px; text-align:center; font-size:11px; letter-spacing:0.4px; text-transform:uppercase; color:#6b7280; font-family:Arial, Helvetica, sans-serif;';
+		$statValue = 'padding:4px 8px 12px 8px; text-align:center; font-size:22px; font-weight:bold; line-height:1.2; font-family:Arial, Helvetica, sans-serif;';
+		$labelTd = 'padding:11px 14px; border:1px solid #dce3ea; font-weight:bold; color:#1f5076; width:38%; font-size:14px; background:#f7fafc; font-family:Arial, Helvetica, sans-serif;';
+		$valueTd = 'padding:11px 14px; border:1px solid #dce3ea; color:#222; font-size:14px; font-family:Arial, Helvetica, sans-serif;';
+		$thirdBg = $isFinal ? '#fff7ed' : '#f8fafc';
+		$thirdBorder = $isFinal ? '#fdba74' : '#dce3ea';
+		$thirdLabel = $isFinal ? 'Status' : 'Remaining Hours';
+		$thirdValue = $isFinal ? '100%' : htmlspecialchars($remainingLabel);
+
+		$statsHtml = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;">
+			<tr>
+				<td style="' . $statCell . '">
+					<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $statInner . '">
+						<tr><td style="' . $statLabel . '">Estimated Hours</td></tr>
+						<tr><td style="' . $statValue . ' color:#004b88;">' . htmlspecialchars($estimatedLabel) . '</td></tr>
+					</table>
+				</td>
+				<td style="' . $statCell . '">
+					<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $statInner . ' background:#ecfdf3; border-color:#bbf7d0;">
+						<tr><td style="' . $statLabel . ' color:#166534;">Completed Hours</td></tr>
+						<tr><td style="' . $statValue . ' color:#166534;">' . htmlspecialchars($completedLabel) . '</td></tr>
+					</table>
+				</td>
+				<td style="' . $statCell . '">
+					<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $statInner . ' background:' . $thirdBg . '; border-color:' . $thirdBorder . ';">
+						<tr><td style="' . $statLabel . ' color:#9a3412;">' . $thirdLabel . '</td></tr>
+						<tr><td style="' . $statValue . ' color:#b45309;">' . $thirdValue . '</td></tr>
+					</table>
+				</td>
+			</tr>
+		</table>';
+
+		$progressHtml = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;">
+			<tr>
+				<td style="padding:0 4px 8px 4px; font-size:12px; color:#6b7280;">Hours completed: <strong style="color:#004b88;">' . htmlspecialchars((string)$percentComplete) . '%</strong></td>
+			</tr>
+			<tr>
+				<td style="padding:0 4px;">
+					<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e5e7eb; border-radius:6px;">
+						<tr>
+							<td width="' . $progressWidth . '%" style="background:' . $headerColor . '; height:10px; border-radius:6px; font-size:0; line-height:0;">&nbsp;</td>
+							<td width="' . (100 - $progressWidth) . '%" style="font-size:0; line-height:0;">&nbsp;</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>';
+
+		$detailsHtml = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0;">
+			<tr>
+				<td style="' . $labelTd . '">Project</td>
+				<td style="' . $valueTd . '">' . htmlspecialchars($projectName) . '</td>
+			</tr>
+			<tr>
+				<td style="' . $labelTd . '">Client</td>
+				<td style="' . $valueTd . '">' . htmlspecialchars($clientName) . '</td>
+			</tr>
+			<tr>
+				<td style="' . $labelTd . '">Project Number</td>
+				<td style="' . $valueTd . '">' . htmlspecialchars($projectNumber) . '</td>
+			</tr>
+		</table>';
+
+		if ($isFinal) {
+			$introText = 'Please raise the invoice for the completed hours.';
+			$projectId = isset($project->project_Id) ? (int)$project->project_Id : 0;
+			$closeUrl = $projectId > 0 ? site_url('projects/add/' . $projectId) . '?action=close' : '';
+			$updateUrl = $projectId > 0 ? site_url('projects/add/' . $projectId) . '?action=update' : '';
+			$buttonTd = 'display:inline-block; padding:12px 22px; font-size:14px; font-weight:bold; text-decoration:none; border-radius:6px; font-family:Arial, Helvetica, sans-serif;';
+			$actionButtons = '';
+			if ($closeUrl !== '' && $updateUrl !== '') {
+				$actionButtons = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 0;">
+					<tr>
+						<td style="padding:0 10px 0 0;">
+							<a href="' . htmlspecialchars($closeUrl) . '" style="' . $buttonTd . ' background:#c0392b; color:#ffffff;">Closed</a>
+						</td>
+						<td>
+							<a href="' . htmlspecialchars($updateUrl) . '" style="' . $buttonTd . ' background:#004b88; color:#ffffff;">Update</a>
+						</td>
+					</tr>
+				</table>';
+			}
+			$actionBox = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;">
+				<tr>
+					<td style="background:#fff7ed; border:1px solid #fdba74; border-radius:8px; padding:14px 16px; color:#9a3412; font-size:14px; line-height:1.6;">
+						If the project is completed, please <strong>close the project</strong>. If it is still active, please update the <strong>Estimated hours</strong> and <strong>Notification reminder hours</strong>.
+						' . $actionButtons . '
+					</td>
+				</tr>
+			</table>';
+		} else {
+			$introText = 'For Project <strong>' . htmlspecialchars($projectName) . '</strong>, <strong>' . htmlspecialchars($completedLabel) . '</strong> hours have been completed out of the estimated <strong>' . htmlspecialchars($estimatedLabel) . '</strong> hours. Please raise the invoice for the completed hours.';
+			$actionBox = '';
+		}
+
+		$body = '<!doctype html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>' . htmlspecialchars($headerTitle) . '</title>
+		</head>
+		<body style="margin:0; padding:0; background:#eef2f6; font-family:Arial, Helvetica, sans-serif;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f6; padding:24px 12px;">
+				<tr>
+					<td align="center">
+						<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px; width:100%; background:#ffffff; border:1px solid #d5dee7; border-radius:10px; overflow:hidden;">
+							<tr>
+								<td style="padding:18px 24px; background:#ffffff; border-bottom:1px solid #edf1f5;">
+									<img src="https://www.elogictech.com/assets/frontend/images/logo.png" alt="eLogicTech" width="160" style="width:160px; height:auto; border:0; display:block;">
+								</td>
+							</tr>
+							<tr>
+								<td style="background:' . $headerColor . '; padding:16px 24px;">
+									<h2 style="margin:0; color:#ffffff; font-size:20px; font-weight:bold; font-family:Arial, Helvetica, sans-serif;">' . htmlspecialchars($headerTitle) . '</h2>
+								</td>
+							</tr>
+							<tr>
+								<td style="padding:24px;">
+									<p style="margin:0 0 16px 0; font-size:15px; color:#333;">Hi ' . htmlspecialchars($pmName) . ',</p>
+									<p style="margin:0 0 18px 0; font-size:14px; color:#444; line-height:1.6;">' . $introText . '</p>
+									' . $statsHtml . '
+									' . $progressHtml . '
+									' . $detailsHtml . '
+									' . $actionBox . '
+									<p style="margin:0; font-size:14px; color:#333; line-height:1.6;">Thank you.<br><strong>eLogicTech</strong></p>
+								</td>
+							</tr>
+							<tr>
+								<td style="background:#f8fafc; padding:12px 24px; border-top:1px solid #edf1f5; font-size:12px; color:#6b7280;">
+									This is an automated reminder from eLogic Timesheet.
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</body>
+		</html>';
 
 		$config = array(
 			'mailtype' => 'html',

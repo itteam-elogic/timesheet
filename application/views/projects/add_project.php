@@ -2361,6 +2361,44 @@
 	})
 	$('#client_Id,#resource_billability,#status,#project_type,#team_members,#team_members_update,#project_type,#state,#country,#p_manager,#construction_technology,#building_typology,#man_days,#scope_category,#technology_category').select2(); // Autosuggest list on clients
 
+	(function highlightHoursNotificationAction() {
+		var params = new URLSearchParams(window.location.search || '');
+		var action = params.get('action');
+		if (action !== 'close' && action !== 'update') {
+			return;
+		}
+		function highlightField($el) {
+			if (!$el || !$el.length) {
+				return;
+			}
+			$el.css({
+				outline: '2px solid #f5d042',
+				'background-color': '#fffbeb'
+			});
+		}
+		setTimeout(function() {
+			if (action === 'close' && $('#status').length) {
+				$('#status').val('Closed').trigger('change');
+				highlightField($('#status').next('.select2-container'));
+				var $statusRow = $('#status').closest('.form-group');
+				if ($statusRow.length) {
+					$('html, body').animate({ scrollTop: $statusRow.offset().top - 90 }, 400);
+				}
+				return;
+			}
+			if (action === 'update') {
+				highlightField($('#estimated_hours'));
+				highlightField($('#notif_hours_choice'));
+				highlightField($('#notif_hours_custom'));
+				var $hoursField = $('#estimated_hours');
+				if ($hoursField.length) {
+					$('html, body').animate({ scrollTop: $hoursField.offset().top - 90 }, 400);
+					$hoursField.focus();
+				}
+			}
+		}, 350);
+	})();
+
 
 	$(document).ready(function() {
 		$('#resource_billability').on('change', function() {

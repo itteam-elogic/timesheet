@@ -389,6 +389,126 @@ class Clients extends CI_Controller {
 		return preg_replace('/\.?0+$/', '', $s);
 	}
 
+	private function _is_project_general_name($projectName)
+	{
+		$name = trim((string) $projectName);
+		if ($name === '') {
+			return false;
+		}
+		return (bool) preg_match('/\s*-\s*\(General\)\s*$/i', $name)
+			|| (bool) preg_match('/\s+\(General\)\s*$/i', $name);
+	}
+
+	private function _project_production_base_name($projectName)
+	{
+		$name = trim((string) $projectName);
+		$name = preg_replace('/\s*-\s*\(General\)\s*$/i', '', $name);
+		$name = preg_replace('/\s+\(General\)\s*$/i', '', $name);
+		return trim($name);
+	}
+
+	private function _parse_employee_name_list($employeeNames)
+	{
+		$names = array();
+		$parts = preg_split('/\s*,\s*/', (string) $employeeNames);
+		foreach ($parts as $part) {
+			$name = trim($part);
+			if ($name !== '') {
+				$names[] = $name;
+			}
+		}
+		return $names;
+	}
+
+	private function _all_clients_report_project_key($clientId, $projectName)
+	{
+		$baseName = $this->_project_production_base_name($projectName);
+		return (string) $clientId . '|' . strtolower($baseName);
+	}
+
+	private function _apply_production_general_hours($row, $productionHours, $generalHours, $generalInvoice, $employeeNames)
+	{
+		$uniqueEmployees = array_values(array_unique($employeeNames));
+		$row->production_hours = (float) $productionHours;
+		$row->general_hours = (float) $generalHours;
+		$row->total_hours = (float) $productionHours + (float) $generalHours;
+		$invoiceAmt = !empty($row->project_invoice_amt) ? (float) $row->project_invoice_amt : 0;
+		$row->project_invoice_amt = $invoiceAmt + (float) $generalInvoice;
+		$row->employee_names = implode(', ', $uniqueEmployees);
+		$row->num_employees = count($uniqueEmployees);
+		return $row;
+	}
+
+	private function _merge_all_clients_report_production_projects($allClientResult, $eLogicClientsIds)
+	{
+		$generalByKey = array();
+		$productionRows = array();
+		foreach ($allClientResult as $reportResult) {
+			if (in_array($reportResult->client_Id, $eLogicClientsIds)) {
+				continue;
+			}
+			$key = $this->_all_clients_report_project_key($reportResult->client_Id, $reportResult->project_name);
+			if ($this->_is_project_general_name($reportResult->project_name)) {
+				if (!isset($generalByKey[$key])) {
+					$generalByKey[$key] = array();
+				}
+				$generalByKey[$key][] = $reportResult;
+			} else {
+				$productionRows[] = $reportResult;
+			}
+		}
+
+		$mergedRows = array();
+		$usedGeneralKeys = array();
+		foreach ($productionRows as $reportResult) {
+			$key = $this->_all_clients_report_project_key($reportResult->client_Id, $reportResult->project_name);
+			$generalHours = 0;
+			$generalInvoice = 0;
+			$employeeNames = $this->_parse_employee_name_list(isset($reportResult->employee_names) ? $reportResult->employee_names : '');
+			if (isset($generalByKey[$key])) {
+				foreach ($generalByKey[$key] as $generalRow) {
+					$generalHours += (float) $generalRow->total_hours;
+					$generalInvoice += !empty($generalRow->project_invoice_amt) ? (float) $generalRow->project_invoice_amt : 0;
+					$employeeNames = array_merge($employeeNames, $this->_parse_employee_name_list(isset($generalRow->employee_names) ? $generalRow->employee_names : ''));
+				}
+				$usedGeneralKeys[$key] = true;
+			}
+			$mergedRows[] = $this->_apply_production_general_hours(
+				$reportResult,
+				(float) $reportResult->total_hours,
+				$generalHours,
+				$generalInvoice,
+				$employeeNames
+			);
+		}
+
+		foreach ($generalByKey as $key => $generalRows) {
+			if (isset($usedGeneralKeys[$key]) || empty($generalRows)) {
+				continue;
+			}
+			$firstGeneral = clone $generalRows[0];
+			$generalHours = 0;
+			$generalInvoice = 0;
+			$employeeNames = array();
+			foreach ($generalRows as $generalRow) {
+				$generalHours += (float) $generalRow->total_hours;
+				$generalInvoice += !empty($generalRow->project_invoice_amt) ? (float) $generalRow->project_invoice_amt : 0;
+				$employeeNames = array_merge($employeeNames, $this->_parse_employee_name_list(isset($generalRow->employee_names) ? $generalRow->employee_names : ''));
+			}
+			$firstGeneral->project_name = $this->_project_production_base_name($firstGeneral->project_name);
+			$firstGeneral->project_invoice_amt = 0;
+			$mergedRows[] = $this->_apply_production_general_hours(
+				$firstGeneral,
+				0,
+				$generalHours,
+				$generalInvoice,
+				$employeeNames
+			);
+		}
+
+		return $mergedRows;
+	}
+
 	private function _parse_all_clients_report_filters($isSearch = true)
 	{
 		$dates = $this->_resolve_all_clients_report_dates(
@@ -491,10 +611,8 @@ class Clients extends CI_Controller {
 		}
 
 		$byClient = array();
-		foreach ($allClientResult as $reportResult) {
-			if (in_array($reportResult->client_Id, $eLogicClientsIds)) {
-				continue;
-			}
+		$mergedProjects = $this->_merge_all_clients_report_production_projects($allClientResult, $eLogicClientsIds);
+		foreach ($mergedProjects as $reportResult) {
 			$cname = $reportResult->client_name;
 			if (!isset($byClient[$cname])) {
 				$byClient[$cname] = array('pm' => $reportResult->project_manager_name, 'projects' => array());
@@ -503,6 +621,11 @@ class Clients extends CI_Controller {
 		}
 		if (!empty($byClient)) {
 			ksort($byClient, SORT_NATURAL | SORT_FLAG_CASE);
+			foreach ($byClient as $cname => $clientData) {
+				usort($byClient[$cname]['projects'], function ($a, $b) {
+					return strcasecmp((string) $a->project_name, (string) $b->project_name);
+				});
+			}
 		}
 
 		return array(
@@ -564,17 +687,19 @@ class Clients extends CI_Controller {
 
 		$sheet->getColumnDimension('A')->setWidth(25);
 		$sheet->getColumnDimension('B')->setWidth(40);
-		$sheet->getColumnDimension('C')->setWidth(18);
+		$sheet->getColumnDimension('C')->setWidth(16);
 		$sheet->getColumnDimension('D')->setWidth(18);
-		$sheet->getColumnDimension('E')->setWidth(15);
+		$sheet->getColumnDimension('E')->setWidth(22);
 		$sheet->getColumnDimension('F')->setWidth(15);
-		$sheet->getColumnDimension('G')->setWidth(18);
-		$sheet->getColumnDimension('H')->setWidth(50);
+		$sheet->getColumnDimension('G')->setWidth(15);
+		$sheet->getColumnDimension('H')->setWidth(15);
+		$sheet->getColumnDimension('I')->setWidth(18);
+		$sheet->getColumnDimension('J')->setWidth(50);
 
 		$row = 1;
 		$sheet->setCellValue('A' . $row, $summaryTitle);
-		$sheet->mergeCells('A' . $row . ':H' . $row);
-		$sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray($titleStyle);
+		$sheet->mergeCells('A' . $row . ':J' . $row);
+		$sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($titleStyle);
 		$sheet->getRowDimension($row)->setRowHeight(35);
 		$row += 2;
 
@@ -605,20 +730,26 @@ class Clients extends CI_Controller {
 		$sheet->setCellValue('A' . $row, 'Project Manager');
 		$sheet->setCellValue('B' . $row, 'Client Name');
 		$sheet->setCellValue('C' . $row, 'Billing Type');
-		$sheet->setCellValue('D' . $row, 'Total Hours');
-		$sheet->setCellValue('E' . $row, 'Invoice');
-		$sheet->setCellValue('F' . $row, 'Difference');
-		$sheet->setCellValue('G' . $row, 'No.of Employees');
-		$sheet->setCellValue('H' . $row, 'Employee Name');
-		$sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray($detailHeaderStyle);
+		$sheet->setCellValue('D' . $row, 'Production Hours');
+		$sheet->setCellValue('E' . $row, 'Project General Hours');
+		$sheet->setCellValue('F' . $row, 'Total Hours');
+		$sheet->setCellValue('G' . $row, 'Invoice');
+		$sheet->setCellValue('H' . $row, 'Difference');
+		$sheet->setCellValue('I' . $row, 'No.of Employees');
+		$sheet->setCellValue('J' . $row, 'Employee Name');
+		$sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($detailHeaderStyle);
 		$row++;
 
 		$detailRowCount = 0;
 		foreach ($byClient as $clientName => $clientData) {
+			$clientProductionHours = 0;
+			$clientGeneralHours = 0;
 			$clientTotalHours = 0;
 			$clientTotalInvoiceHours = 0;
 			$billingTypes = array();
 			foreach ($clientData['projects'] as $pr) {
+				$clientProductionHours += isset($pr->production_hours) ? (float) $pr->production_hours : (float) $pr->total_hours;
+				$clientGeneralHours += isset($pr->general_hours) ? (float) $pr->general_hours : 0;
 				$clientTotalHours += (float) $pr->total_hours;
 				$clientTotalInvoiceHours += !empty($pr->project_invoice_amt) ? (float) $pr->project_invoice_amt : 0;
 				if (!empty($pr->man_days)) {
@@ -635,16 +766,20 @@ class Clients extends CI_Controller {
 			$sheet->setCellValue('A' . $row, !empty($clientData['pm']) ? $clientData['pm'] : '');
 			$sheet->setCellValue('B' . $row, $clientName);
 			$sheet->setCellValue('C' . $row, $clientBillingLabel);
-			$sheet->setCellValue('D' . $row, call_user_func($fmtNum, $clientTotalHours));
-			$sheet->setCellValue('E' . $row, call_user_func($fmtNum, $clientTotalInvoiceHours));
-			$sheet->setCellValue('F' . $row, $clientDiffSign . call_user_func($fmtNum, abs($clientDiff)));
-			$sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray($clientHeaderRowStyle);
+			$sheet->setCellValue('D' . $row, call_user_func($fmtNum, $clientProductionHours));
+			$sheet->setCellValue('E' . $row, call_user_func($fmtNum, $clientGeneralHours));
+			$sheet->setCellValue('F' . $row, call_user_func($fmtNum, $clientTotalHours));
+			$sheet->setCellValue('G' . $row, call_user_func($fmtNum, $clientTotalInvoiceHours));
+			$sheet->setCellValue('H' . $row, $clientDiffSign . call_user_func($fmtNum, abs($clientDiff)));
+			$sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($clientHeaderRowStyle);
 			$sheet->getStyle('B' . $row)->applyFromArray($clientNameCellStyle);
-			$sheet->getStyle('F' . $row)->applyFromArray($clientDiff >= 0 ? $positiveStyle : $negativeStyle);
-			$sheet->getStyle('D' . $row . ':F' . $row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+			$sheet->getStyle('H' . $row)->applyFromArray($clientDiff >= 0 ? $positiveStyle : $negativeStyle);
+			$sheet->getStyle('C' . $row . ':I' . $row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 			$row++;
 
 			foreach ($clientData['projects'] as $r) {
+				$projProductionHours = isset($r->production_hours) ? (float) $r->production_hours : (float) $r->total_hours;
+				$projGeneralHours = isset($r->general_hours) ? (float) $r->general_hours : 0;
 				$projHours = (float) $r->total_hours;
 				$projInvoice = !empty($r->project_invoice_amt) ? (float) $r->project_invoice_amt : 0;
 				$projDiff = $projInvoice - $projHours;
@@ -652,14 +787,16 @@ class Clients extends CI_Controller {
 				$sheet->setCellValue('A' . $row, !empty($r->project_manager_name) ? $r->project_manager_name : '');
 				$sheet->setCellValue('B' . $row, !empty($r->project_name) ? $r->project_name : '');
 				$sheet->setCellValue('C' . $row, !empty($r->man_days) ? ucfirst(strtolower(trim($r->man_days))) : '');
-				$sheet->setCellValue('D' . $row, call_user_func($fmtNum, $r->total_hours));
-				$sheet->setCellValue('E' . $row, call_user_func($fmtNum, $projInvoice));
-				$sheet->setCellValue('F' . $row, $projDiffSign . call_user_func($fmtNum, abs($projDiff)));
-				$sheet->setCellValue('G' . $row, isset($r->num_employees) ? $r->num_employees : '');
-				$sheet->setCellValue('H' . $row, isset($r->employee_names) ? str_replace(',', ', ', $r->employee_names) : '');
-				$sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray($detailRowCount % 2 === 0 ? $dataRowStyle : $alternateRowStyle);
-				$sheet->getStyle('F' . $row)->applyFromArray($projDiff >= 0 ? $positiveStyle : $negativeStyle);
-				$sheet->getStyle('C' . $row . ':G' . $row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+				$sheet->setCellValue('D' . $row, call_user_func($fmtNum, $projProductionHours));
+				$sheet->setCellValue('E' . $row, call_user_func($fmtNum, $projGeneralHours));
+				$sheet->setCellValue('F' . $row, call_user_func($fmtNum, $r->total_hours));
+				$sheet->setCellValue('G' . $row, call_user_func($fmtNum, $projInvoice));
+				$sheet->setCellValue('H' . $row, $projDiffSign . call_user_func($fmtNum, abs($projDiff)));
+				$sheet->setCellValue('I' . $row, isset($r->num_employees) ? $r->num_employees : '');
+				$sheet->setCellValue('J' . $row, isset($r->employee_names) ? str_replace(',', ', ', $r->employee_names) : '');
+				$sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($detailRowCount % 2 === 0 ? $dataRowStyle : $alternateRowStyle);
+				$sheet->getStyle('H' . $row)->applyFromArray($projDiff >= 0 ? $positiveStyle : $negativeStyle);
+				$sheet->getStyle('C' . $row . ':I' . $row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 				$row++;
 				$detailRowCount++;
 			}
@@ -799,10 +936,84 @@ class Clients extends CI_Controller {
 		}
 		$summaryTableHtml .= '</tbody></table>';
 
+		$th = 'padding: 8px; text-align: center; border: 1px solid #1a5276;';
+		$td = 'padding: 8px; border: 1px solid #ccc; vertical-align: middle;';
+		$detailTableHtml = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 13px; margin-top: 16px;">';
+		$detailTableHtml .= '<thead><tr style="background-color: #1a5276; color: #fff; font-weight: bold;">';
+		$detailTableHtml .= '<th style="' . $th . '">Project Manager</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Client Name</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Billing Type</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Production Hours</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Project General Hours</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Total Hours</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Invoice</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Difference</th>';
+		$detailTableHtml .= '<th style="' . $th . '">No.of Employees</th>';
+		$detailTableHtml .= '<th style="' . $th . '">Employee Name</th>';
+		$detailTableHtml .= '</tr></thead><tbody>';
+		foreach ($byClient as $clientName => $clientData) {
+			$clientProductionHours = 0;
+			$clientGeneralHours = 0;
+			$clientTotalHours = 0;
+			$clientTotalInvoiceHours = 0;
+			$billingTypes = array();
+			foreach ($clientData['projects'] as $pr) {
+				$clientProductionHours += isset($pr->production_hours) ? (float) $pr->production_hours : (float) $pr->total_hours;
+				$clientGeneralHours += isset($pr->general_hours) ? (float) $pr->general_hours : 0;
+				$clientTotalHours += (float) $pr->total_hours;
+				$clientTotalInvoiceHours += !empty($pr->project_invoice_amt) ? (float) $pr->project_invoice_amt : 0;
+				if (!empty($pr->man_days)) {
+					$bt = ucfirst(strtolower(trim($pr->man_days)));
+					if ($bt && !in_array($bt, $billingTypes)) {
+						$billingTypes[] = $bt;
+					}
+				}
+			}
+			$clientBillingLabel = !empty($billingTypes) ? implode(', ', $billingTypes) : '';
+			$clientDiff = $clientTotalInvoiceHours - $clientTotalHours;
+			$clientDiffSign = $clientDiff >= 0 ? '+' : '-';
+			$clientDiffColor = $clientDiff >= 0 ? '#2E7D32' : '#C62828';
+			$headerTd = $td . ' background-color: #e8f4fc; font-weight: bold;';
+			$detailTableHtml .= '<tr>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . htmlspecialchars(!empty($clientData['pm']) ? $clientData['pm'] : '') . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' color:#4c0bce;">' . htmlspecialchars($clientName) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . htmlspecialchars($clientBillingLabel) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . call_user_func($fmtNum, $clientProductionHours) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . call_user_func($fmtNum, $clientGeneralHours) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . call_user_func($fmtNum, $clientTotalHours) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center;">' . call_user_func($fmtNum, $clientTotalInvoiceHours) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . ' text-align:center; color:' . $clientDiffColor . ';">' . $clientDiffSign . call_user_func($fmtNum, abs($clientDiff)) . '</td>';
+			$detailTableHtml .= '<td style="' . $headerTd . '"></td>';
+			$detailTableHtml .= '<td style="' . $headerTd . '"></td>';
+			$detailTableHtml .= '</tr>';
+			foreach ($clientData['projects'] as $r) {
+				$projProductionHours = isset($r->production_hours) ? (float) $r->production_hours : (float) $r->total_hours;
+				$projGeneralHours = isset($r->general_hours) ? (float) $r->general_hours : 0;
+				$projHours = (float) $r->total_hours;
+				$projInvoice = !empty($r->project_invoice_amt) ? (float) $r->project_invoice_amt : 0;
+				$projDiff = $projInvoice - $projHours;
+				$projDiffSign = $projDiff >= 0 ? '+' : '-';
+				$projDiffColor = $projDiff >= 0 ? '#2E7D32' : '#C62828';
+				$detailTableHtml .= '<tr>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . htmlspecialchars(!empty($r->project_manager_name) ? $r->project_manager_name : '') . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' padding-left:20px;">' . htmlspecialchars(!empty($r->project_name) ? $r->project_name : '') . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . htmlspecialchars(!empty($r->man_days) ? ucfirst(strtolower(trim($r->man_days))) : '') . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . call_user_func($fmtNum, $projProductionHours) . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . call_user_func($fmtNum, $projGeneralHours) . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . call_user_func($fmtNum, $projHours) . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . call_user_func($fmtNum, $projInvoice) . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center; color:' . $projDiffColor . '; font-weight:600;">' . $projDiffSign . call_user_func($fmtNum, abs($projDiff)) . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . (isset($r->num_employees) ? htmlspecialchars((string) $r->num_employees) : '') . '</td>';
+				$detailTableHtml .= '<td style="' . $td . ' text-align:center;">' . htmlspecialchars(isset($r->employee_names) ? str_replace(',', ', ', $r->employee_names) : '') . '</td>';
+				$detailTableHtml .= '</tr>';
+			}
+		}
+		$detailTableHtml .= '</tbody></table>';
+
 		$viewReportUrl = base_url('clients/all_clients_reports');
 		$viewReportButton = '<br><a href="' . $viewReportUrl . '" style="display: inline-block; background-color: #f5d042; color: #1a5276; font-weight: bold; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-family: Arial, sans-serif; font-size: 14px;">View Report</a><br>';
 
-		$emailBody = 'Dear All,<br><br>Please find below the summary of <b style="background-color: #f4d03f; padding: 5px 10px; border-radius: 5px;">' . $monthYearLabel . ' Actual vs Billable Hours</b> across departments.<br><br>' . $summaryTableHtml . '<br>Kindly review the variance and share any clarifications if required.<br>' . $viewReportButton . '<br>Best Regards<br>eLogic Operations';
+		$emailBody = 'Dear All,<br><br>Please find below the summary of <b style="background-color: #f4d03f; padding: 5px 10px; border-radius: 5px;">' . $monthYearLabel . ' Actual vs Billable Hours</b> across departments.<br><br>' . $summaryTableHtml . '<br>' . $detailTableHtml . '<br>Kindly review the variance and share any clarifications if required.<br>' . $viewReportButton . '<br>Best Regards<br>eLogic Operations';
 
 		$this->load->library('email');
 		$config['mailtype'] = 'html';
