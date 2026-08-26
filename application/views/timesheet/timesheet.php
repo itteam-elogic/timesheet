@@ -264,10 +264,10 @@ if(!empty($_REQUEST['reporting_manager'])):
 									<th>Name</th>
 									<th>EmpId</th>
                                     <th nowrap="nowrap">Reporting Manager</th>
-                                     <th>Department</th>
 									<th>Client Name</th>
 									<th>Project Name</th>
                                     <th nowrap="nowrap">Project Manager</th>
+                                     <th>Department</th>
                                     <th>Task Name</th>
 									<th>Hours</th>
 									<th>Comments</th>
@@ -284,6 +284,9 @@ if(!empty($_REQUEST['reporting_manager'])):
 				  		foreach ($getManageReportLog as $key => $reportResult) :
 				  			$reportingManagerId = isset($reportResult->reporting_manger) ? (string)$reportResult->reporting_manger : '';
 				  			$reportManagerName = isset($reportingManagerMap[$reportingManagerId]) ? $reportingManagerMap[$reportingManagerId] : '';
+				  			if (empty($reportManagerName) && !empty($reportResult->reporting_manager_name)) {
+				  				$reportManagerName = $reportResult->reporting_manager_name;
+				  			}
 				  			if (empty($reportManagerName)) { $reportManagerName = 'N/A'; }
 				  			$totalHours += $reportResult->emp_time_hours; // Total Hours
 				  	 		if($i%2 == 0): $showRowColour = 'class="success"'; else: $showRowColour = 'class="info"'; endif;
@@ -299,17 +302,22 @@ if(!empty($_REQUEST['reporting_manager'])):
 	                                
 	                                $managerEmpId = isset($reportResult->project_manager_name) ? (string)$reportResult->project_manager_name : '';
 	                                $ProjectManagerName = isset($projectManagerMap[$managerEmpId]) ? $projectManagerMap[$managerEmpId] : '';
-	                                $managerDepartment = isset($reportingManagerDepartmentMap[$reportingManagerId]) ? $reportingManagerDepartmentMap[$reportingManagerId] : '';
+	                                $managerDepartment = '';
+	                                if (!empty($reportResult->employee_department)) {
+	                                	$managerDepartment = trim((string)$reportResult->employee_department);
+	                                } elseif (!empty($reportResult->department) && !in_array($reportResult->department, array('Approved', 'Rejected', 'Pending', 'Process'), true)) {
+	                                	$managerDepartment = trim((string)$reportResult->department);
+	                                }
 				  ?>
 								<tr <?php echo $showRowColour; ?> id="delRecordsRow<?php echo $reportResult->emp_record_id; ?>">
 									<td><?php echo $i ?></td>
 									<td nowrap="nowrap"><span class="label label-info"><?php echo ucfirst($reportResult->name);?></span></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->emp_com_id);?></td>
                                     <td nowrap="nowrap"><?php echo htmlspecialchars($reportManagerName);?> </td>
-                                    <td nowrap="nowrap"><?php echo !empty($managerDepartment) ? $managerDepartment : 'N/A'; ?></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->client_name);?> </td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->project_name);?> </td>
                                     <td nowrap="nowrap"><?php echo $ProjectManagerName?> </td>
+                                    <td nowrap="nowrap"><?php echo !empty($managerDepartment) ? $managerDepartment : 'N/A'; ?></td>
                                     <td nowrap="nowrap"><a href="#" data-toggle="tooltip" title="<?php echo $getListOfProjects;?>"><?php echo character_limiter($getListOfProjects,20);?></a></td>
 									<td nowrap="nowrap"><?php echo ucfirst($reportResult->emp_time_hours);?> </td>
 									<td nowrap="nowrap"><a href="#" data-toggle="tooltip" title="<?php echo $reportResult->comments;?>"><?php echo character_limiter($reportResult->comments, 20);?></a></td>

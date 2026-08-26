@@ -70,7 +70,7 @@
 							<select class="form-control" name="client_Id[]" id="client_Id" multiple="multiple">
 								<?php if (!empty($clients)) { foreach ($clients as $client) { ?>
 									<option value="<?php echo (int)$client->client_Id; ?>" <?php echo in_array((string)$client->client_Id, (array)$client_Id, true) ? 'selected="selected"' : ''; ?>>
-										<?php echo htmlspecialchars($client->client_name, ENT_QUOTES, 'UTF-8'); ?>
+										<?php echo htmlspecialchars(ucfirst(str_replace("'", " ", $client->client_name)), ENT_QUOTES, 'UTF-8'); ?>
 									</option>
 								<?php }} ?>
 							</select>
@@ -296,17 +296,29 @@
 					return '<span class="ep-status-badge status-default"><i class="fa fa-circle"></i> ' . htmlspecialchars(ucwords($normalized), ENT_QUOTES, 'UTF-8') . '</span>';
 				}
 			}
-			if (!function_exists('execution_plan_team_members_count')) {
-				function execution_plan_team_members_count($value) {
+			if (!function_exists('execution_plan_team_members_list')) {
+				function execution_plan_team_members_list($value) {
 					$value = trim((string)$value);
 					if ($value === '') {
-						return 0;
+						return array();
 					}
 					$normalized = str_replace(array("\r\n", "\n", "\r", ';', '|'), ',', $value);
 					$parts = array_filter(array_map('trim', explode(',', $normalized)), function($item) {
 						return $item !== '';
 					});
-					return count($parts);
+					return array_values(array_unique($parts));
+				}
+			}
+			if (!function_exists('execution_plan_team_members_display')) {
+				function execution_plan_team_members_display($value) {
+					$names = execution_plan_team_members_list($value);
+					if (empty($names)) {
+						return '';
+					}
+					$escaped = array_map(function($name) {
+						return htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+					}, $names);
+					return implode(', ', $escaped) . ' ( ' . count($names) . ' )';
 				}
 			}
 			if (!function_exists('execution_plan_billing_mode')) {
@@ -428,7 +440,7 @@
 							<th style="text-align:center;">End Date</th>
 							<th style="text-align:center; width: 8% !important;">Billing Type</th>
 							<?php if (!$hideResourceColumn): ?>
-							<th style="text-align:center; width: 6% !important;">Number Of Resources</th>
+							<th style="text-align:center; width: 14% !important;">Resources</th>
 							<?php endif; ?>
 							<th style="text-align:center; width: 8% !important;">Timesheet Date</th>
 							<th style="text-align:center; width: 10% !important;">Project Status</th>
@@ -491,7 +503,8 @@
 							$projectDiffClass = $projectDiffResult['class'];
 							$projectName = !empty($projectRow->project_name) ? $projectRow->project_name : 'N/A';
 							$projectManagerName = !empty($projectRow->project_manager_name) ? trim($projectRow->project_manager_name) : 'N/A';
-							$projectSearch = strtolower($projectManagerName . ' ' . $clientName . ' ' . $projectName);
+							$projectResourceNames = execution_plan_team_members_display(isset($projectRow->team_members) ? $projectRow->team_members : '');
+							$projectSearch = strtolower($projectManagerName . ' ' . $clientName . ' ' . $projectName . ' ' . strip_tags($projectResourceNames));
 						?>
 						<tr class="client-project-row client-projects-<?php echo $clientIndex; ?>" style="display:none;" data-client-index="<?php echo $clientIndex; ?>" data-search="<?php echo htmlspecialchars($projectSearch, ENT_QUOTES, 'UTF-8'); ?>">
 							<td class="pm-cell"><?php echo htmlspecialchars($projectManagerName, ENT_QUOTES, 'UTF-8'); ?></td>
@@ -499,12 +512,11 @@
 							<?php $projectStartDate = execution_plan_date_display(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''); ?>
 							<?php $projectEndDate = execution_plan_date_display(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''); ?>
 							<?php $projectTimesheetEntryDate = execution_plan_date_display(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''); ?>
-							<?php $projectResourceCount = execution_plan_team_members_count(isset($projectRow->team_members) ? $projectRow->team_members : ''); ?>
 							<td class="date-cell"><?php echo !empty($projectStartDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectStartDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo !empty($projectEndDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectEndDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo htmlspecialchars(execution_plan_man_days_display(isset($projectRow->man_days) ? $projectRow->man_days : ''), ENT_QUOTES, 'UTF-8'); ?></td>
 							<?php if (!$hideResourceColumn): ?>
-							<td class="num-cell"><?php echo (int)$projectResourceCount; ?></td>
+							<td class="resource-names-cell"><?php echo $projectResourceNames; ?></td>
 							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($projectTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_project_status_badge(isset($projectRow->project_status) ? $projectRow->project_status : ''); ?></td>
@@ -646,6 +658,15 @@
 	.project-cell { padding-left: 50px !important; color: #666; font-size: 16px; }
 	.date-cell { text-align: center; font-size: 16px; color: #555; white-space: nowrap; }
 	.num-cell { text-align: center; font-family: "Courier New", monospace; font-size: 16px; }
+	.resource-names-cell {
+		text-align: left;
+		font-size: 14px;
+		color: #333;
+		white-space: normal;
+		word-break: break-word;
+		line-height: 1.4;
+		font-family: inherit;
+	}
 	.diff-red { color: #000000; font-weight: 700;  background-color: #d9534f;}
 	.diff-green { color: #000000; font-weight: 700; background-color: #5cb85c;}
 	.ep-status-badge {

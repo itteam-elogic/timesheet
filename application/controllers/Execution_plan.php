@@ -83,7 +83,7 @@ class Execution_plan extends CI_Controller {
 			$sheet->setCellValue('C1', 'Start Date');
 			$sheet->setCellValue('D1', 'End Date');
 			$sheet->setCellValue('E1', 'Billing Type');
-			$sheet->setCellValue('F1', 'Number Of Resources');
+			$sheet->setCellValue('F1', 'Resources');
 			$sheet->setCellValue('G1', 'Timesheet Date');
 			$sheet->setCellValue('H1', 'Project Status');
 			$sheet->setCellValue('I1', 'Project Estimated Hours');
@@ -141,16 +141,19 @@ class Execution_plan extends CI_Controller {
 			}
 			return strtoupper($normalized);
 		};
-		$countTeamMembers = function($value) {
+		$formatTeamMembers = function($value) {
 			$value = trim((string)$value);
 			if ($value === '') {
-				return 0;
+				return '';
 			}
 			$normalized = str_replace(array("\r\n", "\n", "\r", ';', '|'), ',', $value);
-			$parts = array_filter(array_map('trim', explode(',', $normalized)), function($item) {
+			$parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $normalized)), function($item) {
 				return $item !== '';
-			});
-			return count($parts);
+			})));
+			if (empty($parts)) {
+				return '';
+			}
+			return implode(', ', $parts) . ' ( ' . count($parts) . ' )';
 		};
 
 		$line = 2;
@@ -225,7 +228,7 @@ class Execution_plan extends CI_Controller {
 					$sheet->setCellValue('C' . $line, $formatDate(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''));
 					$sheet->setCellValue('D' . $line, $formatDate(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''));
 					$sheet->setCellValue('E' . $line, $formatBillingType(isset($projectRow->man_days) ? $projectRow->man_days : ''));
-					$sheet->setCellValue('F' . $line, $countTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
+					$sheet->setCellValue('F' . $line, $formatTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
 					$sheet->setCellValue('G' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
 					$sheet->setCellValue('H' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
 					$sheet->setCellValue('I' . $line, $formatEstimatedHours($schedule));
@@ -239,6 +242,9 @@ class Execution_plan extends CI_Controller {
 
 		foreach ($hideResourceColumn ? array('A','B','C','D','E','F','G','H','I','J','K') : array('A','B','C','D','E','F','G','H','I','J','K','L') as $col) {
 			$sheet->getColumnDimension($col)->setAutoSize(true);
+		}
+		if (!$hideResourceColumn && $line > 2) {
+			$sheet->getStyle('F2:F' . ($line - 1))->getAlignment()->setWrapText(true)->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
 		}
 
 		$filename = 'Execution_Plan_Report_' . date('Ymd_His') . '.xlsx';

@@ -77,6 +77,7 @@ class Timesheet extends CI_Controller {
 		//echo '<pre>'; print_r($params);	 exit;
 		
            $data['getManageReportLog'] = $this->emptimelog_model->getUserTypeAdminReportLog($params);
+		   $data['getManageReportLog'] = $this->timesheet_login->attachReportingManagerFields($data['getManageReportLog']);
 		   $data['reportingManagerMap'] = array();
 		   $data['reportingManagerDepartmentMap'] = array();
 		   $data['projectManagerMap'] = array();
@@ -98,7 +99,31 @@ class Timesheet extends CI_Controller {
 
 		   		foreach ($reportingManagerMetaMap as $empId => $meta) {
 		   			$data['reportingManagerMap'][(string)$empId] = isset($meta['name']) ? $meta['name'] : '';
-		   			$data['reportingManagerDepartmentMap'][(string)$empId] = isset($meta['department']) ? $meta['department'] : '';
+		   			$dept = isset($meta['department']) ? trim((string)$meta['department']) : '';
+		   			$data['reportingManagerDepartmentMap'][(string)$empId] = $dept;
+		   			$nameKey = isset($meta['name']) ? trim((string)$meta['name']) : '';
+		   			if ($nameKey !== '') {
+		   				$data['reportingManagerMap'][$nameKey] = $nameKey;
+		   				if (!isset($data['reportingManagerDepartmentMap'][$nameKey]) || $data['reportingManagerDepartmentMap'][$nameKey] === '') {
+		   					$data['reportingManagerDepartmentMap'][$nameKey] = $dept;
+		   				}
+		   			}
+		   		}
+		   		foreach ($data['getManageReportLog'] as $row) {
+		   			$rmKey = isset($row->reporting_manger) ? trim((string)$row->reporting_manger) : '';
+		   			if ($rmKey === '') {
+		   				continue;
+		   			}
+		   			$rowDept = '';
+		   			if (!empty($row->reporting_manager_department)) {
+		   				$rowDept = trim((string)$row->reporting_manager_department);
+		   			}
+		   			if ($rowDept !== '') {
+		   				$data['reportingManagerDepartmentMap'][$rmKey] = $rowDept;
+		   			} elseif (empty($data['reportingManagerDepartmentMap'][$rmKey]) && !empty($row->department)
+		   				&& !in_array($row->department, array('Approved', 'Rejected', 'Pending', 'Process'), true)) {
+		   				$data['reportingManagerDepartmentMap'][$rmKey] = trim((string)$row->department);
+		   			}
 		   		}
 		   		foreach ($projectManagerMetaMap as $empId => $meta) {
 		   			$data['projectManagerMap'][(string)$empId] = isset($meta['name']) ? $meta['name'] : '';
@@ -301,10 +326,10 @@ class Timesheet extends CI_Controller {
 	    $this->excel->getActiveSheet()->setCellValue('B2', 'Name');
         $this->excel->getActiveSheet()->setCellValue('C2', 'Employee ID');
         $this->excel->getActiveSheet()->setCellValue('D2', 'Reporting Manager');
-        $this->excel->getActiveSheet()->setCellValue('E2', 'Department');
-		$this->excel->getActiveSheet()->setCellValue('F2', 'Client Name');
-		$this->excel->getActiveSheet()->setCellValue('G2', 'Project Name');
-        $this->excel->getActiveSheet()->setCellValue('H2', 'Project Manager');
+		$this->excel->getActiveSheet()->setCellValue('E2', 'Client Name');
+		$this->excel->getActiveSheet()->setCellValue('F2', 'Project Name');
+        $this->excel->getActiveSheet()->setCellValue('G2', 'Project Manager');
+        $this->excel->getActiveSheet()->setCellValue('H2', 'Department');
         $this->excel->getActiveSheet()->setCellValue('I2', 'Task Name');
 		$this->excel->getActiveSheet()->setCellValue('J2', 'Task Hours');        
 		$this->excel->getActiveSheet()->setCellValue('K2', 'Status');
@@ -353,21 +378,22 @@ class Timesheet extends CI_Controller {
         
         
         $exportDataInformation = $this->emptimelog_model->getUserTypeAdminReportLog($params);  // this will return all data into array
+        $exportDataInformation = $this->timesheet_login->attachReportingManagerFields($exportDataInformation);
 				
 	    $exceldata="";
 		
         $sno = 0;
 		
-        $managerDepartmentCache = array();
         foreach ($exportDataInformation as $row){ $sno++; 
                                                  
             $ProjectManagerName = $this->timesheet_login->getReportingManagers($row->project_manager_name); // getting reporting Manager Name and Project created Manager Name in same function.
-            $reportManagerName = $this->timesheet_login->getReportManagerName($row->reporting_manger, true);// Getting reporting manager name       
-            $reportingManagerEmpId = isset($row->reporting_manger) ? (string)$row->reporting_manger : '';
-            if (!array_key_exists($reportingManagerEmpId, $managerDepartmentCache)) {
-                $managerDepartmentCache[$reportingManagerEmpId] = $this->timesheet_login->getEmployeeDepartmentById($reportingManagerEmpId);
+            $reportManagerName = !empty($row->reporting_manager_name) ? $row->reporting_manager_name : $this->timesheet_login->getReportManagerName($row->reporting_manger, true);// Getting reporting manager name
+            $managerDepartment = '';
+            if (!empty($row->employee_department)) {
+                $managerDepartment = trim((string)$row->employee_department);
+            } elseif (!empty($row->department) && !in_array($row->department, array('Approved', 'Rejected', 'Pending', 'Process'), true)) {
+                $managerDepartment = trim((string)$row->department);
             }
-            $managerDepartment = $managerDepartmentCache[$reportingManagerEmpId];
                                                  
             $addedDate=date_create($row->emp_report_dates);
             $addedDateData = date_format($addedDate,"d/m/Y");
@@ -379,10 +405,10 @@ class Timesheet extends CI_Controller {
 			$arrangeData['Name'] 	          = $row->name;
             $arrangeData['Employee ID'] 	  = $row->emp_com_id;
             $arrangeData['Reporting Manager'] = $reportManagerName;
-            $arrangeData['Department']	      = !empty($managerDepartment) ? $managerDepartment : 'N/A';
 			$arrangeData['Client Name'] 	  = $row->client_name;
 			$arrangeData['Project Name']	  = $row->project_name;
-            $arrangeData['Project Manager']   = $ProjectManagerName;   
+            $arrangeData['Project Manager']   = $ProjectManagerName;
+            $arrangeData['Department']	      = !empty($managerDepartment) ? $managerDepartment : 'N/A';   
             $arrangeData['Task Name'] 		  = $getListOfProjects;
 			$arrangeData['Task Hours']		  = $row->emp_time_hours;           
             $arrangeData['Status'] 		       = $row->status;                                      

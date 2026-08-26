@@ -353,6 +353,11 @@ public function update_project_master_model_query($project_status_update_id, $st
 
 	$this->db->where('project_Id', $project_status_update_id)->update('project_details', $updateData);
 
+	$wasClosed = strtolower(trim((string)$project->status)) === 'closed';
+	if (!$wasClosed && strtolower($status) === 'closed') {
+		$this->sendProjectClosedNotification($project_status_update_id);
+	}
+
 	$userQ = $this->db->select('project_Id, status')
 		->from('project_details')
 		->where('project_Id', $project_status_update_id)
@@ -1063,10 +1068,11 @@ public function getProjectsPaginated(
 		$emails = array(
 			'laxmikanth@elogictech.com',
 			'jaishree@elogictech.com',
-			//'accounts@elogictech.com'
+			'accounts@elogictech.com',
+			'pradip@elogictech.com'
 		);
 		if (!empty($project->manager_email) && filter_var($project->manager_email, FILTER_VALIDATE_EMAIL)) {
-			//$emails[] = strtolower(trim($project->manager_email));
+			$emails[] = strtolower(trim($project->manager_email));
 		} elseif (!empty($project->creator_email) && filter_var($project->creator_email, FILTER_VALIDATE_EMAIL)) {
 			$emails[] = strtolower(trim($project->creator_email));
 		}
@@ -1125,6 +1131,180 @@ public function getProjectsPaginated(
 			return '0';
 		}
 		return rtrim(rtrim(number_format((float)$hours, 2, '.', ''), '0'), '.');
+	}
+
+	private function formatNotificationDate($date)
+	{
+		if (empty($date) || $date === '0000-00-00' || strtotime($date) === false) {
+			return 'N/A';
+		}
+		return date('d M Y', strtotime($date));
+	}
+
+	private function getProjectInvoicedHours($projectId)
+	{
+		$projectId = (int)$projectId;
+		$monthlyTotal = 0;
+		if ($this->db->table_exists('project_invoice_monthly')) {
+			$row = $this->db->select('COALESCE(SUM(invoice_hours), 0) as total_invoice', false)
+				->from('project_invoice_monthly')
+				->where('project_Id', $projectId)
+				->get()
+				->row();
+			$monthlyTotal = $row ? (float)$row->total_invoice : 0;
+		}
+		if ($monthlyTotal > 0) {
+			return $monthlyTotal;
+		}
+		$project = $this->db->select('project_invoice_amt')
+			->from('project_details')
+			->where('project_Id', $projectId)
+			->get()
+			->row();
+		if ($project && $project->project_invoice_amt !== '' && $project->project_invoice_amt !== null) {
+			return (float)$project->project_invoice_amt;
+		}
+		return 0;
+	}
+
+	private function getProjectTimesheetDateRange($projectId)
+	{
+		$row = $this->db->select('MIN(emp_report_dates) as from_date, MAX(emp_report_dates) as to_date', false)
+			->from('emp_record_details')
+			->where('project_Id', $projectId)
+			->where("(status IS NULL OR status = '' OR status != 'Rejected')", null, false)
+			->get()
+			->row();
+		return array(
+			'from_date' => ($row && !empty($row->from_date) && $row->from_date !== '0000-00-00') ? $row->from_date : '',
+			'to_date' => ($row && !empty($row->to_date) && $row->to_date !== '0000-00-00') ? $row->to_date : ''
+		);
+	}
+
+	public function sendProjectClosedNotification($projectId)
+	{
+		$projectId = (int)$projectId;
+		if ($projectId <= 0) {
+			return false;
+		}
+
+		$this->db->select("p.project_Id, p.project_name, p.estimated_hours, p.project_start_date, p.project_end_date, p.p_manager, c.client_name, pm.name as manager_name, pm.email as manager_email, creator.email as creator_email", false);
+		$this->db->from('project_details p');
+		$this->db->join('client_details c', 'c.client_Id = p.client_Id', 'left');
+		$this->db->join('employee_details pm', 'pm.empId = p.empId', 'left');
+		$this->db->join('employee_details creator', 'creator.empId = p.who_allocated_project_empId', 'left');
+		$this->db->where('p.project_Id', $projectId);
+		$project = $this->db->get()->row();
+		if (empty($project)) {
+			return false;
+		}
+
+		$loggedIn = $this->session->userdata('logged_in_timesheet');
+		$closedBy = !empty($loggedIn['name']) ? $loggedIn['name'] : (!empty($project->manager_name) ? $project->manager_name : (!empty($project->p_manager) ? $project->p_manager : 'Project Manager'));
+		$clientName = !empty($project->client_name) ? $project->client_name : 'N/A';
+		$projectName = !empty($project->project_name) ? $project->project_name : 'Project';
+		$tsHours = $this->formatNotificationHours($this->getProjectLoggedHours($projectId));
+		$estimatedHours = $this->formatNotificationHours(isset($project->estimated_hours) ? $project->estimated_hours : 0);
+		$invoicedHours = $this->formatNotificationHours($this->getProjectInvoicedHours($projectId));
+
+		$dateRange = $this->getProjectTimesheetDateRange($projectId);
+		$fromDate = $dateRange['from_date'] !== '' ? $dateRange['from_date'] : $project->project_start_date;
+		$toDate = $dateRange['to_date'] !== '' ? $dateRange['to_date'] : $project->project_end_date;
+		$monthWorked = $this->formatNotificationDate($fromDate) . ' to ' . $this->formatNotificationDate($toDate);
+
+		$recipients = $this->buildHoursNotificationRecipients($project);
+		if (empty($recipients)) {
+			return false;
+		}
+
+		$subject = 'Project Closed';
+		if ($clientName !== '' && $clientName !== 'N/A') {
+			$subject .= ' - ' . $clientName;
+		}
+		$subject .= ' - ' . $projectName;
+
+		$labelTd = 'padding:11px 14px; border:1px solid #dce3ea; font-weight:bold; color:#1f5076; width:38%; font-size:14px; background:#f7fafc; font-family:Arial, Helvetica, sans-serif;';
+		$valueTd = 'padding:11px 14px; border:1px solid #dce3ea; color:#222; font-size:14px; font-family:Arial, Helvetica, sans-serif;';
+
+		$body = '<!doctype html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Project Closed</title>
+		</head>
+		<body style="margin:0; padding:0; background:#eef2f6; font-family:Arial, Helvetica, sans-serif;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f6; padding:24px 12px;">
+				<tr>
+					<td align="center">
+						<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px; width:100%; background:#ffffff; border:1px solid #d5dee7; border-radius:10px; overflow:hidden;">
+							<tr>
+								<td style="padding:18px 24px; background:#ffffff; border-bottom:1px solid #edf1f5;">
+									<img src="https://www.elogictech.com/assets/frontend/images/logo.png" alt="eLogicTech" width="160" style="width:160px; height:auto; border:0; display:block;">
+								</td>
+							</tr>
+							<tr>
+								<td style="background:#c0392b; padding:16px 24px;">
+									<h2 style="margin:0; color:#ffffff; font-size:20px; font-weight:bold; font-family:Arial, Helvetica, sans-serif;">Project Closed</h2>
+								</td>
+							</tr>
+							<tr>
+								<td style="padding:24px;">
+									<p style="margin:0 0 16px 0; font-size:15px; color:#333;">Hi,</p>
+									<p style="margin:0 0 18px 0; font-size:14px; color:#444; line-height:1.6;">The below project has been closed by <strong>' . htmlspecialchars($closedBy) . '</strong>:</p>
+									<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0;">
+										<tr>
+											<td style="' . $labelTd . '">Client Name</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($clientName) . '</td>
+										</tr>
+										<tr>
+											<td style="' . $labelTd . '">Project</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($projectName) . '</td>
+										</tr>
+										<tr>
+											<td style="' . $labelTd . '">TS Hours</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($tsHours) . '</td>
+										</tr>
+										<tr>
+											<td style="' . $labelTd . '">Estimated Hours</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($estimatedHours) . '</td>
+										</tr>
+										<tr>
+											<td style="' . $labelTd . '">Total Invoiced Hours</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($invoicedHours) . '</td>
+										</tr>
+										<tr>
+											<td style="' . $labelTd . '">Month Worked</td>
+											<td style="' . $valueTd . '">' . htmlspecialchars($monthWorked) . '</td>
+										</tr>
+									</table>
+									<p style="margin:0; font-size:14px; color:#333; line-height:1.6;">Regards,<br><strong>eLogicTech Solutions</strong></p>
+								</td>
+							</tr>
+							<tr>
+								<td style="background:#f8fafc; padding:12px 24px; border-top:1px solid #edf1f5; font-size:12px; color:#6b7280;">
+									This is an automated notification from eLogic Timesheet.
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</body>
+		</html>';
+
+		$config = array(
+			'mailtype' => 'html',
+			'charset' => 'utf-8',
+			'wordwrap' => TRUE,
+			'newline' => "\r\n"
+		);
+		$this->email->initialize($config);
+		$this->email->clear(TRUE);
+		$this->email->from('info@elogictech.com', 'eLogicTech');
+		$this->email->to($recipients);
+		$this->email->subject($subject);
+		return (bool)@$this->email->send();
 	}
 
 	private function sendHoursCompletionEmail($project, $totalHours, $milestoneHours, $interval, $isFinal = false)

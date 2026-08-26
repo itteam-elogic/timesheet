@@ -205,6 +205,14 @@ class Client_Model extends CI_Model {
 		
 	}
 
+	public function getClientNameForFilter() {
+		$clientNQ = $this->db->select('c.client_Id, c.client_name')
+			->from('client_details as c')
+			->order_by('client_Id', 'desc')
+			->get();
+		return $clientNQ->result();
+	}
+
 	// Client summary counts for report screen
 	public function getClientCounts() {
 		$total = (int)$this->db->count_all('client_details');

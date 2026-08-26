@@ -638,6 +638,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		    //echo 'List Of All----------'.$this->db->last_query(); 
@@ -661,6 +662,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		   // echo 'List Of All Project----------'. $this->db->last_query(); 
@@ -684,6 +686,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		   // echo 'List Of All Project----------'. $this->db->last_query(); 
@@ -708,6 +711,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		   // echo 'List Of All Project----------'. $this->db->last_query(); 
@@ -742,6 +746,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		   // echo 'List Of All Project task----------'. $this->db->last_query(); 
@@ -766,6 +771,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		    //echo 'List Of All Tasks----------'. $this->db->last_query(); 
@@ -794,6 +800,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		  // echo 'List Of All Employees----------IF--'. $this->db->last_query(); 
@@ -820,6 +827,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		    //echo 'List Of All Employees----------ELSE--'. $this->db->last_query(); 
@@ -851,6 +859,7 @@ class Emptimelog_Model extends CI_Model {
             ->order_by('er.emp_record_id','desc');
 			if (!empty($department)) $this->db->where_in('emp.department', $department);
 			if ($reporting_manager !== '' && strtolower($reporting_manager) !== 'all') $this->db->where('emp.reporting_manger', $reporting_manager);
+			$this->_timesheetAddReportingManagerJoin();
 			$recordsQ = $this->db->get(); 
 		
 		    //echo 'Select wise----------'. $this->db->last_query(); 
@@ -859,7 +868,12 @@ class Emptimelog_Model extends CI_Model {
 		
 		endif;
 	 
-	} 
+	}
+
+	private function _timesheetAddReportingManagerJoin() {
+		$this->db->select("rm.name as reporting_manager_name, NULLIF(TRIM(emp.department), '') as employee_department", false);
+		$this->db->join('employee_details as rm', 'rm.empId = emp.reporting_manger', 'left');
+	}
 	
 	public function getAddedReportTaskNames($getTaskIds){ // Multiple task names dispalying here 
 		

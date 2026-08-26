@@ -811,7 +811,7 @@ class Clients extends CI_Controller {
 	}
 
 	public function all_clients_reports(){
-		$data['getClientNames']   = $this->client_model->getClientName();
+		$data['getClientNames']   = $this->client_model->getClientNameForFilter();
 		$data['getDepartments']   = $this->client_model->getDistinctDepartments();
 		$data['getListOfManagers'] = $this->timesheet_login->getActiveManagers();
 
@@ -1792,28 +1792,26 @@ public function rs_vs_ts(){ // Resource Billability feature
      $invoice_year = (int) date('Y', strtotime($form_date));
      $invoice_month = (int) date('n', strtotime($form_date));
      
-    // Get project details before update (including department)
-    $this->db->select('p.project_name, p.project_invoice_amt as old_invoice_amt, p.project_type, c.client_name, c.department as client_department, emp.name as project_manager_name');
+    // Get project details before update
+    $this->db->select('p.project_Id, p.client_Id, p.project_name, p.project_type, c.client_name, c.department as client_department, emp.name as project_manager_name, emp.email as project_manager_email');
     $this->db->from('project_details p');
     $this->db->join('client_details c', 'c.client_Id = p.client_Id', 'left');
     $this->db->join('employee_details emp', 'emp.empId = p.empId', 'left');
     $this->db->where('p.project_Id', $project_id);
     $project_details = $this->db->get()->row();
-    
+
     if (!$project_details) {
         echo json_encode(array('success' => false, 'message' => 'Project not found.'));
         return;
     }
-    
-    // Get department: prefer project_type, fallback to client department
-    $department = !empty($project_details->project_type) ? $project_details->project_type : (!empty($project_details->client_department) ? $project_details->client_department : '');
-     
+
      // Save month-wise invoice in project_invoice_monthly (for all_clients_reports date-range view)
      $this->db->where('project_Id', $project_id);
      $this->db->where('invoice_year', $invoice_year);
      $this->db->where('invoice_month', $invoice_month);
      $existing = $this->db->get('project_invoice_monthly')->row();
-     
+     $is_new = empty($existing) || (float) $existing->invoice_hours <= 0;
+
      if ($existing) {
          $this->db->where('project_Id', $project_id);
          $this->db->where('invoice_year', $invoice_year);
@@ -1827,14 +1825,21 @@ public function rs_vs_ts(){ // Resource Billability feature
              'invoice_hours' => $invoice_amount
          ));
      }
-     
+
     if ($update_result) {
-        // Send email notification
-        $this->sendInvoiceNotificationEmail($project_details, $invoice_amount, $department);
-        
+        $month_label = date('F Y', strtotime($form_date));
+        $ts_hours = $this->_get_invoice_month_ts_hours(
+            $project_id,
+            $invoice_year,
+            $invoice_month,
+            !empty($project_details->client_Id) ? $project_details->client_Id : 0,
+            !empty($project_details->project_name) ? $project_details->project_name : ''
+        );
+        $this->sendInvoiceNotificationEmail($project_details, $invoice_amount, $month_label, $ts_hours, $is_new);
+
         echo json_encode(array(
             'success' => true,
-            'message' => 'Invoice updated successfully for ' . date('F Y', strtotime($form_date))
+            'message' => 'Invoice updated successfully for ' . $month_label
         ));
     } else {
         echo json_encode(array(
@@ -1845,109 +1850,153 @@ public function rs_vs_ts(){ // Resource Billability feature
  }
  
 /**
- * Send email notification when invoice is added/updated
+ * Timesheet hours for the invoice month, including related (General) project hours.
  */
-private function sendInvoiceNotificationEmail($project_details, $invoice_amount, $department = '') {
-    // Email configuration
-    $config['mailtype'] = 'html';
-    $config['charset'] = 'utf-8';
-    $config['wordwrap'] = TRUE;
-    $config['newline'] = "\r\n";
-    $this->email->initialize($config);
-    
-    // Get current user info
-    $current_user = $this->session->userdata['logged_in_timesheet'];
-    $updated_by = !empty($current_user['name']) ? $current_user['name'] : 'System';
-    
-    // Determine if it's a new invoice or update
-    $old_amount = !empty($project_details->old_invoice_amt) ? $project_details->old_invoice_amt : 0;
-    $is_new = ($old_amount == 0 || empty($old_amount));
-    $action = $is_new ? 'Added' : 'Updated';
-    
-    // Determine recipient email based on department
-    $recipient_email = 'pradip@elogictech.com'; // Default for other departments pradip@elogictech.com
-    if (!empty($department) && strtoupper($department) == 'MEP') {
-        $recipient_email = 'farhan@elogictech.com';  // farhan@elogictech.com
-    }
-    
-    // Email subject
-    $project_name = !empty($project_details->project_name) ? $project_details->project_name : 'Project';
-    $subject = 'Project Invoice Hours ' . $action . ' - ' . $project_name;
-     
-     // Email body
-     $body = '<!doctype html>
-     <html>
-     <head>
-         <meta charset="utf-8">
-         <title>Invoice Notification</title>
-     </head>
-     <body style="width: 95%; margin: 0 auto; background: #f1f1f1; border:1px solid #888; padding: 0 1% 2% 1%;">
-         <div align="left" style="margin: 3% auto 2% 6%;">
-             <img src="https://www.elogictech.com/assets/frontend/images/logo.png" style="width: 180px;">
-         </div>
-        <div style="background: #004b88; padding: 2%; border-radius: 15px; margin-top: 3%;">
-            <h2 style="color: #fff; margin: 0;">Project Invoice Hours ' . $action . ' Notification</h2>
-        </div>
-        <div style="background: #fff; padding: 3%; margin-top: 2%; border-radius: 10px;">
-            <p>Dear Team,</p>
-            
-            <p>Project invoice hours have been <strong>' . strtolower($action) . '</strong> in the system. Please find the details below:</p>
-             
-             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                 <tr style="background: #f5f5f5;">
-                     <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; width: 30%;">Project Name:</td>
-                     <td style="padding: 10px; border: 1px solid #ddd;">' . (!empty($project_details->project_name) ? htmlspecialchars($project_details->project_name) : 'N/A') . '</td>
-                 </tr>
-                 <tr>
-                     <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Client Name:</td>
-                     <td style="padding: 10px; border: 1px solid #ddd;">' . (!empty($project_details->client_name) ? htmlspecialchars($project_details->client_name) : 'N/A') . '</td>
-                 </tr>
-                <tr style="background: #f5f5f5;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Project Manager:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">' . (!empty($project_details->project_manager_name) ? htmlspecialchars($project_details->project_manager_name) : 'N/A') . '</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Department:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">' . (!empty($department) ? htmlspecialchars($department) : 'N/A') . '</td>
-                </tr>';
-    
-    if (!$is_new) {
-        $body .= '<tr style="background: #f5f5f5;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Previous Invoice Hours:</td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">' . number_format($old_amount, 2) . ' Hours</td>
-                </tr>';
-    }
-    
-    $body .= '<tr style="background: #e8f5e9;">
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #2e7d32;">' . ($is_new ? 'Invoice Hours:' : 'Updated Invoice Hours:') . '</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #2e7d32;">' . number_format($invoice_amount, 2) . ' Hours</td>
-                </tr>
-                 <tr>
-                     <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Updated By:</td>
-                     <td style="padding: 10px; border: 1px solid #ddd;">' . htmlspecialchars($updated_by) . '</td>
-                 </tr>
-                 <tr style="background: #f5f5f5;">
-                     <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Date & Time:</td>
-                     <td style="padding: 10px; border: 1px solid #ddd;">' . date('d-M-Y h:i A') . '</td>
-                 </tr>
-             </table>
-             
-             <p>Please review the invoice details in the system.</p>
-             
-             <p>Best regards,<br>
-             ' . htmlspecialchars($updated_by) . '</p>
-         </div>
-     </body>
-     </html>';  
-     
-    // Send email
-    $this->email->from('info@elogictech.com', 'eLogic Timesheet');
-    $this->email->to($recipient_email);
-    $this->email->subject($subject);
-    $this->email->message($body);
-    
-    // Send email (don't fail if email fails)
-    @$this->email->send();
+private function _get_invoice_month_ts_hours($projectId, $year, $month, $clientId, $projectName)
+{
+	$fromDate = sprintf('%04d-%02d-01', (int) $year, (int) $month);
+	$toDate = date('Y-m-t', strtotime($fromDate));
+	$projectIds = array((int) $projectId);
+
+	if (!empty($clientId) && $projectName !== '') {
+		$baseName = $this->_project_production_base_name($projectName);
+		$related = $this->db->select('project_Id, project_name')
+			->from('project_details')
+			->where('client_Id', (int) $clientId)
+			->get()
+			->result();
+		foreach ($related as $rel) {
+			if ((int) $rel->project_Id === (int) $projectId) {
+				continue;
+			}
+			if (strcasecmp($this->_project_production_base_name($rel->project_name), $baseName) === 0
+				&& $this->_is_project_general_name($rel->project_name)) {
+				$projectIds[] = (int) $rel->project_Id;
+			}
+		}
+	}
+
+	$row = $this->db->select('COALESCE(SUM(emp_time_hours), 0) as ts_hours', false)
+		->from('emp_record_details')
+		->where_in('project_Id', $projectIds)
+		->where('emp_report_dates >=', $fromDate)
+		->where('emp_report_dates <=', $toDate)
+		->get()
+		->row();
+
+	return $row ? (float) $row->ts_hours : 0;
+}
+
+/**
+ * Send email notification when invoice is added/updated on Client TSR.
+ */
+private function sendInvoiceNotificationEmail($project_details, $invoice_amount, $month_label, $ts_hours, $is_new = true)
+{
+	$this->load->library('email');
+	$config = array(
+		'mailtype' => 'html',
+		'charset' => 'utf-8',
+		'wordwrap' => TRUE,
+		'newline' => "\r\n"
+	);
+	$this->email->initialize($config);
+	$this->email->clear(TRUE);
+
+	$pmName = !empty($project_details->project_manager_name) ? $project_details->project_manager_name : 'Team';
+	$clientName = !empty($project_details->client_name) ? $project_details->client_name : 'N/A';
+	$projectName = !empty($project_details->project_name) ? $project_details->project_name : 'Project';
+	$monthLabel = !empty($month_label) ? $month_label : date('F Y');
+	$tsHoursLabel = $this->_format_all_clients_report_number($ts_hours);
+	$invoicedHoursLabel = $this->_format_all_clients_report_number($invoice_amount);
+	$actionVerb = $is_new ? 'raised' : 'updated';
+	$headerTitle = $is_new ? 'Invoice Raised' : 'Invoice Updated';
+	$headerColor = $is_new ? '#004b88' : '#6d28d9';
+	$subject = $headerTitle . ' - ' . $clientName . ' - ' . $projectName . ' - ' . $monthLabel;
+
+	$labelTd = 'padding:11px 14px; border:1px solid #dce3ea; font-weight:bold; color:#1f5076; width:38%; font-size:14px; background:#f7fafc; font-family:Arial, Helvetica, sans-serif;';
+	$valueTd = 'padding:11px 14px; border:1px solid #dce3ea; color:#222; font-size:14px; font-family:Arial, Helvetica, sans-serif;';
+	$highlightValueTd = 'padding:11px 14px; border:1px solid #bbf7d0; color:#166534; font-size:14px; font-weight:bold; background:#ecfdf3; font-family:Arial, Helvetica, sans-serif;';
+
+	$body = '<!doctype html>
+	<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>' . htmlspecialchars($headerTitle) . '</title>
+	</head>
+	<body style="margin:0; padding:0; background:#eef2f6; font-family:Arial, Helvetica, sans-serif;">
+		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f6; padding:24px 12px;">
+			<tr>
+				<td align="center">
+					<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px; width:100%; background:#ffffff; border:1px solid #d5dee7; border-radius:10px; overflow:hidden;">
+						<tr>
+							<td style="padding:18px 24px; background:#ffffff; border-bottom:1px solid #edf1f5;">
+								<img src="https://www.elogictech.com/assets/frontend/images/logo.png" alt="eLogicTech" width="160" style="width:160px; height:auto; border:0; display:block;">
+							</td>
+						</tr>
+						<tr>
+							<td style="background:' . $headerColor . '; padding:16px 24px;">
+								<h2 style="margin:0; color:#ffffff; font-size:20px; font-weight:bold; font-family:Arial, Helvetica, sans-serif;">' . htmlspecialchars($headerTitle) . '</h2>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding:24px;">
+								<p style="margin:0 0 16px 0; font-size:15px; color:#333;">Hi ' . htmlspecialchars($pmName) . ',</p>
+								<p style="margin:0 0 18px 0; font-size:14px; color:#444; line-height:1.6;">The invoice has been ' . $actionVerb . ' for the below project for <strong>' . htmlspecialchars($monthLabel) . '</strong>:</p>
+								<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0;">
+									<tr>
+										<td style="' . $labelTd . '">Client Name</td>
+										<td style="' . $valueTd . '">' . htmlspecialchars($clientName) . '</td>
+									</tr>
+									<tr>
+										<td style="' . $labelTd . '">Project</td>
+										<td style="' . $valueTd . '">' . htmlspecialchars($projectName) . '</td>
+									</tr>
+									<tr>
+										<td style="' . $labelTd . '">TS Hours</td>
+										<td style="' . $valueTd . '">' . htmlspecialchars($tsHoursLabel) . '</td>
+									</tr>
+									<tr>
+										<td style="' . $labelTd . '">Invoiced Hours</td>
+										<td style="' . $highlightValueTd . '">' . htmlspecialchars($invoicedHoursLabel) . '</td>
+									</tr>
+									<tr>
+										<td style="' . $labelTd . '">Month</td>
+										<td style="' . $valueTd . '">' . htmlspecialchars($monthLabel) . '</td>
+									</tr>
+								</table>
+								<p style="margin:0 0 18px 0; font-size:14px; color:#444; line-height:1.6;">Please let me know if you need any additional details.</p>
+								<p style="margin:0; font-size:14px; color:#333; line-height:1.6;">Regards,<br><strong>eLogicTech Solutions</strong></p>
+							</td>
+						</tr>
+						<tr>
+							<td style="background:#f8fafc; padding:12px 24px; border-top:1px solid #edf1f5; font-size:12px; color:#6b7280;">
+								This is an automated notification from eLogic Timesheet.
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</body>
+	</html>';
+
+	$recipients = array(
+		'laxmikanth@elogictech.com',
+		'jaishree@elogictech.com',
+		'accounts@elogictech.com',
+		'pradip@elogictech.com'
+	);
+	$pmEmail = !empty($project_details->project_manager_email) ? strtolower(trim($project_details->project_manager_email)) : '';
+	if ($pmEmail !== '' && filter_var($pmEmail, FILTER_VALIDATE_EMAIL) && !in_array($pmEmail, $recipients, true)) {
+		$recipients[] = $pmEmail;
+	}
+
+	$this->email->from('info@elogictech.com', 'eLogicTech Solutions');
+	$this->email->to($recipients);
+	$this->email->subject($subject);
+	$this->email->message($body);
+	@$this->email->send();
 }
 
 /**

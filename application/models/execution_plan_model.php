@@ -374,8 +374,9 @@ class Execution_plan_model extends CI_Model {
 		$this->db->from('client_details as c');
 		//$this->db->where('c.status', 'Active');
 		$this->db->where_not_in('c.client_Id', $this->get_elogic_client_ids());
-		$this->db->order_by('c.client_name', 'asc');
-		return $this->db->get()->result();
+		// Match all_clients_reports: newest clients first so Select2 autosuggest order is the same
+		$this->db->order_by('c.client_Id', 'desc');
+		return $this->format_filter_clients($this->db->get()->result());
 	}
 
 	public function get_filter_clients_by_departments($departments = array()) {
@@ -398,8 +399,17 @@ class Execution_plan_model extends CI_Model {
 			$escapedDepartments[] = $this->db->escape($dept);
 		}
 		$this->db->where('COALESCE(NULLIF(TRIM(p.project_type), ""), c.department) IN (' . implode(',', $escapedDepartments) . ')', null, false);
-		$this->db->order_by('c.client_name', 'asc');
-		return $this->db->get()->result();
+		$this->db->order_by('c.client_Id', 'desc');
+		return $this->format_filter_clients($this->db->get()->result());
+	}
+
+	private function format_filter_clients($clients) {
+		foreach ($clients as $client) {
+			if (isset($client->client_name)) {
+				$client->client_name = ucfirst(str_replace("'", " ", (string)$client->client_name));
+			}
+		}
+		return $clients;
 	}
 
 	public function get_filter_projects() {

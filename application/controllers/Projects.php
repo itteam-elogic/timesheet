@@ -438,6 +438,7 @@ public function getProjectsByClient()
 			if (!empty($existingProject[0]->who_allocated_project_empId)) {
 				$existingWhoAllocated = $existingProject[0]->who_allocated_project_empId;
 			}
+			$wasClosed = !empty($existingProject[0]->status) && strtolower(trim($existingProject[0]->status)) === 'closed';
 						
 			$data = array(
 				'client_Id' 				 => $this->input->post('client_Id'),
@@ -478,6 +479,9 @@ public function getProjectsByClient()
         if($this->input->post('status') == 'Closed'){     
             
             $this->task_model->update_task_status($projct_Id); //   //update task status based on project.
+			if (!$wasClosed) {
+				$this->project_model->sendProjectClosedNotification($projct_Id);
+			}
             
         }    
 		

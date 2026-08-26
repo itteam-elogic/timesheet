@@ -265,21 +265,56 @@ public function getEmployeeMetaMapByIds($empIds){
 		return array();
 	}
 
-	$rows = $this->db->select('empId,name,department')
-		->from('employee_details')
-		->where_in('empId', $cleanIds)
-		->get()
-		->result();
+	$this->db->select('empId,name,department');
+	$this->db->from('employee_details');
+	$this->db->group_start();
+	$this->db->where_in('empId', $cleanIds);
+	$this->db->or_where_in('name', $cleanIds);
+	$this->db->group_end();
+	$rows = $this->db->get()->result();
 
 	$map = array();
 	foreach ($rows as $row) {
-		$key = (string)$row->empId;
-		$map[$key] = array(
+		$meta = array(
 			'name' => isset($row->name) ? (string)$row->name : '',
 			'department' => isset($row->department) ? trim((string)$row->department) : ''
 		);
+		$map[(string)$row->empId] = $meta;
+		$nameKey = trim($meta['name']);
+		if ($nameKey !== '') {
+			$map[$nameKey] = $meta;
+		}
 	}
 	return $map;
+}
+
+public function attachReportingManagerFields($rows){
+	if (empty($rows) || !is_array($rows)) {
+		return $rows;
+	}
+	$keys = array();
+	foreach ($rows as $row) {
+		if (!empty($row->reporting_manger)) {
+			$keys[] = trim((string)$row->reporting_manger);
+		}
+	}
+	$metaMap = $this->getEmployeeMetaMapByIds($keys);
+	foreach ($rows as $row) {
+		$rmKey = isset($row->reporting_manger) ? trim((string)$row->reporting_manger) : '';
+		$rmName = (!empty($row->reporting_manager_name)) ? trim((string)$row->reporting_manager_name) : '';
+		if ($rmKey !== '' && isset($metaMap[$rmKey]) && $rmName === '') {
+			$rmName = $metaMap[$rmKey]['name'];
+		}
+		$empDept = '';
+		if (!empty($row->employee_department)) {
+			$empDept = trim((string)$row->employee_department);
+		} elseif (!empty($row->department) && !in_array($row->department, array('Approved', 'Rejected', 'Pending', 'Process'), true)) {
+			$empDept = trim((string)$row->department);
+		}
+		$row->reporting_manager_name = $rmName;
+		$row->employee_department = $empDept;
+	}
+	return $rows;
 }
 /********************************************************* Active managers only (manager, business_head + status Active) ************************************************/
 	public function getActiveManagers(){

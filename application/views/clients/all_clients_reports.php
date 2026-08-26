@@ -71,8 +71,8 @@
                                     <div class="tab-pane fade active in" id="Add">
                                         <style>
                                         .client-report-filter-bar { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 24px 20px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(1,75,136,.07); border-top: 3px solid #014b88; }
-                                        .client-report-filter-grid .crf-grid-top { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px 16px; margin-bottom: 16px; }
-                                        @media (max-width:1100px) { .client-report-filter-grid .crf-grid-top { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+                                        .client-report-filter-grid .crf-grid-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 16px; margin-bottom: 16px; overflow: visible; }
+                                        @media (max-width:1100px) { .client-report-filter-grid .crf-grid-top { grid-template-columns: repeat(2, 1fr); } }
                                         @media (max-width:560px) { .client-report-filter-grid .crf-grid-top { grid-template-columns: 1fr; } }
                                         .client-report-filter-grid .crf-field { background: linear-gradient(180deg,#fafbfc 0%,#f4f6f9 100%); border: 1px solid #e8ecf1; border-radius: 10px; padding: 12px 14px 14px; }
                                         .client-report-filter-grid .crf-field-label { display: block; font-weight: 700; font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: #014b88; margin-bottom: 8px; }
@@ -90,6 +90,14 @@
                                         .client-report-filter-grid .crf-btn-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
                                         .client-report-filter-grid .btn-crf-apply { background: linear-gradient(180deg,#015a9e 0%,#014b88 100%) !important; color: #fff !important; font-weight: 700; padding: 10px 22px; border: none; border-radius: 8px; min-width: 120px; }
                                         .client-report-filter-grid .btn-crf-clear { background: #fff !important; color: #c2410c !important; font-weight: 700; padding: 10px 18px; border: 2px solid #fdba74 !important; border-radius: 8px; }
+                                        .client-report-filter-bar,
+                                        .client-report-filter-grid .crf-grid-top,
+                                        .client-report-filter-grid .crf-field,
+                                        .content-wrapper .card,
+                                        .content-wrapper .card-body,
+                                        .content-wrapper .tab-content,
+                                        .content-wrapper .tab-pane,
+                                        .content-wrapper .bs-component { overflow: visible !important; }
                                         .client-report-filter-grid .select2-container { width: 100% !important; }
                                         .client-report-filter-grid .select2-container .select2-selection--multiple,
                                         .client-report-filter-grid .select2-container .select2-selection--single { min-height: 40px !important; border: 1px solid #d1d5db !important; border-radius: 8px !important; }
@@ -207,6 +215,11 @@
             /* Match Project dropdown height to Client/Department Select2 height */
             #project_Id + .select2-container .select2-selection--single { min-height: 38px; }
             #project_Id + .select2-container .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+            .select2-container--open .select2-results > .select2-results__options,
+            .all-clients-report-select2-dropdown .select2-results > .select2-results__options {
+                max-height: 200px !important;
+                overflow-y: auto !important;
+            }
         </style>
          <?php if(!empty($allClientResult)):?>
         <?php
@@ -578,7 +591,21 @@
 
             function bindAllOptionSelect2(selector) {
                 var $el = $(selector);
-                $el.select2({ placeholder: 'Select…', allowClear: true });
+                $el.select2({
+                    placeholder: 'Select…',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('body'),
+                    dropdownCssClass: 'all-clients-report-select2-dropdown'
+                });
+                $el.on('select2:open', function() {
+                    window.setTimeout(function() {
+                        $('.select2-container--open .select2-results__options').css({
+                            'max-height': '200px',
+                            'overflow-y': 'auto'
+                        });
+                    }, 0);
+                });
                 $el.on('select2:select', function(e) {
                     if (e.params.data.id === 'all') {
                         $el.val(['all']).trigger('change');
@@ -595,7 +622,21 @@
             bindAllOptionSelect2('#client_Id');
             bindAllOptionSelect2('#department');
             bindAllOptionSelect2('#project_manager');
-            $('#project_Id').select2({ placeholder: 'All projects', allowClear: true });
+            $('#project_Id').select2({
+                placeholder: 'All projects',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('body'),
+                dropdownCssClass: 'all-clients-report-select2-dropdown'
+            });
+            $('#project_Id').on('select2:open', function() {
+                window.setTimeout(function() {
+                    $('.select2-container--open .select2-results__options').css({
+                        'max-height': '200px',
+                        'overflow-y': 'auto'
+                    });
+                }, 0);
+            });
 
             var projectsFilterUrl = '<?php echo base_url('clients/get_all_clients_report_projects'); ?>';
             function setProjectOptions(projects) {
