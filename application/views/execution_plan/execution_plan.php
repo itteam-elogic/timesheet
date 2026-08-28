@@ -297,21 +297,38 @@
 				}
 			}
 			if (!function_exists('execution_plan_team_members_list')) {
-				function execution_plan_team_members_list($value) {
+				function execution_plan_team_members_list($value, $excludeNames = array()) {
 					$value = trim((string)$value);
 					if ($value === '') {
 						return array();
 					}
 					$normalized = str_replace(array("\r\n", "\n", "\r", ';', '|'), ',', $value);
 					$parts = array_filter(array_map('trim', explode(',', $normalized)), function($item) {
-						return $item !== '';
+						return $item !== '' && strtolower($item) !== 'please choose team members';
 					});
-					return array_values(array_unique($parts));
+					$excludeMap = array();
+					foreach ((array)$excludeNames as $excludeName) {
+						$excludeKey = strtolower(trim((string)$excludeName));
+						if ($excludeKey !== '' && $excludeKey !== 'n/a') {
+							$excludeMap[$excludeKey] = true;
+						}
+					}
+					$unique = array();
+					foreach ($parts as $name) {
+						$key = strtolower($name);
+						if (isset($excludeMap[$key])) {
+							continue;
+						}
+						if (!isset($unique[$key])) {
+							$unique[$key] = $name;
+						}
+					}
+					return array_values($unique);
 				}
 			}
 			if (!function_exists('execution_plan_team_members_display')) {
-				function execution_plan_team_members_display($value) {
-					$names = execution_plan_team_members_list($value);
+				function execution_plan_team_members_display($value, $excludeNames = array()) {
+					$names = execution_plan_team_members_list($value, $excludeNames);
 					if (empty($names)) {
 						return '';
 					}
@@ -319,6 +336,15 @@
 						return htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
 					}, $names);
 					return implode(', ', $escaped) . ' ( ' . count($names) . ' )';
+				}
+			}
+			if (!function_exists('execution_plan_team_members_count_display')) {
+				function execution_plan_team_members_count_display($value, $excludeNames = array()) {
+					$names = execution_plan_team_members_list($value, $excludeNames);
+					if (empty($names)) {
+						return '';
+					}
+					return '( ' . count($names) . ' )';
 				}
 			}
 			if (!function_exists('execution_plan_billing_mode')) {
@@ -434,20 +460,21 @@
 				<table class="table table-hover table-bordered" id="execution_plan_table">
 					<thead>
 						<tr>
-							<th style="text-align:center;">Project Manager</th>
-							<th>Client Name / Projects</th>
-							<th style="text-align:center;">Start Date</th>
-							<th style="text-align:center;">End Date</th>
-							<th style="text-align:center; width: 8% !important;">Billing Type</th>
+							<th class="ep-col-pm">Project Manager</th>
+							<th class="ep-col-client">Client Name / Projects</th>
+							<th class="ep-col-date">Start Date</th>
+							<th class="ep-col-date">End Date</th>
+							<th class="ep-col-billing">Billing Type</th>
 							<?php if (!$hideResourceColumn): ?>
-							<th style="text-align:center; width: 14% !important;">Resources</th>
+							<th class="ep-col-resources">Resources</th>
+							<th class="ep-col-team">Team Members</th>
 							<?php endif; ?>
-							<th style="text-align:center; width: 8% !important;">Timesheet Date</th>
-							<th style="text-align:center; width: 10% !important;">Project Status</th>
-							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Project Estimated Hours</th>
-							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Timesheet Hours</th>
-							<th style="text-align:center; width: 6% !important;" class="ep-col-hours">Invoice Hours</th>
-							<th style="text-align:center; width: 6% !important; text-transform:none !important;" class="ep-col-hours"><?php echo $differenceColumnLabel; ?></th>
+							<th class="ep-col-date">Timesheet Date</th>
+							<th class="ep-col-status">Project Status</th>
+							<th class="ep-col-hours">Project Estimated Hours</th>
+							<th class="ep-col-hours">Timesheet Hours</th>
+							<th class="ep-col-hours">Invoice Hours</th>
+							<th class="ep-col-hours" style="text-transform:none !important;"><?php echo $differenceColumnLabel; ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -484,6 +511,7 @@
 							<td class="date-cell"><strong><?php echo htmlspecialchars($clientBillingTypeDisplay, ENT_QUOTES, 'UTF-8'); ?></strong></td>
 							<?php if (!$hideResourceColumn): ?>
 							<td class="num-cell"></td>
+							<td class="num-cell"></td>
 							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($clientTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_client_status_badge($clientStatus); ?></td>
@@ -504,11 +532,13 @@
 							$projectName = !empty($projectRow->project_name) ? $projectRow->project_name : 'N/A';
 							$projectManagerName = !empty($projectRow->project_manager_name) ? trim($projectRow->project_manager_name) : 'N/A';
 							$projectResourceNames = execution_plan_team_members_display(isset($projectRow->team_members) ? $projectRow->team_members : '');
-							$projectSearch = strtolower($projectManagerName . ' ' . $clientName . ' ' . $projectName . ' ' . strip_tags($projectResourceNames));
+							$assignedTeamCount = isset($projectRow->assigned_team_count) ? (int)$projectRow->assigned_team_count : 0;
+							$projectAssignedTeamCount = ($assignedTeamCount > 0) ? '( ' . $assignedTeamCount . ' )' : '';
+							$projectSearch = strtolower($projectManagerName . ' ' . $clientName . ' ' . $projectName . ' ' . strip_tags($projectResourceNames) . ' ' . (isset($projectRow->assigned_team_members) ? $projectRow->assigned_team_members : ''));
 						?>
 						<tr class="client-project-row client-projects-<?php echo $clientIndex; ?>" style="display:none;" data-client-index="<?php echo $clientIndex; ?>" data-search="<?php echo htmlspecialchars($projectSearch, ENT_QUOTES, 'UTF-8'); ?>">
 							<td class="pm-cell"><?php echo htmlspecialchars($projectManagerName, ENT_QUOTES, 'UTF-8'); ?></td>
-							<td class="project-cell" style="font-weight: 600;"><i class="fa fa-angle-right"></i> <?php echo $projectName; ?></td>
+							<td class="project-cell"><span class="project-name-inner"><i class="fa fa-angle-right"></i><span class="project-name-text"><?php echo $projectName; ?></span></span></td>
 							<?php $projectStartDate = execution_plan_date_display(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''); ?>
 							<?php $projectEndDate = execution_plan_date_display(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''); ?>
 							<?php $projectTimesheetEntryDate = execution_plan_date_display(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''); ?>
@@ -517,6 +547,7 @@
 							<td class="date-cell"><?php echo htmlspecialchars(execution_plan_man_days_display(isset($projectRow->man_days) ? $projectRow->man_days : ''), ENT_QUOTES, 'UTF-8'); ?></td>
 							<?php if (!$hideResourceColumn): ?>
 							<td class="resource-names-cell"><?php echo $projectResourceNames; ?></td>
+							<td class="num-cell"><?php echo $projectAssignedTeamCount; ?></td>
 							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($projectTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_project_status_badge(isset($projectRow->project_status) ? $projectRow->project_status : ''); ?></td>
@@ -638,33 +669,102 @@
 		color: #fff;
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.4px;
-		font-size: 14px;
+		letter-spacing: 0.3px;
+		font-size: 12px;
+		text-align: center;
+		vertical-align: middle;
+		white-space: normal;
+		line-height: 1.25;
+		padding: 10px 8px;
 	}
 	#execution_plan_table {
-		table-layout: fixed;
+		table-layout: auto;
+		width: 100%;
+		min-width: 1680px;
+		border-collapse: collapse;
 	}
+	#execution_plan_table tbody td {
+		vertical-align: middle;
+		padding: 10px 8px;
+		overflow: hidden;
+	}
+	#execution_plan_table .ep-col-pm { min-width: 170px; width: 170px; }
+	#execution_plan_table .ep-col-client { min-width: 240px; width: 240px; }
+	#execution_plan_table .ep-col-date { min-width: 130px; width: 130px; }
+	#execution_plan_table .ep-col-billing { min-width: 110px; width: 110px; }
+	#execution_plan_table .ep-col-resources { min-width: 260px; width: 260px; }
+	#execution_plan_table .ep-col-team { min-width: 110px; width: 110px; }
+	#execution_plan_table .ep-col-status { min-width: 120px; width: 120px; }
 	#execution_plan_table .ep-col-hours {
-		width: 120px;
-		max-width: 120px;
+		min-width: 110px;
+		width: 110px;
 	}
 
-	.pm-cell { text-align: center; color: #2c5aa0; font-weight: 600; font-size: 16px; }
-	.client-cell { font-weight: 600; color: #2c3e50; font-size: 16px; }
+	.pm-cell {
+		text-align: center;
+		color: #2c5aa0;
+		font-weight: 600;
+		font-size: 14px;
+		white-space: normal;
+		word-break: break-word;
+		line-height: 1.3;
+	}
+	.client-cell {
+		font-weight: 600;
+		color: #2c3e50;
+		font-size: 14px;
+		white-space: normal;
+		word-break: break-word;
+		line-height: 1.3;
+	}
 	.client-name-text { cursor: pointer; }
-	.client-toggle-icon { cursor: pointer; margin-left: 10px; color: #337ab7; font-weight: 700; }
+	.client-toggle-icon { cursor: pointer; margin-left: 8px; color: #337ab7; font-weight: 700; display: inline-block; }
 	.client-header-row { background: #f8f9fa; border-left: 4px solid #337ab7; }
 	.client-project-row { background: #fff; }
-	.project-cell { padding-left: 50px !important; color: #666; font-size: 16px; }
-	.date-cell { text-align: center; font-size: 16px; color: #555; white-space: nowrap; }
-	.num-cell { text-align: center; font-family: "Courier New", monospace; font-size: 16px; }
+	.project-cell {
+		padding-left: 22px !important;
+		color: #555;
+		font-size: 14px;
+		font-weight: 600;
+		vertical-align: middle;
+	}
+	.project-name-inner {
+		display: flex;
+		align-items: flex-start;
+		gap: 6px;
+		max-width: 100%;
+	}
+	.project-name-inner i {
+		flex: 0 0 auto;
+		line-height: 1.3;
+		color: #888;
+		margin-top: 2px;
+	}
+	.project-name-text {
+		display: block;
+		white-space: normal;
+		word-break: break-word;
+		line-height: 1.3;
+	}
+	.date-cell {
+		text-align: center;
+		font-size: 13px;
+		color: #555;
+		white-space: nowrap;
+	}
+	.num-cell {
+		text-align: center;
+		font-family: "Courier New", monospace;
+		font-size: 14px;
+		white-space: nowrap;
+	}
 	.resource-names-cell {
 		text-align: left;
-		font-size: 14px;
+		font-size: 13px;
 		color: #333;
 		white-space: normal;
 		word-break: break-word;
-		line-height: 1.4;
+		line-height: 1.35;
 		font-family: inherit;
 	}
 	.diff-red { color: #000000; font-weight: 700;  background-color: #d9534f;}
@@ -687,7 +787,6 @@
 	.ep-status-badge.status-inactive { background: #d9534f; }
 	.ep-status-badge.status-default { background: #6c757d; }
 	#execution_plan_table tbody tr:hover { background-color: #f5f8fa; }
-	#execution_plan_table tbody td { vertical-align: middle; }
 
 	/* Execution plan filter dropdown selected/highlight colors */
 	#execution_plan_search_form + .select2-container .select2-selection--single,

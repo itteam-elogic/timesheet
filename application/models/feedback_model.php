@@ -13,6 +13,122 @@ class Feedback_Model extends CI_Model {
     }
 
     /**
+     * Whether the given (or logged-in) employee belongs to the HR department.
+     */
+    public function is_hr_department_user($empId = NULL) {
+        if (empty($empId)) {
+            $session = $this->session->userdata('logged_in_timesheet');
+            if (empty($session['empId'])) {
+                return false;
+            }
+            $empId = $session['empId'];
+        }
+
+        $dept_query = $this->db->query(
+            "SELECT department, designation FROM employee_details WHERE empId = ? AND status = 'Active' LIMIT 1",
+            array($empId)
+        );
+
+        if ($dept_query->num_rows() > 0) {
+            $row = $dept_query->row();
+            $department = trim((string) $row->department);
+            $designation = trim((string) (isset($row->designation) ? $row->designation : ''));
+
+            if ($department !== '' && (strcasecmp($department, 'HR') === 0 || preg_match('/\bHR\b/i', $department))) {
+                return true;
+            }
+            if ($designation !== '' && (preg_match('/\bHR\b/i', $designation) || stripos($designation, 'Human Resource') !== false)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Admin/superadmin and HR department can view all members' feedback.
+     */
+    public function can_view_all_feedback($user_type = NULL, $empId = NULL) {
+        if ($user_type === NULL || $empId === NULL) {
+            $session = $this->session->userdata('logged_in_timesheet');
+            if (empty($session)) {
+                return false;
+            }
+            if ($user_type === NULL) {
+                $user_type = isset($session['user_type']) ? $session['user_type'] : '';
+            }
+            if ($empId === NULL) {
+                $empId = isset($session['empId']) ? $session['empId'] : NULL;
+            }
+        }
+
+        if (in_array($user_type, array('admin', 'superadmin'), true)) {
+            return true;
+        }
+
+        return $this->is_hr_department_user($empId);
+    }
+
+    /**
+     * Apply shared list filters for feedback reports (employee, dept, type, dates, etc.).
+     */
+    protected function apply_feedback_list_filters($filters = array()) {
+        // Employee: match submitter OR team member (subject of feedback)
+        if (!empty($filters['empId'])) {
+            $filterEmpId = $filters['empId'];
+            $this->db->group_start();
+            $this->db->where('ef.empId', $filterEmpId);
+            $this->db->or_where('ef.team_members', $filterEmpId);
+            $this->db->group_end();
+        }
+
+        if (!empty($filters['status'])) {
+            $this->db->where('ef.status', $filters['status']);
+        }
+
+        // Department: match stored feedback dept, submitter dept, or team member dept
+        if (!empty($filters['department'])) {
+            $dept = $filters['department'];
+            $this->db->group_start();
+            $this->db->where('ef.department', $dept);
+            $this->db->or_where('e.department', $dept);
+            $this->db->or_where('tm.department', $dept);
+            $this->db->group_end();
+        }
+
+        // Feedback Type / Improvement area: match JSON/single feedback_type or feedback_for
+        if (!empty($filters['feedback_type'])) {
+            $ftype = $filters['feedback_type'];
+            $this->db->group_start();
+            $this->db->like('ef.feedback_type', $ftype);
+            $this->db->or_where('ef.feedback_type', $ftype);
+            $this->db->or_where('ef.feedback_for', $ftype);
+            $this->db->group_end();
+        }
+
+        if (!empty($filters['priority'])) {
+            $this->db->where('ef.priority', $filters['priority']);
+        }
+
+        if (!empty($filters['from_date'])) {
+            $this->db->where('DATE(ef.created_at) >=', $filters['from_date']);
+        }
+
+        if (!empty($filters['to_date'])) {
+            $this->db->where('DATE(ef.created_at) <=', $filters['to_date']);
+        }
+
+        // Assigned To: match assigned_to OR reporting_manager (form often leaves assigned_to empty)
+        if (!empty($filters['assigned_to'])) {
+            $assignedTo = $filters['assigned_to'];
+            $this->db->group_start();
+            $this->db->where('ef.assigned_to', $assignedTo);
+            $this->db->or_where('ef.reporting_manager', $assignedTo);
+            $this->db->group_end();
+        }
+    }
+
+    /**
      * Add new feedback submission
      */
     public function add_feedback($data) {
@@ -66,42 +182,7 @@ class Feedback_Model extends CI_Model {
         }
 
         // Apply filters
-        if (!empty($filters['empId'])) {
-            $this->db->where('ef.empId', $filters['empId']);
-        }
-
-        if (!empty($filters['status'])) {
-            $this->db->where('ef.status', $filters['status']);
-        }
-
-        if (!empty($filters['department'])) {
-            $this->db->where('ef.department', $filters['department']);
-        }
-
-        if (!empty($filters['feedback_type'])) {
-            // Support both JSON array format and single value format
-            // Search in JSON array using LIKE for backward compatibility
-            $this->db->group_start();
-            $this->db->like('ef.feedback_type', $filters['feedback_type']);
-            $this->db->or_where('ef.feedback_type', $filters['feedback_type']);
-            $this->db->group_end();
-        }
-
-        if (!empty($filters['priority'])) {
-            $this->db->where('ef.priority', $filters['priority']);
-        }
-
-        if (!empty($filters['from_date'])) {
-            $this->db->where('DATE(ef.created_at) >=', $filters['from_date']);
-        }
-
-        if (!empty($filters['to_date'])) {
-            $this->db->where('DATE(ef.created_at) <=', $filters['to_date']);
-        }
-
-        if (!empty($filters['assigned_to'])) {
-            $this->db->where('ef.assigned_to', $filters['assigned_to']);
-        }
+        $this->apply_feedback_list_filters($filters);
 
         // Role-based filtering - SKIP when fetching specific feedback_id (needed for updates)
         // Only apply role filtering when fetching lists, not when getting a specific feedback by ID
@@ -109,8 +190,8 @@ class Feedback_Model extends CI_Model {
             $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
             $empId = $this->session->userdata['logged_in_timesheet']['empId'];
 
-            if ($user_type == 'admin' || $user_type == 'superadmin') {
-                // Admin can see all feedback - no filter needed
+            if ($this->can_view_all_feedback($user_type, $empId)) {
+                // Admin/superadmin and HR department can see all members' feedback - no filter needed
             } elseif ($user_type == 'business_head') {
                 // Business Head can see feedback filtered by their department
                 // Use a separate query to get department to avoid interfering with main query
@@ -171,47 +252,14 @@ class Feedback_Model extends CI_Model {
         $this->db->join('employee_details tm', 'tm.empId = ef.team_members', 'left');
 
         // Apply filters (same as get_feedback)
-        if (!empty($filters['empId'])) {
-            $this->db->where('ef.empId', $filters['empId']);
-        }
-
-        if (!empty($filters['status'])) {
-            $this->db->where('ef.status', $filters['status']);
-        }
-
-        if (!empty($filters['department'])) {
-            $this->db->where('ef.department', $filters['department']);
-        }
-
-        if (!empty($filters['feedback_type'])) {
-            $this->db->group_start();
-            $this->db->like('ef.feedback_type', $filters['feedback_type']);
-            $this->db->or_where('ef.feedback_type', $filters['feedback_type']);
-            $this->db->group_end();
-        }
-
-        if (!empty($filters['priority'])) {
-            $this->db->where('ef.priority', $filters['priority']);
-        }
-
-        if (!empty($filters['from_date'])) {
-            $this->db->where('DATE(ef.created_at) >=', $filters['from_date']);
-        }
-
-        if (!empty($filters['to_date'])) {
-            $this->db->where('DATE(ef.created_at) <=', $filters['to_date']);
-        }
-
-        if (!empty($filters['assigned_to'])) {
-            $this->db->where('ef.assigned_to', $filters['assigned_to']);
-        }
+        $this->apply_feedback_list_filters($filters);
 
         // Role-based filtering (same as get_feedback)
         $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
         $empId = $this->session->userdata['logged_in_timesheet']['empId'];
 
-        if ($user_type == 'admin' || $user_type == 'superadmin') {
-            // Admin can see all feedback - no filter needed
+        if ($this->can_view_all_feedback($user_type, $empId)) {
+            // Admin/superadmin and HR department can see all members' feedback - no filter needed
         } elseif ($user_type == 'business_head') {
             $dept_query = $this->db->query("SELECT department FROM employee_details WHERE empId = ? AND status = 'Active' LIMIT 1", array($empId));
             if ($dept_query->num_rows() > 0) {
@@ -759,14 +807,8 @@ class Feedback_Model extends CI_Model {
         $this->db->join('employee_details tm', 'tm.empId = ef.team_members', 'left');
 
         // Apply filters
-        // Date range filter
-        if (!empty($filters['from_date'])) {
-            $this->db->where('DATE(ef.created_at) >=', $filters['from_date']);
-        }
-
-        if (!empty($filters['to_date'])) {
-            $this->db->where('DATE(ef.created_at) <=', $filters['to_date']);
-        }
+        // Date range / emp / dept / type handled by shared helper (plus grid-specific filters below)
+        $this->apply_feedback_list_filters($filters);
 
         // Reporting Manager filter (comma-separated names)
         if (!empty($filters['reporting_manager'])) {
@@ -790,33 +832,12 @@ class Feedback_Model extends CI_Model {
             $this->db->where('ef.feedback_month', $filters['feedback_month']);
         }
 
-        if (!empty($filters['empId'])) {
-            $this->db->where('ef.empId', $filters['empId']);
-        }
-
-        if (!empty($filters['status'])) {
-            $this->db->where('ef.status', $filters['status']);
-        }
-
-        if (!empty($filters['department'])) {
-            $this->db->where('ef.department', $filters['department']);
-        }
-
-        if (!empty($filters['feedback_type'])) {
-            // Support both JSON array format and single value format
-            // Search in JSON array using LIKE for backward compatibility
-            $this->db->group_start();
-            $this->db->like('ef.feedback_type', $filters['feedback_type']);
-            $this->db->or_where('ef.feedback_type', $filters['feedback_type']);
-            $this->db->group_end();
-        }
-
         // Role-based filtering
         $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
         $empId = $this->session->userdata['logged_in_timesheet']['empId'];
 
-        if ($user_type == 'admin' || $user_type == 'superadmin') {
-            // Admin can see all feedback - no filter needed
+        if ($this->can_view_all_feedback($user_type, $empId)) {
+            // Admin/superadmin and HR department can see all members' feedback - no filter needed
         } elseif ($user_type == 'business_head') {
             // Business Head can see feedback filtered by their department
             // Use a separate query to get department to avoid interfering with main query

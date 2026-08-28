@@ -84,12 +84,13 @@ class Execution_plan extends CI_Controller {
 			$sheet->setCellValue('D1', 'End Date');
 			$sheet->setCellValue('E1', 'Billing Type');
 			$sheet->setCellValue('F1', 'Resources');
-			$sheet->setCellValue('G1', 'Timesheet Date');
-			$sheet->setCellValue('H1', 'Project Status');
-			$sheet->setCellValue('I1', 'Project Estimated Hours');
-			$sheet->setCellValue('J1', 'Timesheet Hours');
-			$sheet->setCellValue('K1', 'Invoice Hours');
-			$sheet->setCellValue('L1', $differenceColumnLabel);
+			$sheet->setCellValue('G1', 'Team Members');
+			$sheet->setCellValue('H1', 'Timesheet Date');
+			$sheet->setCellValue('I1', 'Project Status');
+			$sheet->setCellValue('J1', 'Project Estimated Hours');
+			$sheet->setCellValue('K1', 'Timesheet Hours');
+			$sheet->setCellValue('L1', 'Invoice Hours');
+			$sheet->setCellValue('M1', $differenceColumnLabel);
 		}
 
 		$headerStyle = array(
@@ -97,7 +98,7 @@ class Execution_plan extends CI_Controller {
 			'fill' => array('type' => PHPExcel_Style_Fill::FILL_SOLID, 'color' => array('rgb' => '2C5AA0')),
 			'alignment' => array('wrap' => true, 'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER, 'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER)
 		);
-		$sheet->getStyle($hideResourceColumn ? 'A1:K1' : 'A1:L1')->applyFromArray($headerStyle);
+		$sheet->getStyle($hideResourceColumn ? 'A1:K1' : 'A1:M1')->applyFromArray($headerStyle);
 		$sheet->getRowDimension(1)->setRowHeight(30);
 
 		$formatDate = function($value) {
@@ -155,6 +156,37 @@ class Execution_plan extends CI_Controller {
 			}
 			return implode(', ', $parts) . ' ( ' . count($parts) . ' )';
 		};
+		$formatTeamMembersCount = function($value, $excludeNames = array()) {
+			$value = trim((string)$value);
+			if ($value === '') {
+				return '';
+			}
+			$normalized = str_replace(array("\r\n", "\n", "\r", ';', '|'), ',', $value);
+			$parts = array_filter(array_map('trim', explode(',', $normalized)), function($item) {
+				return $item !== '' && strtolower($item) !== 'please choose team members';
+			});
+			$excludeMap = array();
+			foreach ((array)$excludeNames as $excludeName) {
+				$excludeKey = strtolower(trim((string)$excludeName));
+				if ($excludeKey !== '' && $excludeKey !== 'n/a') {
+					$excludeMap[$excludeKey] = true;
+				}
+			}
+			$unique = array();
+			foreach ($parts as $name) {
+				$key = strtolower($name);
+				if (isset($excludeMap[$key])) {
+					continue;
+				}
+				if (!isset($unique[$key])) {
+					$unique[$key] = $name;
+				}
+			}
+			if (empty($unique)) {
+				return '';
+			}
+			return '( ' . count($unique) . ' )';
+		};
 
 		$line = 2;
 		foreach ($clientGroups as $clientGroup) {
@@ -191,13 +223,14 @@ class Execution_plan extends CI_Controller {
 				$sheet->setCellValue('D' . $line, $clientEndDate);
 				$sheet->setCellValue('E' . $line, $clientBillingTypeDisplay);
 				$sheet->setCellValue('F' . $line, '');
-				$sheet->setCellValue('G' . $line, $clientTimesheetEntryDate);
-				$sheet->setCellValue('H' . $line, $clientStatus);
-				$sheet->setCellValue('I' . $line, $formatEstimatedHours($clientScheduleTotal));
-				$sheet->setCellValue('J' . $line, $formatHours($clientTimesheetTotal));
-				$sheet->setCellValue('K' . $line, $formatHours($clientInvoiceTotal));
-				$sheet->setCellValue('L' . $line, $formatHours($clientDiff));
-				$sheet->getStyle('A' . $line . ':L' . $line)->getFont()->setBold(true);
+				$sheet->setCellValue('G' . $line, '');
+				$sheet->setCellValue('H' . $line, $clientTimesheetEntryDate);
+				$sheet->setCellValue('I' . $line, $clientStatus);
+				$sheet->setCellValue('J' . $line, $formatEstimatedHours($clientScheduleTotal));
+				$sheet->setCellValue('K' . $line, $formatHours($clientTimesheetTotal));
+				$sheet->setCellValue('L' . $line, $formatHours($clientInvoiceTotal));
+				$sheet->setCellValue('M' . $line, $formatHours($clientDiff));
+				$sheet->getStyle('A' . $line . ':M' . $line)->getFont()->setBold(true);
 			}
 			$line++;
 
@@ -212,7 +245,7 @@ class Execution_plan extends CI_Controller {
 
 				if ($hideResourceColumn) {
 					$sheet->setCellValue('A' . $line, $projectManagerName);
-					$sheet->setCellValue('B' . $line, $projectName);
+					$sheet->setCellValue('B' . $line, '  > ' . $projectName);
 					$sheet->setCellValue('C' . $line, $formatDate(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''));
 					$sheet->setCellValue('D' . $line, $formatDate(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''));
 					$sheet->setCellValue('E' . $line, $formatBillingType(isset($projectRow->man_days) ? $projectRow->man_days : ''));
@@ -224,27 +257,74 @@ class Execution_plan extends CI_Controller {
 					$sheet->setCellValue('K' . $line, $formatHours($diff));
 				} else {
 					$sheet->setCellValue('A' . $line, $projectManagerName);
-					$sheet->setCellValue('B' . $line, $projectName);
+					$sheet->setCellValue('B' . $line, '  > ' . $projectName);
 					$sheet->setCellValue('C' . $line, $formatDate(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''));
 					$sheet->setCellValue('D' . $line, $formatDate(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''));
 					$sheet->setCellValue('E' . $line, $formatBillingType(isset($projectRow->man_days) ? $projectRow->man_days : ''));
 					$sheet->setCellValue('F' . $line, $formatTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
-					$sheet->setCellValue('G' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
-					$sheet->setCellValue('H' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
-					$sheet->setCellValue('I' . $line, $formatEstimatedHours($schedule));
-					$sheet->setCellValue('J' . $line, $formatHours($timesheet));
-					$sheet->setCellValue('K' . $line, $formatHours($invoice));
-					$sheet->setCellValue('L' . $line, $formatHours($diff));
+					$assignedTeamCount = isset($projectRow->assigned_team_count) ? (int)$projectRow->assigned_team_count : 0;
+					$sheet->setCellValue('G' . $line, ($assignedTeamCount > 0) ? '( ' . $assignedTeamCount . ' )' : '');
+					$sheet->setCellValue('H' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
+					$sheet->setCellValue('I' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
+					$sheet->setCellValue('J' . $line, $formatEstimatedHours($schedule));
+					$sheet->setCellValue('K' . $line, $formatHours($timesheet));
+					$sheet->setCellValue('L' . $line, $formatHours($invoice));
+					$sheet->setCellValue('M' . $line, $formatHours($diff));
 				}
 				$line++;
 			}
 		}
 
-		foreach ($hideResourceColumn ? array('A','B','C','D','E','F','G','H','I','J','K') : array('A','B','C','D','E','F','G','H','I','J','K','L') as $col) {
-			$sheet->getColumnDimension($col)->setAutoSize(true);
+		$lastCol = $hideResourceColumn ? 'K' : 'M';
+		$lastRow = ($line > 2) ? ($line - 1) : 1;
+		$usedRange = 'A1:' . $lastCol . $lastRow;
+
+		$sheet->getStyle($usedRange)->applyFromArray(array(
+			'alignment' => array(
+				'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER
+			),
+			'borders' => array(
+				'allborders' => array(
+					'style' => PHPExcel_Style_Border::BORDER_THIN,
+					'color' => array('rgb' => 'D0D5DD')
+				)
+			)
+		));
+		$centerAlign = array(
+			'alignment' => array(
+				'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+				'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER,
+				'wrap' => true
+			)
+		);
+		if ($hideResourceColumn) {
+			$sheet->getStyle('C2:' . $lastCol . $lastRow)->applyFromArray($centerAlign);
+			$columnWidths = array(
+				'A' => 24, 'B' => 34, 'C' => 15, 'D' => 15, 'E' => 14,
+				'F' => 15, 'G' => 14, 'H' => 18, 'I' => 15, 'J' => 15, 'K' => 16
+			);
+		} else {
+			$sheet->getStyle('C2:E' . $lastRow)->applyFromArray($centerAlign);
+			$sheet->getStyle('G2:' . $lastCol . $lastRow)->applyFromArray($centerAlign);
+			$sheet->getStyle('F2:F' . $lastRow)->getAlignment()
+				->setWrapText(true)
+				->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT)
+				->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+			$columnWidths = array(
+				'A' => 24, 'B' => 34, 'C' => 15, 'D' => 15, 'E' => 14,
+				'F' => 42, 'G' => 16, 'H' => 15, 'I' => 14,
+				'J' => 18, 'K' => 15, 'L' => 15, 'M' => 16
+			);
 		}
-		if (!$hideResourceColumn && $line > 2) {
-			$sheet->getStyle('F2:F' . ($line - 1))->getAlignment()->setWrapText(true)->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+		foreach ($columnWidths as $col => $width) {
+			$sheet->getColumnDimension($col)->setAutoSize(false);
+			$sheet->getColumnDimension($col)->setWidth($width);
+		}
+		$sheet->getStyle('A1:' . $lastCol . '1')->getAlignment()->setWrapText(true);
+		$sheet->freezePane('A2');
+		$sheet->getRowDimension(1)->setRowHeight(36);
+		for ($rowIndex = 2; $rowIndex <= $lastRow; $rowIndex++) {
+			$sheet->getRowDimension($rowIndex)->setRowHeight(-1);
 		}
 
 		$filename = 'Execution_Plan_Report_' . date('Ymd_His') . '.xlsx';

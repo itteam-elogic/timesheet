@@ -212,9 +212,53 @@ class Execution_plan_model extends CI_Model {
 		$this->db->where('(' . implode(' OR ', $conditions) . ')', null, false);
 	}
 
-	/**
-	 * Returns execution plan report rows filtered by dropdown values.
-	 */
+	private function get_active_team_member_name_map() {
+		$rows = $this->db->select('name')
+			->from('employee_details')
+			->where_in('user_type', array('developer', 'manager', 'admin', 'business_head', 'super_admin'))
+			->where('status', 'Active')
+			->get()
+			->result();
+		$map = array();
+		foreach ($rows as $row) {
+			$key = strtolower(trim((string)$row->name));
+			if ($key !== '') {
+				$map[$key] = true;
+			}
+		}
+		return $map;
+	}
+
+	private function count_assigned_team_members($assignedValue, $excludeNames = array(), $validNameMap = array()) {
+		$assignedValue = trim((string)$assignedValue);
+		if ($assignedValue === '') {
+			return 0;
+		}
+		$normalized = str_replace(array("\r\n", "\n", "\r", ';', '|'), ',', $assignedValue);
+		$parts = array_filter(array_map('trim', explode(',', $normalized)), function($item) {
+			return $item !== '' && strtolower($item) !== 'please choose team members';
+		});
+		$excludeMap = array();
+		foreach ((array)$excludeNames as $excludeName) {
+			$excludeKey = strtolower(trim((string)$excludeName));
+			if ($excludeKey !== '' && $excludeKey !== 'n/a') {
+				$excludeMap[$excludeKey] = true;
+			}
+		}
+		$unique = array();
+		foreach ($parts as $name) {
+			$key = strtolower($name);
+			if (isset($excludeMap[$key])) {
+				continue;
+			}
+			if (!empty($validNameMap) && !isset($validNameMap[$key])) {
+				continue;
+			}
+			$unique[$key] = true;
+		}
+		return count($unique);
+	}
+
 	public function get_execution_plan_report($params) {
 		$department      = isset($params['department']) ? (array)$params['department'] : array();
 		$client_Id       = isset($params['client_Id']) ? (array)$params['client_Id'] : array();
@@ -235,6 +279,7 @@ class Execution_plan_model extends CI_Model {
 		$tsDateFilter = $this->build_timesheet_date_filter_sql($fromDate, $toDate, 'emp_report_dates');
 		$tsGeneralDateFilter = $this->build_timesheet_date_filter_sql($fromDate, $toDate, 'erd.emp_report_dates');
 		$invoiceDateFilter = $this->build_invoice_date_filter_sql($fromKey, $toKey);
+		$this->db->query('SET SESSION group_concat_max_len = 32768');
 
 		$ts_totals = "(SELECT project_Id, client_Id,
 			SUM(emp_time_hours) as total_timesheet_hours,
@@ -242,6 +287,12 @@ class Execution_plan_model extends CI_Model {
 			FROM emp_record_details
 			WHERE 1=1{$tsDateFilter}
 			GROUP BY project_Id, client_Id) ts_totals";
+		$ts_resources = "(SELECT erd.project_Id, erd.client_Id,
+				GROUP_CONCAT(DISTINCT NULLIF(TRIM(emp.name), '') ORDER BY emp.name SEPARATOR ', ') as resource_names
+			FROM emp_record_details erd
+			INNER JOIN employee_details emp ON emp.empId = erd.empId
+			WHERE COALESCE(erd.emp_time_hours, 0) > 0{$tsGeneralDateFilter}
+			GROUP BY erd.project_Id, erd.client_Id) ts_resources";
 		$invoice_totals = "(SELECT project_Id, SUM(invoice_hours) as total_invoice_hours
 			FROM project_invoice_monthly{$invoiceDateFilter}
 			GROUP BY project_Id) invoice_totals";
@@ -253,6 +304,15 @@ class Execution_plan_model extends CI_Model {
 			INNER JOIN project_details gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
 			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'{$tsGeneralDateFilter}
 			GROUP BY gp.client_Id, LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))) ts_general_project_totals";
+		$ts_general_resources = "(SELECT gp.client_Id,
+				LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', ''))) as base_project_name,
+				GROUP_CONCAT(DISTINCT NULLIF(TRIM(emp.name), '') ORDER BY emp.name SEPARATOR ', ') as general_resource_names
+			FROM emp_record_details erd
+			INNER JOIN project_details gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
+			INNER JOIN employee_details emp ON emp.empId = erd.empId
+			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'
+				AND COALESCE(erd.emp_time_hours, 0) > 0{$tsGeneralDateFilter}
+			GROUP BY gp.client_Id, LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))) ts_general_resources";
 
 		$clientDateSubqueryBase = " FROM project_details p2
 			WHERE p2.client_Id = c.client_Id
@@ -264,7 +324,10 @@ class Execution_plan_model extends CI_Model {
 				p.project_start_date,
 				p.project_end_date,
 				p.man_days,
-				COALESCE(p.team_members, "") as team_members,
+				p.team_members as project_assigned_team,
+				p.p_manager as project_p_manager,
+				ts_resources.resource_names as timesheet_resource_names,
+				ts_general_resources.general_resource_names as general_resource_names,
 				COALESCE(NULLIF(TRIM(p.status), ""), "") as project_status,
 				COALESCE(p.estimated_hours, 0) as schedule_hours,
 				(COALESCE(ts_totals.total_timesheet_hours, 0) + COALESCE(ts_general_project_totals.general_timesheet_hours, 0)) as timesheet_hours,
@@ -292,8 +355,10 @@ class Execution_plan_model extends CI_Model {
 		$this->db->join('client_details as c', 'c.client_Id = p.client_Id', 'left');
 		$this->db->join('employee_details as emp', 'emp.empId = p.empId', 'left');
 		$this->db->join($ts_totals, 'ts_totals.project_Id = p.project_Id AND ts_totals.client_Id = p.client_Id', 'left');
+		$this->db->join($ts_resources, 'ts_resources.project_Id = p.project_Id AND ts_resources.client_Id = p.client_Id', 'left');
 		$this->db->join($invoice_totals, 'invoice_totals.project_Id = p.project_Id', 'left');
 		$this->db->join($ts_general_project_totals, "ts_general_project_totals.client_Id = p.client_Id AND ts_general_project_totals.base_project_name = LOWER(TRIM(p.project_name))", 'left');
+		$this->db->join($ts_general_resources, "ts_general_resources.client_Id = p.client_Id AND ts_general_resources.base_project_name = LOWER(TRIM(p.project_name))", 'left');
 		//$this->db->where('c.status', 'Active');
 		$this->db->where_not_in('c.client_Id', $this->get_elogic_client_ids());
 		$this->apply_general_project_exclusion();
@@ -352,7 +417,29 @@ class Execution_plan_model extends CI_Model {
 		$this->db->order_by('p.project_start_date', 'desc');
 		$this->db->order_by('p.project_name', 'desc');
 
-		return $this->db->get()->result();
+		$rows = $this->db->get()->result();
+		$validTeamNameMap = $this->get_active_team_member_name_map();
+		foreach ($rows as $row) {
+			$timesheetNames = isset($row->timesheet_resource_names) ? trim((string)$row->timesheet_resource_names) : '';
+			$generalNames = isset($row->general_resource_names) ? trim((string)$row->general_resource_names) : '';
+			$mergedResources = $timesheetNames;
+			if ($generalNames !== '') {
+				$mergedResources = ($mergedResources !== '') ? ($mergedResources . ', ' . $generalNames) : $generalNames;
+			}
+			$assignedTeam = isset($row->project_assigned_team) ? trim((string)$row->project_assigned_team) : '';
+			$row->assigned_team_members = $assignedTeam;
+			$row->team_members = $mergedResources;
+			$row->assigned_team_count = $this->count_assigned_team_members(
+				$assignedTeam,
+				array(
+					isset($row->project_manager_name) ? $row->project_manager_name : '',
+					isset($row->project_p_manager) ? $row->project_p_manager : ''
+				),
+				$validTeamNameMap
+			);
+			unset($row->timesheet_resource_names, $row->general_resource_names, $row->project_assigned_team, $row->project_p_manager);
+		}
+		return $rows;
 	}
 
 	public function get_filter_departments() {

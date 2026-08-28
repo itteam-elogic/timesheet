@@ -161,6 +161,7 @@
                         ?>
                         <option value="Monthly KPI Review" <?php echo ($selected_feedback_for == 'Monthly KPI Review') ? 'selected' : ''; ?>>Monthly KPI Review</option>
                         <option value="General Feedback" <?php echo ($selected_feedback_for == 'General Feedback') ? 'selected' : ''; ?>>General Feedback</option>
+                        <option value="Performance improvement plan (PIP)" <?php echo ($selected_feedback_for == 'Performance improvement plan (PIP)') ? 'selected' : ''; ?>>Performance improvement plan (PIP)</option>
                     </select>
                     <?php echo form_error('feedback_for', '<label class="error">', '</label>'); ?>
                 </div>

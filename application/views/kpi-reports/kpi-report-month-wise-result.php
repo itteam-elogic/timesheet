@@ -1145,32 +1145,33 @@ $months = [
         <th class="sortable" data-column="0" title="Reporting Manager" style="display: none;">Reporting Manager</th>
         <th class="sortable" data-column="1" title="Employee ID">Employee ID</th>
         <th class="sortable" data-column="2" title="Employee Name">Employee Name</th>
+        <th class="sortable" data-column="3" title="Clients worked">Client</th>
     <?php else: ?>
     <?php endif; ?>
 
-    <th class="sortable" data-column="3" title="Month">Month</th>
-    <th class="sortable" data-column="4" title="Productive Hours">Productive Hours</th>
-    <th class="sortable" data-column="5" title="Project General Hours">Project General Hours</th>
-    <th class="sortable" data-column="6" title="eLogic General Hours">eLogic General Hours</th>
-    <th class="sortable" data-column="7" title="Total Available Hours">Avail. Hours</th>
-    <th class="sortable" data-column="8" title="Availability%">Availability %</th>
-    <th class="sortable" data-column="9" title="Utilization%">Utilization %</th>
-    <th class="sortable" data-column="10" title="eLogic General Hours%">eLogic General Hours %</th>
-    <th class="sortable" data-column="11" title="Productive Hours%">Productive %</th>
-    <th class="sortable" data-column="12" title="Productivity Score">P Score</th>
-    <th class="sortable" data-column="13" title="Project General%">Proj. General %</th>
-    <th class="sortable" data-column="14" title="Project General Score">PG Score</th>
-    <th class="sortable" data-column="15" title="Quality Accuracy">Quality Acc.</th>
-    <th class="sortable" data-column="16" title="Quality Score">QA Score</th>
-    <th class="sortable" data-column="17" title="Process Adherence">Process Adh.</th>
-    <th class="sortable" data-column="18" title="Process Adherence Score">PA Score</th>
-    <th class="sortable" data-column="19" title="UPL and Attend not updated">Attend Not Upd.</th>
-    <th class="sortable" data-column="20" title="Attendance Score">Attend Score</th>
-    <th class="sortable" data-column="21" title="No of Late and Early Login">Late/Early Login</th>
-    <th class="sortable" data-column="22" title="No of Late and Early Login Score">L/E Score</th>
-    <th class="sortable" data-column="23" title="Above and Beyond">Above & Beyond</th>
-    <th class="sortable" data-column="24" title="Above and Beyond Score">A&B Score</th>
-    <th class="sortable" data-column="25" title="Total Score">Total</th>
+    <th class="sortable" data-column="4" title="Month">Month</th>
+    <th class="sortable" data-column="5" title="Productive Hours">Productive Hours</th>
+    <th class="sortable" data-column="6" title="Project General Hours">Project General Hours</th>
+    <th class="sortable" data-column="7" title="eLogic General Hours">eLogic General Hours</th>
+    <th class="sortable" data-column="8" title="Total Available Hours">Avail. Hours</th>
+    <th class="sortable" data-column="9" title="Availability%">Availability %</th>
+    <th class="sortable" data-column="10" title="Utilization%">Utilization %</th>
+    <th class="sortable" data-column="11" title="eLogic General Hours%">eLogic General Hours %</th>
+    <th class="sortable" data-column="12" title="Productive Hours%">Productive %</th>
+    <th class="sortable" data-column="13" title="Productivity Score">P Score</th>
+    <th class="sortable" data-column="14" title="Project General%">Proj. General %</th>
+    <th class="sortable" data-column="15" title="Project General Score">PG Score</th>
+    <th class="sortable" data-column="16" title="Quality Accuracy">Quality Acc.</th>
+    <th class="sortable" data-column="17" title="Quality Score">QA Score</th>
+    <th class="sortable" data-column="18" title="Process Adherence">Process Adh.</th>
+    <th class="sortable" data-column="19" title="Process Adherence Score">PA Score</th>
+    <th class="sortable" data-column="20" title="UPL and Attend not updated">Attend Not Upd.</th>
+    <th class="sortable" data-column="21" title="Attendance Score">Attend Score</th>
+    <th class="sortable" data-column="22" title="No of Late and Early Login">Late/Early Login</th>
+    <th class="sortable" data-column="23" title="No of Late and Early Login Score">L/E Score</th>
+    <th class="sortable" data-column="24" title="Above and Beyond">Above & Beyond</th>
+    <th class="sortable" data-column="25" title="Above and Beyond Score">A&B Score</th>
+    <th class="sortable" data-column="26" title="Total Score">Total</th>
 </tr>
 
 <style>
@@ -1251,11 +1252,17 @@ $months = [
         width: 95px !important;
     }
     #employeeTable thead th:nth-child(4) {
+        min-width: 190px !important;
+        width: 190px !important;
+        max-width: 190px !important;
+    }
+    #employeeTable thead th:nth-child(5) {
         min-width: 62px !important;
         width: 62px !important;
     }
     #employeeTable tbody tr {
         transition: background-color 0.15s ease;
+        height: 42px;
     }
     #employeeTable tbody tr:nth-of-type(even) {
         background-color: #f8fbff;
@@ -1266,11 +1273,14 @@ $months = [
     #employeeTable tbody td {
         text-align: center !important;
         vertical-align: middle !important;
-        padding: 10px 12px !important;
+        padding: 8px 10px !important;
         border: 1px solid #e0e8ef;
         min-width: 115px !important;
         width: 115px !important;
         box-sizing: border-box;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     #employeeTable tbody td:first-child {
         min-width: 1px !important;
@@ -1287,8 +1297,122 @@ $months = [
         padding-left: 14px !important;
     }
     #employeeTable tbody td:nth-child(4) {
+        text-align: left !important;
+        min-width: 190px !important;
+        width: 190px !important;
+        max-width: 190px !important;
+        padding: 6px 8px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        position: relative;
+    }
+    #employeeTable tbody td:nth-child(4) .kpi-client-cell {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        min-width: 0;
+        cursor: pointer;
+    }
+    #employeeTable tbody td:nth-child(4) .kpi-client-list {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 500;
+        color: #1e293b;
+        line-height: 1.35;
+    }
+    #employeeTable tbody td:nth-child(4) .kpi-client-more {
+        flex-shrink: 0;
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #e8f1f8;
+        color: #014b88;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    #employeeTable tbody td:nth-child(4) .kpi-client-tip-trigger:hover,
+    #employeeTable tbody td:nth-child(4) .kpi-client-tip-trigger:focus,
+    #employeeTable tbody td:nth-child(4) .kpi-client-tip-trigger.is-open {
+        outline: none;
+    }
+    #employeeTable tbody td:nth-child(4) .kpi-client-tip-trigger.is-open .kpi-client-more,
+    #employeeTable tbody td:nth-child(4) .kpi-client-tip-trigger:hover .kpi-client-more {
+        background: #014b88;
+        color: #fff;
+    }
+    #employeeTable tbody td:nth-child(5) {
         min-width: 62px !important;
         width: 62px !important;
+    }
+    #kpiClientFloatingTip {
+        display: none;
+        position: fixed;
+        z-index: 10050;
+        min-width: 250px;
+        max-width: 340px;
+        max-height: 280px;
+        overflow: auto;
+        padding: 12px 14px;
+        background: #ffffff;
+        border: 1px solid #cfe0ee;
+        border-radius: 10px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+        text-align: left;
+    }
+    #kpiClientFloatingTip.is-visible {
+        display: block;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #014b88;
+        margin-bottom: 8px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid #e8eef4;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-title span {
+        font-weight: 600;
+        color: #64748b;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #edf2f7;
+        font-size: 13px;
+        line-height: 1.35;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-list li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-name {
+        color: #1e293b;
+        font-weight: 500;
+        word-break: break-word;
+    }
+    #kpiClientFloatingTip .kpi-client-tip-hours {
+        flex-shrink: 0;
+        color: #014b88;
+        font-weight: 700;
+        background: #eef6fb;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
     }
 </style>
 
@@ -1455,6 +1579,48 @@ foreach ($monthLoopPairs as $monthPair):
         echo $nameParts[0]; // Output the first name (first part of the name)
         ?>
     </strong>
+                                                        </td>
+                                                        <?php
+                                                        $workedClients = isset($preload['clients'][$kpiResult->empId][$currentMonth][$monthYear])
+                                                            ? $preload['clients'][$kpiResult->empId][$currentMonth][$monthYear]
+                                                            : $this->kpi_reports_model->getClientsWorkedOnMonthWise($kpiResult->empId, $currentMonth, $monthYear);
+                                                        $clientNames = array();
+                                                        if ($workedClients !== '' && $workedClients !== null) {
+                                                            $clientNames = preg_split('/,\s*/', $workedClients);
+                                                            $clientNames = array_values(array_filter(array_map('trim', $clientNames)));
+                                                        }
+                                                        $clientCount = count($clientNames);
+                                                        $clientPreview = $clientCount > 0 ? implode(', ', array_slice($clientNames, 0, 2)) : '';
+                                                        $clientExtra = $clientCount > 2 ? ($clientCount - 2) : 0;
+                                                        $clientTooltipRows = array();
+                                                        foreach ($clientNames as $clientToken) {
+                                                            $clientName = $clientToken;
+                                                            $clientHours = '';
+                                                            if (preg_match('/^(.*)\(([^()]*)\)\s*$/', $clientToken, $m)) {
+                                                                $clientName = trim($m[1]);
+                                                                $clientHours = trim($m[2]);
+                                                            }
+                                                            $clientTooltipRows[] = array(
+                                                                'name' => $clientName,
+                                                                'hours' => $clientHours
+                                                            );
+                                                        }
+                                                        ?>
+                                                        <td class="kpi-client-td<?php echo $clientCount > 0 ? ' has-clients' : ''; ?>">
+                                                            <?php if ($clientCount === 0): ?>
+                                                                <span class="kpi-client-list">—</span>
+                                                            <?php else: ?>
+                                                                <div class="kpi-client-cell kpi-client-tip-trigger"
+                                                                     tabindex="0"
+                                                                     aria-label="View all clients"
+                                                                     data-client-count="<?php echo (int) $clientCount; ?>"
+                                                                     data-clients="<?php echo htmlspecialchars(json_encode($clientTooltipRows), ENT_QUOTES, 'UTF-8'); ?>">
+                                                                    <span class="kpi-client-list"><?php echo htmlspecialchars($clientPreview, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                                    <?php if ($clientExtra > 0): ?>
+                                                                        <span class="kpi-client-more">+<?php echo (int) $clientExtra; ?></span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            <?php endif; ?>
                                                         </td>
                                                     <?php endif; ?>
 
@@ -1912,24 +2078,24 @@ th.sortable.active-sort {
         width: 81px; /* Increase width for Department, Reporting Manager, Employee */
     }
     
-     #employeeTable th:nth-child(4), #employeeTable th:nth-child(5), #employeeTable th:nth-child(6), #employeeTable th:nth-child(7),
-    #employeeTable td:nth-child(4), #employeeTable td:nth-child(5), #employeeTable td:nth-child(6), #employeeTable td:nth-child(7)
+     #employeeTable th:nth-child(5), #employeeTable th:nth-child(6), #employeeTable th:nth-child(7), #employeeTable th:nth-child(8),
+    #employeeTable td:nth-child(5), #employeeTable td:nth-child(6), #employeeTable td:nth-child(7), #employeeTable td:nth-child(8)
     {
     width: 65px !important;
 }
 
-    #employeeTable th:nth-child(8),#employeeTable th:nth-child(9), #employeeTable th:nth-child(10), #employeeTable th:nth-child(12),#employeeTable th:nth-child(14), #employeeTable th:nth-child(24),
-    #employeeTable td:nth-child(8),#employeeTable td:nth-child(9), #employeeTable td:nth-child(10),  #employeeTable td:nth-child(12),#employeeTable td:nth-child(14), #employeeTable td:nth-child(24){
+    #employeeTable th:nth-child(9),#employeeTable th:nth-child(10), #employeeTable th:nth-child(11), #employeeTable th:nth-child(13),#employeeTable th:nth-child(15), #employeeTable th:nth-child(25),
+    #employeeTable td:nth-child(9),#employeeTable td:nth-child(10), #employeeTable td:nth-child(11),  #employeeTable td:nth-child(13),#employeeTable td:nth-child(15), #employeeTable td:nth-child(25){
     width: 66px !important;
 }
     
-  #employeeTable th:nth-child(11), #employeeTable th:nth-child(13),#employeeTable th:nth-child(15), #employeeTable th:nth-child(16), #employeeTable th:nth-child(17), #employeeTable th:nth-child(18), #employeeTable th:nth-child(19), #employeeTable th:nth-child(20), #employeeTable th:nth-child(21), #employeeTable th:nth-child(22), #employeeTable th:nth-child(23), 
-  #employeeTable td:nth-child(11), #employeeTable td:nth-child(13),#employeeTable td:nth-child(15), #employeeTable td:nth-child(16), #employeeTable td:nth-child(17), #employeeTable td:nth-child(18), #employeeTable td:nth-child(19), #employeeTable td:nth-child(20), #employeeTable td:nth-child(21), #employeeTable td:nth-child(22), #employeeTable td:nth-child(23) {
+  #employeeTable th:nth-child(12), #employeeTable th:nth-child(14),#employeeTable th:nth-child(16), #employeeTable th:nth-child(17), #employeeTable th:nth-child(18), #employeeTable th:nth-child(19), #employeeTable th:nth-child(20), #employeeTable th:nth-child(21), #employeeTable th:nth-child(22), #employeeTable th:nth-child(23), #employeeTable th:nth-child(24), 
+  #employeeTable td:nth-child(12), #employeeTable td:nth-child(14),#employeeTable td:nth-child(16), #employeeTable td:nth-child(17), #employeeTable td:nth-child(18), #employeeTable td:nth-child(19), #employeeTable td:nth-child(20), #employeeTable td:nth-child(21), #employeeTable td:nth-child(22), #employeeTable td:nth-child(23), #employeeTable td:nth-child(24) {
     width: 63px !important;
 }
 
-    #employeeTable th:nth-child(25),
-    #employeeTable td:nth-child(25){
+    #employeeTable th:nth-child(26),
+    #employeeTable td:nth-child(26){
     width: 65px !important;
 }
 
@@ -1953,6 +2119,12 @@ th.sortable.active-sort {
 }
 #employeeTable.table thead th:nth-child(4),
 #employeeTable.table tbody td:nth-child(4) {
+    min-width: 190px !important;
+    width: 190px !important;
+    max-width: 190px !important;
+}
+#employeeTable.table thead th:nth-child(5),
+#employeeTable.table tbody td:nth-child(5) {
     min-width: 62px !important;
     width: 62px !important;
 }
@@ -1962,6 +2134,151 @@ th.sortable.active-sort {
                     
 </div>
                     
+      <script>
+(function () {
+    var tipEl = null;
+    var hideTimer = null;
+    var activeTrigger = null;
+
+    function ensureTip() {
+        if (tipEl) return tipEl;
+        tipEl = document.createElement('div');
+        tipEl.id = 'kpiClientFloatingTip';
+        tipEl.setAttribute('role', 'tooltip');
+        document.body.appendChild(tipEl);
+        tipEl.addEventListener('mouseenter', function () {
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
+            }
+        });
+        tipEl.addEventListener('mouseleave', function () {
+            scheduleHide();
+        });
+        return tipEl;
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildTipHtml(count, clients) {
+        var html = '<div class="kpi-client-tip-title">Clients worked <span>(' + escapeHtml(count) + ')</span></div><ul class="kpi-client-tip-list">';
+        (clients || []).forEach(function (row) {
+            html += '<li><span class="kpi-client-tip-name">' + escapeHtml(row.name || '') + '</span>';
+            if (row.hours !== undefined && row.hours !== null && String(row.hours) !== '') {
+                html += '<span class="kpi-client-tip-hours">' + escapeHtml(row.hours) + 'h</span>';
+            }
+            html += '</li>';
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    function positionTip(trigger) {
+        var tip = ensureTip();
+        var rect = trigger.getBoundingClientRect();
+        var tipWidth = tip.offsetWidth || 280;
+        var tipHeight = tip.offsetHeight || 160;
+        var left = rect.left;
+        var top = rect.bottom + 8;
+
+        if (left + tipWidth > window.innerWidth - 12) {
+            left = Math.max(12, window.innerWidth - tipWidth - 12);
+        }
+        if (top + tipHeight > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - tipHeight - 8);
+        }
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+    }
+
+    function showTip(trigger) {
+        var tip = ensureTip();
+        var clients = [];
+        try {
+            clients = JSON.parse(trigger.getAttribute('data-clients') || '[]');
+        } catch (e) {
+            clients = [];
+        }
+        var count = trigger.getAttribute('data-client-count') || clients.length;
+        tip.innerHTML = buildTipHtml(count, clients);
+        tip.classList.add('is-visible');
+        positionTip(trigger);
+        if (activeTrigger && activeTrigger !== trigger) {
+            activeTrigger.classList.remove('is-open');
+        }
+        activeTrigger = trigger;
+        trigger.classList.add('is-open');
+    }
+
+    function hideTip() {
+        var tip = ensureTip();
+        tip.classList.remove('is-visible');
+        if (activeTrigger) {
+            activeTrigger.classList.remove('is-open');
+            activeTrigger = null;
+        }
+    }
+
+    function scheduleHide() {
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(hideTip, 180);
+    }
+
+    document.addEventListener('mouseover', function (e) {
+        var trigger = e.target.closest('.kpi-client-tip-trigger');
+        if (!trigger) return;
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+        showTip(trigger);
+    });
+
+    document.addEventListener('mouseout', function (e) {
+        var trigger = e.target.closest('.kpi-client-tip-trigger');
+        if (!trigger) return;
+        var related = e.relatedTarget;
+        if (related && (trigger.contains(related) || (tipEl && tipEl.contains(related)))) {
+            return;
+        }
+        scheduleHide();
+    });
+
+    document.addEventListener('click', function (e) {
+        var trigger = e.target.closest('.kpi-client-tip-trigger');
+        if (trigger) {
+            e.preventDefault();
+            if (activeTrigger === trigger && tipEl && tipEl.classList.contains('is-visible')) {
+                hideTip();
+            } else {
+                showTip(trigger);
+            }
+            return;
+        }
+        if (tipEl && tipEl.contains(e.target)) {
+            return;
+        }
+        hideTip();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hideTip();
+    });
+
+    window.addEventListener('scroll', function () {
+        if (activeTrigger && tipEl && tipEl.classList.contains('is-visible')) {
+            positionTip(activeTrigger);
+        }
+    }, true);
+})();
+</script>
       <script>                             
    
 

@@ -98,6 +98,7 @@
                         <option value="">Select Feedback Type</option>
                         <option value="Monthly KPI Review">Monthly KPI Review</option>
                         <option value="General Feedback">General Feedback</option>
+                        <option value="Performance improvement plan (PIP)">Performance improvement plan (PIP)</option>
                     </select>
                     <?php echo form_error('feedback_for', '<label class="error">', '</label>'); ?>
                 </div>

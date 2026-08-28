@@ -1558,7 +1558,7 @@ public function getMonthWiseReportDataBatch($empIds, $empComIdByEmpId, $empDeptB
     $defaulter = [];
     $quality = [];
     if (empty($empIds) || empty($monthYearPairs)) {
-        return ['production' => $production, 'perk' => $perk, 'lms' => $lms, 'defaulter' => $defaulter, 'quality' => $quality];
+        return ['production' => $production, 'perk' => $perk, 'lms' => $lms, 'defaulter' => $defaulter, 'quality' => $quality, 'clients' => []];
     }
     $empIds = array_values(array_unique(array_filter($empIds)));
     $empComIds = array_values(array_unique(array_filter($empComIdByEmpId)));
@@ -1724,7 +1724,122 @@ public function getMonthWiseReportDataBatch($empIds, $empComIdByEmpId, $empDeptB
         }
     }
 
-    return ['production' => $production, 'perk' => $perk, 'lms' => $lms, 'defaulter' => $defaulter, 'quality' => $quality];
+    // 6. Clients worked by employee for each month with hours (exclude General / eLogic Solutions)
+    $clients = [];
+    foreach ($empIds as $eid) {
+        foreach ($monthYearPairs as $p) {
+            $clients[$eid][(int)$p['month']][(int)$p['year']] = '';
+        }
+    }
+    $this->db->select('emp_record_details.empId, YEAR(emp_record_details.emp_report_dates) AS y, MONTH(emp_record_details.emp_report_dates) AS m, client_details.client_name, SUM(emp_record_details.emp_time_hours) AS client_hours', false);
+    $this->db->from('emp_record_details');
+    $this->db->join('client_details', 'client_details.client_Id = emp_record_details.client_id', 'inner');
+    $this->db->join('project_details', 'emp_record_details.project_Id = project_details.project_Id', 'left');
+    $this->db->where_in('emp_record_details.empId', $empIds);
+    $this->db->where_in('emp_record_details.status', array('Approved', 'Unapproved', 'Rejected'));
+    $this->db->where("client_details.client_name IS NOT NULL", null, false);
+    $this->db->where("TRIM(client_details.client_name) != ''", null, false);
+    $this->db->where("client_details.client_name NOT LIKE '%eLogic Solutions%' ESCAPE '!'");
+    $this->db->where("IFNULL(project_details.project_name, '') !=", 'General');
+    $this->db->where("IFNULL(project_details.project_name, '') NOT LIKE '%(General)%'");
+    if (!empty($monthConds)) {
+        $this->db->where('(' . implode(' OR ', $monthConds) . ')', null, false);
+    }
+    $this->db->group_by('emp_record_details.empId, YEAR(emp_record_details.emp_report_dates), MONTH(emp_record_details.emp_report_dates), client_details.client_name');
+    $clientRows = $this->db->get()->result();
+    $clientsAccum = array();
+    foreach ($clientRows as $cr) {
+        $cname = trim((string) $cr->client_name);
+        if ($cname === '') {
+            continue;
+        }
+        $cy = (int) $cr->y;
+        $cm = (int) $cr->m;
+        $ceid = $cr->empId;
+        if (!isset($clients[$ceid][$cm][$cy])) {
+            continue;
+        }
+        if (!isset($clientsAccum[$ceid][$cm][$cy])) {
+            $clientsAccum[$ceid][$cm][$cy] = array();
+        }
+        $hours = isset($cr->client_hours) ? (float) $cr->client_hours : 0;
+        if (!isset($clientsAccum[$ceid][$cm][$cy][$cname])) {
+            $clientsAccum[$ceid][$cm][$cy][$cname] = 0;
+        }
+        $clientsAccum[$ceid][$cm][$cy][$cname] += $hours;
+    }
+    foreach ($clientsAccum as $ceid => $byMonth) {
+        foreach ($byMonth as $cm => $byYear) {
+            foreach ($byYear as $cy => $nameHours) {
+                arsort($nameHours, SORT_NUMERIC);
+                $parts = array();
+                foreach ($nameHours as $cname => $hours) {
+                    if (function_exists('kpi_hours_display')) {
+                        $hoursLabel = kpi_hours_display($hours);
+                    } else {
+                        $hoursLabel = (fmod($hours, 1.0) == 0.0) ? (string) (int) $hours : rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.');
+                    }
+                    $parts[] = $cname . '(' . $hoursLabel . ')';
+                }
+                $clients[$ceid][$cm][$cy] = implode(', ', $parts);
+            }
+        }
+    }
+
+    return ['production' => $production, 'perk' => $perk, 'lms' => $lms, 'defaulter' => $defaulter, 'quality' => $quality, 'clients' => $clients];
+}
+
+/**
+ * Clients an employee worked for in a given month with hours, e.g. "PM Design(80), KEO(30)".
+ */
+public function getClientsWorkedOnMonthWise($empId, $monthId, $year = null) {
+    $currentYear = date('Y');
+    if ($year !== null && is_numeric($year)) {
+        $previousMonthYear = (int) $year;
+    } elseif ((int) $monthId == 12) {
+        $previousMonthYear = $currentYear - 1;
+    } else {
+        $previousMonthYear = $currentYear;
+    }
+
+    if (empty($empId)) {
+        return '';
+    }
+
+    $query = $this->db
+        ->select('client_details.client_name, SUM(emp_record_details.emp_time_hours) AS client_hours', false)
+        ->from('emp_record_details')
+        ->join('client_details', 'client_details.client_Id = emp_record_details.client_id', 'inner')
+        ->join('project_details', 'emp_record_details.project_Id = project_details.project_Id', 'left')
+        ->where('emp_record_details.empId', $empId)
+        ->where_in('emp_record_details.status', array('Approved', 'Unapproved', 'Rejected'))
+        ->where('YEAR(emp_record_details.emp_report_dates)', $previousMonthYear)
+        ->where('MONTH(emp_record_details.emp_report_dates)', $monthId)
+        ->where("client_details.client_name IS NOT NULL", null, false)
+        ->where("TRIM(client_details.client_name) != ''", null, false)
+        ->where("client_details.client_name NOT LIKE '%eLogic Solutions%' ESCAPE '!'")
+        ->where("IFNULL(project_details.project_name, '') !=", 'General')
+        ->where("IFNULL(project_details.project_name, '') NOT LIKE '%(General)%'")
+        ->group_by('client_details.client_name')
+        ->order_by('client_hours', 'DESC')
+        ->get()
+        ->result();
+
+    $parts = array();
+    foreach ($query as $row) {
+        $cname = trim((string) $row->client_name);
+        if ($cname === '') {
+            continue;
+        }
+        $hours = isset($row->client_hours) ? (float) $row->client_hours : 0;
+        if (function_exists('kpi_hours_display')) {
+            $hoursLabel = kpi_hours_display($hours);
+        } else {
+            $hoursLabel = (fmod($hours, 1.0) == 0.0) ? (string) (int) $hours : rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.');
+        }
+        $parts[] = $cname . '(' . $hoursLabel . ')';
+    }
+    return !empty($parts) ? implode(', ', $parts) : '';
 }
 
 //func to get projects worked on by employee in a month

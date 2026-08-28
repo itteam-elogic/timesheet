@@ -2561,6 +2561,7 @@ public function generateMonthWiseEmpDataExcel_mep()
             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Reporting Manager');
             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Employee ID');
             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Employee Name');
+            $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Client');
             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Month');
         }
         $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $reportStartRow - 1, 'Productive Hours');
@@ -2722,6 +2723,10 @@ public function generateMonthWiseEmpDataExcel_mep()
                             $empFirstName = (isset($kpiResult->name) && $kpiResult->name !== '') ? strtok($kpiResult->name, ' ') : '';
                             if ($empFirstName === false) $empFirstName = '';
                             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $row, (string)$empFirstName);
+                            $workedClients = isset($preload['clients'][$kpiResult->empId][$currentMonthInt][$monthYear])
+                                ? $preload['clients'][$kpiResult->empId][$currentMonthInt][$monthYear]
+                                : $this->kpi_reports_model->getClientsWorkedOnMonthWise($kpiResult->empId, $currentMonthInt, $monthYear);
+                            $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $row, $workedClients !== '' ? $workedClients : '—');
                             // Add short month name with year (matching grid display)
                             $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($columnIndex++, $row, $shortMonthNames[$currentMonthInt] . ' - ' . $monthYear);
                         }
@@ -4415,8 +4420,8 @@ public function editFeedback($feedback_id = NULL) {
     $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
     $is_admin = in_array($user_type, ['admin', 'superadmin']);
     
-    // Can edit if user is admin, reporting manager, creator, or team member
-    $can_edit = $is_admin || 
+    // Can edit if user is admin, reporting manager, creator, or team member (HR is view-only)
+    $can_edit = $is_admin ||
                 ($feedback_reporting_manager > 0 && $feedback_reporting_manager == $logged_in_empId) || 
                 ($feedback_empId > 0 && $feedback_empId == $logged_in_empId) || 
                 ($feedback_team_member > 0 && $feedback_team_member == $logged_in_empId);
@@ -4521,7 +4526,8 @@ public function updateFeedbackForm() {
     $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
     $is_admin = in_array($user_type, ['admin', 'superadmin']);
     
-    $can_edit = $is_admin || 
+    // HR is view-only; can edit if admin, reporting manager, creator, or team member
+    $can_edit = $is_admin ||
                 ($feedback_reporting_manager > 0 && $feedback_reporting_manager == $logged_in_empId) || 
                 ($feedback_empId > 0 && $feedback_empId == $logged_in_empId) || 
                 ($feedback_team_member > 0 && $feedback_team_member == $logged_in_empId);
@@ -5135,6 +5141,12 @@ public function feedbackReports() {
     
     // Get current filters for view
     $data['filters'] = $filters;
+
+    // HR department and admin/superadmin can view all members' feedback (and related UI controls)
+    $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
+    $empId = $this->session->userdata['logged_in_timesheet']['empId'];
+    $data['can_view_all_feedback'] = $this->feedback_model->can_view_all_feedback($user_type, $empId);
+    $data['is_hr_user'] = $this->feedback_model->is_hr_department_user($empId);
     
     // Pagination links
     $data['pagination_links'] = $this->pagination->create_links();

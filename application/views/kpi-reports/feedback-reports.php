@@ -1,3 +1,19 @@
+<?php
+$user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
+$logged_emp_id = isset($this->session->userdata['logged_in_timesheet']['empId'])
+    ? $this->session->userdata['logged_in_timesheet']['empId']
+    : null;
+// Always resolve HR from employee_details so Actions stays View-only for HR
+if (!isset($is_hr_user) || $is_hr_user === null) {
+    $is_hr_user = $this->feedback_model->is_hr_department_user($logged_emp_id);
+} else {
+    $is_hr_user = !empty($is_hr_user) || $this->feedback_model->is_hr_department_user($logged_emp_id);
+}
+$can_view_all_feedback = !empty($can_view_all_feedback) || in_array($user_type, ['admin', 'superadmin']) || $is_hr_user;
+// Managers/admins can manage (edit/update); HR can submit + view all, but Actions stay view-only
+$can_manage_feedback = !$is_hr_user && in_array($user_type, ['admin', 'manager', 'business_head', 'superadmin']);
+$can_submit_feedback = $can_manage_feedback || $is_hr_user;
+?>
 <?php $this->load->view('includes/cRMHeader'); ?>
 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -8,7 +24,7 @@
             <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: #333;">Employee Feedback Reports</h1>
         </div>
         <div>
-            <?php if (in_array($this->session->userdata['logged_in_timesheet']['user_type'], ['admin', 'manager', 'business_head', 'superadmin'])): ?>
+            <?php if ($can_submit_feedback): ?>
             <a href="<?php echo base_url('kpi_reports/feedbackForm'); ?>" class="btn btn-primary" style="padding: 10px 20px; font-weight: 600; border-radius: 4px;">
                 <i class="fa fa-plus"></i> Submit New Feedback
             </a>
@@ -110,13 +126,15 @@
                             <label style="font-weight: 600; margin-bottom: 8px; display: block; color: #333;">Department:</label>
                             <select name="department" id="department" class="form-control" style="height: 40px; border-radius: 4px; border: 1px solid #ced4da;">
                                 <option value="">All Departments</option>
-                                <option value="Architectural" <?php echo (isset($filters['department']) && $filters['department'] == 'Architectural') ? 'selected' : ''; ?>>Architectural</option>
-                                <option value="Structural" <?php echo (isset($filters['department']) && $filters['department'] == 'Structural') ? 'selected' : ''; ?>>Structural</option>
-                                <option value="MEP" <?php echo (isset($filters['department']) && $filters['department'] == 'MEP') ? 'selected' : ''; ?>>MEP</option>
-                                <option value="3D Visualization" <?php echo (isset($filters['department']) && $filters['department'] == '3D Visualization') ? 'selected' : ''; ?>>3D Visualization</option>
-                                <option value="HR" <?php echo (isset($filters['department']) && $filters['department'] == 'HR') ? 'selected' : ''; ?>>HR</option>
-                                <option value="Software" <?php echo (isset($filters['department']) && $filters['department'] == 'Software') ? 'selected' : ''; ?>>Software</option>
-                                <option value="IT" <?php echo (isset($filters['department']) && $filters['department'] == 'IT') ? 'selected' : ''; ?>>IT</option>
+                                <?php
+                                $departmentOptions = function_exists('ts_department_options')
+                                    ? ts_department_options()
+                                    : array('Architectural','Structural','MEP','3D Visualization','2D Auto CAD','HR','Software','IT','Business Development','Accounting','Others');
+                                $selectedDept = isset($filters['department']) ? $filters['department'] : '';
+                                foreach ($departmentOptions as $deptOption):
+                                ?>
+                                <option value="<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ($selectedDept == $deptOption) ? 'selected' : ''; ?>><?php echo htmlspecialchars($deptOption); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -125,12 +143,23 @@
                             <label style="font-weight: 600; margin-bottom: 8px; display: block; color: #333;">Feedback Type:</label>
                             <select name="feedback_type" id="feedback_type" class="form-control" style="height: 40px; border-radius: 4px; border: 1px solid #ced4da;">
                                 <option value="">All Types</option>
-                                <option value="Productivity & Efficiency" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Productivity & Efficiency') ? 'selected' : ''; ?>>Productivity & Efficiency</option>
-                                <option value="Quality Improvement" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Quality Improvement') ? 'selected' : ''; ?>>Quality Improvement</option>
-                                <option value="Technical Knowledge & Skill Development" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Technical Knowledge & Skill Development') ? 'selected' : ''; ?>>Technical Knowledge & Skill Development</option>
-                                <option value="Ownership & Accountability" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Ownership & Accountability') ? 'selected' : ''; ?>>Ownership & Accountability</option>
-                                <option value="Innovation" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Innovation') ? 'selected' : ''; ?>>Innovation</option>
-                                <option value="Communication & Coordination" <?php echo (isset($filters['feedback_type']) && $filters['feedback_type'] == 'Communication & Coordination') ? 'selected' : ''; ?>>Communication & Coordination</option>
+                                <?php
+                                $feedbackTypeOptions = array(
+                                    'Monthly KPI Review',
+                                    'General Feedback',
+                                    'Performance improvement plan (PIP)',
+                                    'Productivity & Efficiency',
+                                    'Quality Improvement',
+                                    'Technical Knowledge & Skill Development',
+                                    'Ownership & Accountability',
+                                    'Innovation',
+                                    'Communication & Coordination'
+                                );
+                                $selectedFType = isset($filters['feedback_type']) ? $filters['feedback_type'] : '';
+                                foreach ($feedbackTypeOptions as $ftypeOption):
+                                ?>
+                                <option value="<?php echo htmlspecialchars($ftypeOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ($selectedFType == $ftypeOption) ? 'selected' : ''; ?>><?php echo htmlspecialchars($ftypeOption); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -148,14 +177,14 @@
                             <input type="date" name="to_date" class="form-control" value="<?php echo isset($filters['to_date']) ? $filters['to_date'] : ''; ?>" style="height: 40px; border-radius: 4px; border: 1px solid #ced4da;">
                         </div>
                     </div>
-                    <?php if (in_array($this->session->userdata['logged_in_timesheet']['user_type'], ['admin', 'business_head', 'manager'])): ?>
+                    <?php if ($can_manage_feedback || $can_view_all_feedback): ?>
                     <div class="col-md-3">
                         <div class="form-group" style="margin-bottom: 20px;">
                             <label style="font-weight: 600; margin-bottom: 8px; display: block; color: #333;">Employee:</label>
                             <select name="empId" id="empId" class="form-control" style="height: 40px; border-radius: 4px; border: 1px solid #ced4da;">
                                 <option value="">All Employees</option>
                                 <?php foreach ($employees as $emp): ?>
-                                    <option value="<?php echo $emp->empId; ?>" <?php echo (isset($filters['empId']) && $filters['empId'] == $emp->empId) ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $emp->empId; ?>" <?php echo (isset($filters['empId']) && (string)$filters['empId'] === (string)$emp->empId) ? 'selected' : ''; ?>>
                                         <?php echo $emp->name . ' (' . $emp->department . ')'; ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -164,11 +193,11 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group" style="margin-bottom: 20px;">
-                            <label style="font-weight: 600; margin-bottom: 8px; display: block; color: #333;">Assigned To:</label>
+                            <label style="font-weight: 600; margin-bottom: 8px; display: block; color: #333;">Reporting Manager:</label>
                             <select name="assigned_to" id="assigned_to" class="form-control" style="height: 40px; border-radius: 4px; border: 1px solid #ced4da;">
                                 <option value="">All Managers</option>
                                 <?php foreach ($managers as $mgr): ?>
-                                    <option value="<?php echo $mgr->empId; ?>" <?php echo (isset($filters['assigned_to']) && $filters['assigned_to'] == $mgr->empId) ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $mgr->empId; ?>" <?php echo (isset($filters['assigned_to']) && (string)$filters['assigned_to'] === (string)$mgr->empId) ? 'selected' : ''; ?>>
                                         <?php echo $mgr->name; ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -315,26 +344,31 @@
                                         <a href="<?php echo base_url('kpi_reports/viewFeedback/' . $feedback->feedback_id); ?>" class="btn btn-sm btn-info" title="View Details" style="padding: 6px 12px; border-radius: 4px; margin-right: 5px;">
                                             <i class="fa fa-eye"></i>
                                         </a>
-                                        <?php 
-                                        // Check: Show update button if user is reporting manager OR team member
-                                        $logged_in_empId = intval($this->session->userdata['logged_in_timesheet']['empId']);
-                                        $feedback_reporting_manager = !empty($feedback->reporting_manager) ? intval($feedback->reporting_manager) : 0;
-                                        $feedback_empId = !empty($feedback->empId) ? intval($feedback->empId) : 0;
-                                        $feedback_team_member = !empty($feedback->team_members) ? intval($feedback->team_members) : 0;
-                                        
-                                        // Can update if user is reporting manager OR team member
-                                        $can_update = ($feedback_reporting_manager > 0 && $feedback_reporting_manager == $logged_in_empId) || 
-                                                     ($feedback_empId > 0 && $feedback_empId == $logged_in_empId) || 
-                                                     ($feedback_team_member > 0 && $feedback_team_member == $logged_in_empId);
+                                        <?php
+                                        // HR department users: View only (no Edit / Update Status)
+                                        if (!$is_hr_user):
+                                            $logged_in_empId = intval($this->session->userdata['logged_in_timesheet']['empId']);
+                                            $feedback_reporting_manager = !empty($feedback->reporting_manager) ? intval($feedback->reporting_manager) : 0;
+                                            $feedback_empId = !empty($feedback->empId) ? intval($feedback->empId) : 0;
+                                            $feedback_team_member = !empty($feedback->team_members) ? intval($feedback->team_members) : 0;
+
+                                            $can_update = $can_manage_feedback ||
+                                                         ($feedback_reporting_manager > 0 && $feedback_reporting_manager == $logged_in_empId) ||
+                                                         ($feedback_empId > 0 && $feedback_empId == $logged_in_empId) ||
+                                                         ($feedback_team_member > 0 && $feedback_team_member == $logged_in_empId);
+
+                                            if ($can_update):
                                         ?>
-                                        <?php if ($can_update): ?>
                                             <a href="<?php echo base_url('kpi_reports/editFeedback/' . $feedback->feedback_id); ?>" class="btn btn-sm btn-warning" title="Edit Feedback Form" style="padding: 6px 12px; border-radius: 4px; margin-right: 5px; color: white;">
                                                 <i class="fa fa-edit"></i> Edit
                                             </a>
                                             <button type="button" class="btn btn-sm btn-primary" onclick="openUpdateStatusModal(<?php echo $feedback->feedback_id; ?>, '<?php echo addslashes($feedback->status); ?>', '<?php echo addslashes($feedback->response); ?>')" title="Update Status" style="padding: 6px 12px; border-radius: 4px;">
                                                 <i class="fa fa-check"></i> Update Status
                                             </button>
-                                        <?php endif; ?>
+                                        <?php
+                                            endif;
+                                        endif;
+                                        ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -356,8 +390,8 @@
     </div>
 </div>
 
-<!-- Update Modal for Managers/Admins -->
-<?php if (in_array($this->session->userdata['logged_in_timesheet']['user_type'], ['admin', 'business_head', 'manager'])): ?>
+<!-- Update Modal for Managers/Admins/HR -->
+<?php if ($can_manage_feedback): ?>
 <div class="modal fade" id="updateModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
