@@ -189,15 +189,9 @@
                                             <?php endif; ?>
                                         </td>
                                         <td style="text-align: center; vertical-align: middle; padding: 12px; border: 1px solid #dee2e6;">
-                                            <?php
-                                            $status_class = '';
-                                            switch($feedback->status) {
-                                                case 'Sent': $status_class = 'info'; break;
-                                                case 'Acknowledge': $status_class = 'success'; break;
-                                                default: $status_class = 'secondary'; break;
-                                            }
-                                            ?>
-                                            <span class="badge badge-<?php echo $status_class; ?>" style="padding: 6px 12px; font-size: 12px; border-radius: 15px;"><?php echo $feedback->status; ?></span>
+                                            <span class="badge feedback-status-badge <?php echo $this->feedback_model->get_feedback_status_badge_class($feedback->status); ?>" style="padding: 6px 12px; font-size: 12px; border-radius: 15px;">
+                                                <?php echo htmlspecialchars($this->feedback_model->get_feedback_status_label($feedback->status)); ?>
+                                            </span>
                                         </td>
                                         <td style="text-align: center; vertical-align: middle; padding: 12px; border: 1px solid #dee2e6;">
                                             <a href="<?php echo base_url('kpi_reports/viewFeedback/' . $feedback->feedback_id); ?>" class="btn btn-sm btn-info" title="View Details" style="padding: 6px 12px; border-radius: 4px; transition: all 0.3s;">
@@ -224,6 +218,22 @@
 </div>
 
 <style>
+.feedback-status-badge {
+    font-weight: 600;
+    color: #fff !important;
+    border: none;
+    display: inline-block;
+    white-space: nowrap;
+}
+.feedback-status-pending {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+.feedback-status-acknowledged {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+.feedback-status-default {
+    background-color: #6c757d !important;
+}
 .content-wrapper {
     padding: 20px;
     background-color: #f5f7fa;

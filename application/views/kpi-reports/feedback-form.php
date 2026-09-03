@@ -47,26 +47,24 @@
             <div class="form-group">
                 <label class="control-label col-md-3">Department: <span class="required-star">*</span></label>
                 <div class="col-md-6">
-                    <select class="form-control" name="department" id="department" required onchange="loadReportingManagers(); loadTeamMembers();">
+                    <select class="form-control" name="department" id="department" required onchange="loadReportingManagers();">
                         <option value="">Select Department</option>
-                        <?php 
+                        <?php
+                        $departmentOptions = $this->feedback_model->get_feedback_form_department_options();
                         $selected_dept = '';
                         if (isset($is_edit_mode) && $is_edit_mode && isset($feedback)) {
                             $selected_dept = $feedback->department;
                         } elseif (isset($current_emp)) {
                             $selected_dept = $current_emp->department;
                         }
+                        if ($this->feedback_model->is_feedback_software_operations_department($selected_dept)) {
+                            $selected_dept = 'Software & Operations';
+                        }
+                        foreach ($departmentOptions as $deptOption):
+                            $isSelected = ($selected_dept === $deptOption);
                         ?>
-                        <option value="Architectural" <?php echo ($selected_dept == 'Architectural') ? 'selected' : ''; ?>>Architectural</option>
-                        <option value="Structural" <?php echo ($selected_dept == 'Structural') ? 'selected' : ''; ?>>Structural</option>
-                        <option value="MEP" <?php echo ($selected_dept == 'MEP') ? 'selected' : ''; ?>>MEP</option>
-                        <option value="3D Visualization" <?php echo ($selected_dept == '3D Visualization') ? 'selected' : ''; ?>>3D Visualization</option>
-                        <option value="HR" <?php echo ($selected_dept == 'HR') ? 'selected' : ''; ?>>HR</option>
-                        <option value="Software" <?php echo ($selected_dept == 'Software') ? 'selected' : ''; ?>>Software</option>
-                        <option value="IT" <?php echo ($selected_dept == 'IT') ? 'selected' : ''; ?>>IT</option>
-                        <option value="Operations Manager" <?php echo ($selected_dept == 'Operations Manager') ? 'selected' : ''; ?>>Operations Manager</option>
-                        <option value="Business Development" <?php echo ($selected_dept == 'Business Development') ? 'selected' : ''; ?>>Business Development</option>
-                        <option value="Others" <?php echo ($selected_dept == 'Others') ? 'selected' : ''; ?>>Others</option>
+                        <option value="<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $isSelected ? 'selected' : ''; ?>><?php echo htmlspecialchars($deptOption); ?></option>
+                        <?php endforeach; ?>
                     </select>
                     <?php echo form_error('department', '<label class="error">', '</label>'); ?>
                 </div>
@@ -105,7 +103,7 @@
             <div class="form-group">
                 <label class="control-label col-md-3">Reporting Manager: <span class="required-star">*</span></label>
                 <div class="col-md-6">
-                    <select class="form-control" name="reporting_manager" id="reporting_manager" required onchange="loadProjectCoordinators();">
+                    <select class="form-control" name="reporting_manager" id="reporting_manager" required onchange="loadProjectCoordinators(); loadTeamMembers();">
                         <option value="">Select Reporting Manager</option>
                     </select>
                     <?php echo form_error('reporting_manager', '<label class="error">', '</label>'); ?>
@@ -252,10 +250,12 @@ function loadReportingManagers() {
     var department = $('#department').val();
     $('#reporting_manager').html('<option value="">Loading...</option>');
     $('#project_coordinator').html('<option value="">Select Project Coordinator</option>');
+    $('#team_members').html('<option value="">Select Team Member</option>');
     
     // Trigger select2 update
     $('#reporting_manager').trigger('change.select2');
     $('#project_coordinator').trigger('change.select2');
+    $('#team_members').trigger('change.select2');
     
     if (!department) {
         $('#reporting_manager').html('<option value="">Select Reporting Manager</option>');
@@ -286,6 +286,11 @@ function loadReportingManagers() {
                         selected = ' selected';
                         loggedInUserFound = true;
                     }
+                    // Software / Operations: auto-select the assigned reporting manager
+                    else if (!isEditMode && data.length === 1) {
+                        selected = ' selected';
+                        loggedInUserFound = true;
+                    }
                     options += '<option value="' + manager.empId + '"' + selected + '>' + manager.name + '</option>';
                 });
             }
@@ -293,9 +298,9 @@ function loadReportingManagers() {
             $('#reporting_manager').html(options);
             $('#reporting_manager').trigger('change.select2');
             
-            // If logged-in user was found and selected, automatically load project coordinators
-            if ((loggedInUserFound && loggedInEmpId) || editModeSelected) {
+            if ($('#reporting_manager').val()) {
                 loadProjectCoordinators();
+                loadTeamMembers();
             }
         },
         error: function() {
@@ -307,6 +312,7 @@ function loadReportingManagers() {
 
 function loadProjectCoordinators() {
     var manager_id = $('#reporting_manager').val();
+    var department = $('#department').val();
     $('#project_coordinator').html('<option value="">Loading...</option>');
     $('#project_coordinator').trigger('change.select2');
     
@@ -319,7 +325,10 @@ function loadProjectCoordinators() {
     $.ajax({
         url: '<?php echo base_url('kpi_reports/getProjectCoordinatorsByManager'); ?>',
         type: 'POST',
-        data: { manager_id: manager_id },
+        data: {
+            manager_id: manager_id,
+            department: department
+        },
         dataType: 'json',
         success: function(data) {
             var options = '<option value="">Select Project Coordinator</option>';
@@ -354,10 +363,11 @@ function loadProjectCoordinators() {
 
 function loadTeamMembers() {
     var department = $('#department').val();
+    var reportingManagerId = $('#reporting_manager').val();
     $('#team_members').html('<option value="">Loading...</option>');
     $('#team_members').trigger('change.select2');
     
-    if (!department) {
+    if (!reportingManagerId) {
         $('#team_members').html('<option value="">Select Team Member</option>');
         $('#team_members').trigger('change.select2');
         return;
@@ -366,20 +376,25 @@ function loadTeamMembers() {
     $.ajax({
         url: '<?php echo base_url('kpi_reports/getTeamMembersByDept'); ?>',
         type: 'POST',
-        data: { department: department },
+        data: {
+            department: department,
+            reporting_manager: reportingManagerId
+        },
         dataType: 'json',
         success: function(data) {
             var options = '<option value="">Select Team Member</option>';
             if (data && data.length > 0) {
                 $.each(data, function(index, member) {
                     var selected = '';
-                    // In edit mode, select the saved team member
                     if (isEditMode && editFeedbackData && editFeedbackData.team_members == member.empId) {
                         selected = ' selected';
                     }
                     var displayName = member.name;
                     if (member.emp_com_id) {
                         displayName += ' (' + member.emp_com_id + ')';
+                    }
+                    if (member.designation) {
+                        displayName += ' - ' + member.designation;
                     }
                     options += '<option value="' + member.empId + '"' + selected + '>' + displayName + '</option>';
                 });
@@ -466,7 +481,6 @@ $(document).ready(function() {
     var dept = $('#department').val();
     if (dept) {
         loadReportingManagers();
-        loadTeamMembers();
     }
     
     // Also check on department change if logged-in user should be auto-selected
@@ -477,7 +491,10 @@ $(document).ready(function() {
                 if ($('#reporting_manager').val() != loggedInEmpId && !isEditMode) {
                     $('#reporting_manager').val(loggedInEmpId).trigger('change.select2');
                     loadProjectCoordinators();
+                    loadTeamMembers();
                 }
+            } else if ($('#reporting_manager').val()) {
+                loadTeamMembers();
             }
         }, 500);
     });

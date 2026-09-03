@@ -1,5 +1,15 @@
 <?php $this->load->view('includes/cRMHeader'); ?>
 <div class="content-wrapper">
+	<div id="ep_page_loader" class="ep-page-loader">
+		<div class="ep-page-loader-content">
+			<div class="ep-page-loader-spinner"><i class="fa fa-spinner fa-spin"></i></div>
+			<div class="ep-page-loader-text">
+				<strong>Please wait</strong>
+				<span>Loading filters and data...</span>
+			</div>
+		</div>
+	</div>
+	<iframe id="ep_export_iframe" name="ep_export_iframe" style="display:none;"></iframe>
 	<div class="page-title">
 		<div>
 			<h1><i class="fa fa-paper-plane"></i> Execution Plan</h1>
@@ -465,16 +475,16 @@
 							<th class="ep-col-date">Start Date</th>
 							<th class="ep-col-date">End Date</th>
 							<th class="ep-col-billing">Billing Type</th>
-							<?php if (!$hideResourceColumn): ?>
-							<th class="ep-col-resources">Resources</th>
-							<th class="ep-col-team">Team Members</th>
-							<?php endif; ?>
 							<th class="ep-col-date">Timesheet Date</th>
 							<th class="ep-col-status">Project Status</th>
 							<th class="ep-col-hours">Project Estimated Hours</th>
 							<th class="ep-col-hours">Timesheet Hours</th>
 							<th class="ep-col-hours">Invoice Hours</th>
 							<th class="ep-col-hours" style="text-transform:none !important;"><?php echo $differenceColumnLabel; ?></th>
+							<?php if (!$hideResourceColumn): ?>
+							<th class="ep-col-resources">Resources</th>
+							<th class="ep-col-team">Team Members</th>
+							<?php endif; ?>
 						</tr>
 					</thead>
 					<tbody>
@@ -509,16 +519,16 @@
 							<td class="date-cell"><?php echo !empty($clientStartDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientStartDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo !empty($clientEndDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientEndDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><strong><?php echo htmlspecialchars($clientBillingTypeDisplay, ENT_QUOTES, 'UTF-8'); ?></strong></td>
-							<?php if (!$hideResourceColumn): ?>
-							<td class="num-cell"></td>
-							<td class="num-cell"></td>
-							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($clientTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($clientTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_client_status_badge($clientStatus); ?></td>
 							<td class="num-cell"><strong><?php echo execution_plan_estimated_hours_display($clientScheduleTotal); ?></strong></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientTimesheetTotal); ?></strong></td>
 							<td class="num-cell"><strong><?php echo execution_plan_hours_display($clientInvoiceTotal); ?></strong></td>
 							<td class="num-cell diff-cell <?php echo $clientDiffClass; ?>"><strong><?php echo execution_plan_hours_display($clientDiff); ?></strong></td>
+							<?php if (!$hideResourceColumn): ?>
+							<td class="num-cell"></td>
+							<td class="num-cell"></td>
+							<?php endif; ?>
 						</tr>
 						<?php foreach ($clientData['projects'] as $projectRow):
 							$scheduleHours = !empty($projectRow->schedule_hours) ? (float)$projectRow->schedule_hours : 0;
@@ -545,16 +555,16 @@
 							<td class="date-cell"><?php echo !empty($projectStartDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectStartDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo !empty($projectEndDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectEndDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo htmlspecialchars(execution_plan_man_days_display(isset($projectRow->man_days) ? $projectRow->man_days : ''), ENT_QUOTES, 'UTF-8'); ?></td>
-							<?php if (!$hideResourceColumn): ?>
-							<td class="resource-names-cell"><?php echo $projectResourceNames; ?></td>
-							<td class="num-cell"><?php echo $projectAssignedTeamCount; ?></td>
-							<?php endif; ?>
 							<td class="date-cell"><?php echo !empty($projectTimesheetEntryDate) ? '<i class="fa fa-calendar"></i> ' . htmlspecialchars($projectTimesheetEntryDate, ENT_QUOTES, 'UTF-8') : ''; ?></td>
 							<td class="date-cell"><?php echo execution_plan_project_status_badge(isset($projectRow->project_status) ? $projectRow->project_status : ''); ?></td>
 							<td class="num-cell"><?php echo execution_plan_estimated_hours_display($scheduleHours); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($timesheetHours); ?></td>
 							<td class="num-cell"><?php echo execution_plan_hours_display($invoiceHours); ?></td>
 							<td class="num-cell <?php echo $projectDiffClass; ?>"><?php echo execution_plan_hours_display($projectDiff); ?></td>
+							<?php if (!$hideResourceColumn): ?>
+							<td class="resource-names-cell"><?php echo $projectResourceNames; ?></td>
+							<td class="num-cell"><?php echo $projectAssignedTeamCount; ?></td>
+							<?php endif; ?>
 						</tr>
 						<?php endforeach; ?>
 						<?php endforeach; ?>
@@ -662,6 +672,63 @@
 	.execution-plan-grand-total td {
 		background: #eef3f7;
 		border-top: 2px solid #2c5aa0;
+	}
+	.ep-page-loader {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(20, 36, 58, 0.62);
+		z-index: 9999;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.ep-page-loader.hidden {
+		display: none;
+	}
+	.ep-page-loader-content {
+		background: linear-gradient(180deg, #2c5aa0 0%, #1f447c 100%);
+		border: 1px solid #18406f;
+		box-shadow: 0 12px 32px rgba(12, 24, 40, 0.35);
+		border-radius: 12px;
+		padding: 18px 22px;
+		color: #fff;
+		min-width: 280px;
+		display: inline-flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.ep-page-loader-spinner {
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.14);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 auto;
+	}
+	.ep-page-loader-content .fa {
+		color: #fff;
+		font-size: 18px;
+	}
+	.ep-page-loader-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.25;
+	}
+	.ep-page-loader-text strong {
+		font-size: 16px;
+		font-weight: 700;
+		letter-spacing: 0.2px;
+	}
+	.ep-page-loader-text span {
+		font-size: 13px;
+		font-weight: 500;
+		opacity: 0.9;
+		margin-top: 2px;
 	}
 
 	#execution_plan_table thead th {
@@ -1062,6 +1129,32 @@ $(document).ready(function() {
 	var epSearchUrl = "<?php echo base_url('execution_plan'); ?>";
 	var epExportUrl = "<?php echo base_url('execution_plan/export_report'); ?>";
 	var epCurrentYear = String(<?php echo (int)date('Y'); ?>);
+	var $epPageLoader = $("#ep_page_loader");
+	var epLoaderCounter = 1;
+	var epExportInProgress = false;
+	var epExportHideTimer = null;
+
+	function showEpPageLoader() {
+		epLoaderCounter++;
+		$epPageLoader.removeClass("hidden");
+	}
+
+	function hideEpPageLoader() {
+		epLoaderCounter = Math.max(0, epLoaderCounter - 1);
+		if (epLoaderCounter === 0) {
+			$epPageLoader.addClass("hidden");
+		}
+	}
+
+	function forceHideEpPageLoader() {
+		epLoaderCounter = 0;
+		epExportInProgress = false;
+		if (epExportHideTimer) {
+			clearTimeout(epExportHideTimer);
+			epExportHideTimer = null;
+		}
+		$epPageLoader.addClass("hidden");
+	}
 
 	function updateSelectedBg($select) {
 		var value = $select.val();
@@ -1233,7 +1326,8 @@ $(document).ready(function() {
 
 	function loadClientsByDepartment(loadProjectsAfter) {
 		var departments = $("#department").val() || [];
-		$.ajax({
+		showEpPageLoader();
+		return $.ajax({
 			url: clientsByDepartmentUrl,
 			type: "POST",
 			dataType: "json",
@@ -1244,13 +1338,16 @@ $(document).ready(function() {
 			if (loadProjectsAfter) {
 				loadProjectsByClient();
 			}
+		}).always(function() {
+			hideEpPageLoader();
 		});
 	}
 
 	function loadProjectsByClient() {
 		var departments = $("#department").val() || [];
 		var clientIds = $("#client_Id").val() || [];
-		$.ajax({
+		showEpPageLoader();
+		return $.ajax({
 			url: projectsByClientUrl,
 			type: "POST",
 			dataType: "json",
@@ -1261,6 +1358,8 @@ $(document).ready(function() {
 		}).done(function(response) {
 			var projects = response && response.projects ? response.projects : [];
 			setSelectOptions($("#project_Id"), projects, "project_Id", "project_name");
+		}).always(function() {
+			hideEpPageLoader();
 		});
 	}
 
@@ -1275,6 +1374,10 @@ $(document).ready(function() {
 	if (($("#department").val() || []).length > 0 || ($("#client_Id").val() || []).length > 0) {
 		loadClientsByDepartment(true);
 	}
+
+	$(".page-title a.btn.btn-primary.btn-flat").on("click", function() {
+		showEpPageLoader();
+	});
 
 	$("#ep_current_year_btn").on("click", function() {
 		var currentYear = String($(this).data("year") || "");
@@ -1408,6 +1511,8 @@ $(document).ready(function() {
 	});
 
 	$("#ep_export_report_btn").on("click", function() {
+		epExportInProgress = true;
+		showEpPageLoader();
 		var $form = $("#execution_plan_search_form");
 		enforceExecutionPlanDateRange("");
 		["from_year", "to_year", "from_month", "to_month"].forEach(function(fieldId) {
@@ -1419,12 +1524,34 @@ $(document).ready(function() {
 			updateSelectedBg($field);
 		});
 		var originalAction = $form.attr("action");
+		var originalTarget = $form.attr("target");
 		$form.attr("action", epExportUrl);
+		$form.attr("target", "ep_export_iframe");
 		$form.trigger("submit");
 		$form.attr("action", originalAction);
+		if (originalTarget) {
+			$form.attr("target", originalTarget);
+		} else {
+			$form.removeAttr("target");
+		}
+		if (epExportHideTimer) {
+			clearTimeout(epExportHideTimer);
+		}
+		epExportHideTimer = setTimeout(function() {
+			forceHideEpPageLoader();
+		}, 2500);
+	});
+
+	$("#ep_export_iframe").on("load", function() {
+		if (epExportInProgress) {
+			forceHideEpPageLoader();
+		}
 	});
 
 	$("#execution_plan_search_form").on("submit", function() {
+		if (!epExportInProgress) {
+			showEpPageLoader();
+		}
 		enforceExecutionPlanDateRange("");
 		["from_year", "to_year", "from_month", "to_month"].forEach(function(fieldId) {
 			var $field = $("#" + fieldId);
@@ -1457,6 +1584,7 @@ $(document).ready(function() {
 	}
 
 	syncActiveStatusButton();
+	hideEpPageLoader();
 });
 </script>
 

@@ -1,7 +1,7 @@
 <!-- Inlude Header here -->
 <?php $this->load->view('includes/cRMHeader'); ?>
 <?php $getUpdateId = $this->uri->segment('3'); // Update Segment ?>
-<?php $departmentOptions = function_exists('ts_department_options') ? ts_department_options() : array('Architectural','Structural','MEP','3D Visualization','2D Auto CAD','HR','Software','IT','Operations Manager','Accounting','Business Development','Others'); ?>
+<?php $departmentOptions = function_exists('ts_department_options') ? ts_department_options() : array('Architectural','Structural','MEP','3D Visualization','2D Auto CAD','HR','Software','IT','Operations Manager','Accounting','Business Development','Management','Others'); ?>
 <div class="content-wrapper">
   <div class="page-title">
     <div>

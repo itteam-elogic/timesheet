@@ -107,15 +107,9 @@
                             <tr>
                                 <th>Status:</th>
                                 <td>
-                                    <?php
-                                    $status_class = '';
-                                    switch($fb->status) {
-                                        case 'Sent': $status_class = 'info'; break;
-                                        case 'Acknowledge': $status_class = 'success'; break;
-                                        default: $status_class = 'secondary'; break;
-                                    }
-                                    ?>
-                                    <span class="badge badge-<?php echo $status_class; ?>"><?php echo $fb->status; ?></span>
+                                    <span class="badge feedback-status-badge <?php echo $this->feedback_model->get_feedback_status_badge_class($fb->status); ?>">
+                                        <?php echo htmlspecialchars($this->feedback_model->get_feedback_status_label($fb->status)); ?>
+                                    </span>
                                 </td>
                             </tr>
                             <tr>
@@ -177,6 +171,26 @@
 }
 .well {
     word-wrap: break-word;
+}
+
+.feedback-status-badge {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 15px;
+    color: #fff !important;
+    border: none;
+    display: inline-block;
+    white-space: nowrap;
+}
+.feedback-status-pending {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+.feedback-status-acknowledged {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+.feedback-status-default {
+    background-color: #6c757d !important;
 }
 
 /* Back to Reports Button Styling */

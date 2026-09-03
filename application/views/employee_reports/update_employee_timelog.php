@@ -185,14 +185,14 @@ $(function() {
 
 
 
-<?php if($hideDateSection >= '2026-06-05') : ?>
+<?php if($hideDateSection >= '2026-09-05') : ?>
     
     $('#emp_report_dates').datepicker({
         dateFormat: 'yy-mm-dd',        
         autoclose: true,         
         todayHighlight: true,        
-        minDate: "2026-06-01",
-		 maxDate : "2026-07-05",
+        minDate: "2026-09-01",
+		 maxDate : "2026-10-05",
         //maxDate: new Date()
     });
     
@@ -202,8 +202,8 @@ $(function() {
         dateFormat: 'yy-mm-dd',        
         autoclose: true,         
         todayHighlight: true,        
-        minDate: "2026-05-01",
-		    maxDate : "2026-06-05",
+         minDate: "2026-08-01",
+		     maxDate : "2026-09-05",
          //maxDate: new Date()
          
         

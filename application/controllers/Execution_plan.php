@@ -83,14 +83,14 @@ class Execution_plan extends CI_Controller {
 			$sheet->setCellValue('C1', 'Start Date');
 			$sheet->setCellValue('D1', 'End Date');
 			$sheet->setCellValue('E1', 'Billing Type');
-			$sheet->setCellValue('F1', 'Resources');
-			$sheet->setCellValue('G1', 'Team Members');
-			$sheet->setCellValue('H1', 'Timesheet Date');
-			$sheet->setCellValue('I1', 'Project Status');
-			$sheet->setCellValue('J1', 'Project Estimated Hours');
-			$sheet->setCellValue('K1', 'Timesheet Hours');
-			$sheet->setCellValue('L1', 'Invoice Hours');
-			$sheet->setCellValue('M1', $differenceColumnLabel);
+			$sheet->setCellValue('F1', 'Timesheet Date');
+			$sheet->setCellValue('G1', 'Project Status');
+			$sheet->setCellValue('H1', 'Project Estimated Hours');
+			$sheet->setCellValue('I1', 'Timesheet Hours');
+			$sheet->setCellValue('J1', 'Invoice Hours');
+			$sheet->setCellValue('K1', $differenceColumnLabel);
+			$sheet->setCellValue('L1', 'Resources');
+			$sheet->setCellValue('M1', 'Team Members');
 		}
 
 		$headerStyle = array(
@@ -222,14 +222,14 @@ class Execution_plan extends CI_Controller {
 				$sheet->setCellValue('C' . $line, $clientStartDate);
 				$sheet->setCellValue('D' . $line, $clientEndDate);
 				$sheet->setCellValue('E' . $line, $clientBillingTypeDisplay);
-				$sheet->setCellValue('F' . $line, '');
-				$sheet->setCellValue('G' . $line, '');
-				$sheet->setCellValue('H' . $line, $clientTimesheetEntryDate);
-				$sheet->setCellValue('I' . $line, $clientStatus);
-				$sheet->setCellValue('J' . $line, $formatEstimatedHours($clientScheduleTotal));
-				$sheet->setCellValue('K' . $line, $formatHours($clientTimesheetTotal));
-				$sheet->setCellValue('L' . $line, $formatHours($clientInvoiceTotal));
-				$sheet->setCellValue('M' . $line, $formatHours($clientDiff));
+				$sheet->setCellValue('F' . $line, $clientTimesheetEntryDate);
+				$sheet->setCellValue('G' . $line, $clientStatus);
+				$sheet->setCellValue('H' . $line, $formatEstimatedHours($clientScheduleTotal));
+				$sheet->setCellValue('I' . $line, $formatHours($clientTimesheetTotal));
+				$sheet->setCellValue('J' . $line, $formatHours($clientInvoiceTotal));
+				$sheet->setCellValue('K' . $line, $formatHours($clientDiff));
+				$sheet->setCellValue('L' . $line, '');
+				$sheet->setCellValue('M' . $line, '');
 				$sheet->getStyle('A' . $line . ':M' . $line)->getFont()->setBold(true);
 			}
 			$line++;
@@ -261,15 +261,15 @@ class Execution_plan extends CI_Controller {
 					$sheet->setCellValue('C' . $line, $formatDate(isset($projectRow->project_start_date) ? $projectRow->project_start_date : ''));
 					$sheet->setCellValue('D' . $line, $formatDate(isset($projectRow->project_end_date) ? $projectRow->project_end_date : ''));
 					$sheet->setCellValue('E' . $line, $formatBillingType(isset($projectRow->man_days) ? $projectRow->man_days : ''));
-					$sheet->setCellValue('F' . $line, $formatTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
+					$sheet->setCellValue('F' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
+					$sheet->setCellValue('G' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
+					$sheet->setCellValue('H' . $line, $formatEstimatedHours($schedule));
+					$sheet->setCellValue('I' . $line, $formatHours($timesheet));
+					$sheet->setCellValue('J' . $line, $formatHours($invoice));
+					$sheet->setCellValue('K' . $line, $formatHours($diff));
+					$sheet->setCellValue('L' . $line, $formatTeamMembers(isset($projectRow->team_members) ? $projectRow->team_members : ''));
 					$assignedTeamCount = isset($projectRow->assigned_team_count) ? (int)$projectRow->assigned_team_count : 0;
-					$sheet->setCellValue('G' . $line, ($assignedTeamCount > 0) ? '( ' . $assignedTeamCount . ' )' : '');
-					$sheet->setCellValue('H' . $line, $formatDate(isset($projectRow->timesheet_entry_date) ? $projectRow->timesheet_entry_date : ''));
-					$sheet->setCellValue('I' . $line, $formatStatus(isset($projectRow->project_status) ? $projectRow->project_status : ''));
-					$sheet->setCellValue('J' . $line, $formatEstimatedHours($schedule));
-					$sheet->setCellValue('K' . $line, $formatHours($timesheet));
-					$sheet->setCellValue('L' . $line, $formatHours($invoice));
-					$sheet->setCellValue('M' . $line, $formatHours($diff));
+					$sheet->setCellValue('M' . $line, ($assignedTeamCount > 0) ? '( ' . $assignedTeamCount . ' )' : '');
 				}
 				$line++;
 			}
@@ -304,16 +304,16 @@ class Execution_plan extends CI_Controller {
 				'F' => 15, 'G' => 14, 'H' => 18, 'I' => 15, 'J' => 15, 'K' => 16
 			);
 		} else {
-			$sheet->getStyle('C2:E' . $lastRow)->applyFromArray($centerAlign);
-			$sheet->getStyle('G2:' . $lastCol . $lastRow)->applyFromArray($centerAlign);
-			$sheet->getStyle('F2:F' . $lastRow)->getAlignment()
+			$sheet->getStyle('C2:K' . $lastRow)->applyFromArray($centerAlign);
+			$sheet->getStyle('M2:M' . $lastRow)->applyFromArray($centerAlign);
+			$sheet->getStyle('L2:L' . $lastRow)->getAlignment()
 				->setWrapText(true)
 				->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT)
 				->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
 			$columnWidths = array(
 				'A' => 24, 'B' => 34, 'C' => 15, 'D' => 15, 'E' => 14,
-				'F' => 42, 'G' => 16, 'H' => 15, 'I' => 14,
-				'J' => 18, 'K' => 15, 'L' => 15, 'M' => 16
+				'F' => 15, 'G' => 14, 'H' => 18, 'I' => 15, 'J' => 15, 'K' => 16,
+				'L' => 42, 'M' => 16
 			);
 		}
 		foreach ($columnWidths as $col => $width) {

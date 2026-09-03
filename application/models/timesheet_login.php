@@ -476,6 +476,49 @@ if (!empty($to_month)) {
 	}
 
 	/**
+	 * Employees used for department headcount (Active + Inactive, no created_at date filter).
+	 */
+	public function getEmployeesForHeadcount($filters = array()) {
+		$department = $this->normalizeMultiFilterValues(isset($filters['department']) ? $filters['department'] : array());
+		$projectManager = $this->normalizeMultiFilterValues(isset($filters['project_manager']) ? $filters['project_manager'] : array());
+
+		$this->db->select('empId, name, department, emp_joining_date, created_at, updated_at, status, user_type');
+		$this->db->from('employee_details');
+
+		if (!empty($department)) {
+			$departmentFilters = array();
+			foreach ($department as $deptValue) {
+				$deptKey = strtolower(trim((string)$deptValue));
+				if ($deptKey === 'operations' || $deptKey === 'hr' || $deptKey === 'recruiter' || $deptKey === 'accounting' || $deptKey === 'admin & hr' || $deptKey === 'admin and hr' || $deptKey === 'hr / recruiter / operations / accounting') {
+					$departmentFilters[] = 'HR';
+					$departmentFilters[] = 'Recruiter';
+					$departmentFilters[] = 'Admin';
+					$departmentFilters[] = 'Admin & HR';
+					$departmentFilters[] = 'Operations';
+					$departmentFilters[] = 'Operations Manager';
+					$departmentFilters[] = 'Accounting';
+					continue;
+				}
+				if ($deptKey === 'software' || $deptKey === 'it' || $deptKey === 'software / it' || $deptKey === 'software/it') {
+					$departmentFilters[] = 'Software';
+					$departmentFilters[] = 'IT';
+					continue;
+				}
+				$departmentFilters[] = $deptValue;
+			}
+			$departmentFilters = array_values(array_unique($departmentFilters));
+			$this->db->where_in('department', $departmentFilters);
+		}
+
+		if (!empty($projectManager)) {
+			$this->db->where_in('reporting_manger', $projectManager);
+		}
+
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	/**
 	 * Get distinct department names from employee_details for dropdown (multi-select).
 	 */
 	public function getDistinctEmployeeDepartments() {

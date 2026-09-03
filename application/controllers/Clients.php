@@ -1643,8 +1643,8 @@ public function rs_vs_ts(){ // Resource Billability feature
 		$emailConfig = array('mailtype' => 'html', 'charset' => 'utf-8');
 		$this->email->initialize($emailConfig);
 		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
-		$this->email->to('laxmikanth@elogictech.com');
-		//$this->email->to('elogic_pms@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
+		//$this->email->to('laxmikanth@elogictech.com');
+		$this->email->to('elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
 		// Use single date label in DD MMM YYYY format for subject/body
 		$reportDateLabel = !empty($formDate) ? date('d M Y', strtotime($formDate)) : date('d M Y');
 		$this->email->subject('Planned vs Actual Hours Report – ' . $reportDateLabel);

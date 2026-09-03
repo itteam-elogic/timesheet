@@ -232,131 +232,7 @@ $selected_to_month   = $this->input->post('to_month');
 	</div>
     
 	<div id="employeeTableContainer">
-
-  <?php if(isset($getEmployees)){ ?>  
-  <div class="row">
-    <div class="col-md-12">
-      <div class="table-responsive employee-summary-wrap">
-        <table class="table table-bordered employee-summary-table">
-          <thead>
-            <tr>
-              <th>Department</th>
-              <th>All Departments</th>
-              <?php foreach($departmentSummaryOrder as $deptName): ?>
-                <th><?php echo htmlspecialchars($deptName, ENT_QUOTES, 'UTF-8'); ?></th>
-              <?php endforeach; ?>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th>Employee Count</th>
-              <td><?php echo (int)$departmentTotalCount; ?></td>
-              <?php foreach($departmentSummaryOrder as $deptName): ?>
-                <td><?php echo isset($departmentSummary[$deptName]) ? (int)$departmentSummary[$deptName] : 0; ?></td>
-              <?php endforeach; ?>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-md-12">
-      <div class="card">
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover table-bordered" id="employee_report_excel_download">
-              <thead>
-                <tr>
-                 <th>Sno</th>
-<th>Name</th>
-<th>Emp.Id</th>
-<th>Joining Date</th>
-<th>Username</th>
-<th>Email</th>
-<th>Designation</th>
-<th>Department</th>
-<th>Reporting Manager</th>
-<th>User Type</th>
-<th>Status</th>
-<th>Entry Date</th>
-<th>Action</th>
-                  
-                </tr>
-              </thead>
-              <tbody>
-                <?php 
-				  $i=1;
-				  if (isset($getEmployees) && !empty($getEmployees)) {
-					  foreach ($getEmployees as $key => $empResult) :
-					  	 if($i%2 == 0): $showRowColour = 'class="success"'; else: $showRowColour = 'class="info"'; endif;				  
-					  	 $createdExp 		= explode(" " , $empResult->created_at);
-						
-						 if($empResult->user_type == 'manager'):
-	
-								$statusClass = 'class="label label-danger"';
-							
-						elseif($empResult->user_type == 'developer'):
-	
-								$statusClass = 'class="label label-info"';	
-
-					    else:				 
-								$statusClass = 'class="label label-primary"';
-						 
-						 endif;
-						 
-					  ?>
-                  <tr>
-                    <td><?php echo $i ?></td>
-                    <td><?php echo ucwords($empResult->name);?></td>
-                    <td><?php echo ucwords($empResult->emp_com_id);?></td>
-
-<td>
-<?php
-if(!empty($empResult->emp_joining_date) && $empResult->emp_joining_date != '0000-00-00'){
-    echo date('d-M-Y', strtotime($empResult->emp_joining_date));
-}else{
-    echo '--';
-}
-?>
-</td>
-
-<td><?php echo ucfirst($empResult->username);?></td>
-<td><?php echo $empResult->email;?></td>
-                      <td><?php echo $empResult->designation;?></td>
-                    <td><?php echo $empResult->department;?></td>
-                    <td><?php echo !empty($empResult->reporting_manager_name) ? ucwords($empResult->reporting_manager_name) : '--';?></td>
-				     <td><?php echo ucfirst($empResult->user_type);?></td>
-					 <td>
-    <?php echo $empResult->status;?>
-</td>
-
-<td><?php echo date('d-M-Y',strtotime($createdExp[0]));?></td>
-
-<td nowrap="nowrap">
-                      <?php if($empResult->username != 'admin'): ?>
-                        <a href="<?php echo base_url(); ?>employee/add/<?php echo $empResult->empId; ?>" data-toggle="tooltip" title="Edit Employee"><i class="fa fa-edit"></i></a> |
-                        <span id="changeStatusRow_<?php echo $empResult->empId; ?>">
-                          <a class="<?php echo ($empResult->status=='Active')? 'fa fa-check-circle label label-success' : 'fa fa-ban label label-danger'?>" style="cursor:pointer;" onClick="update_emp_status(<?php echo $empResult->empId;?>,'<?php echo $empResult->status; ?>')"> <?php echo $empResult->status;?></a>
-                        </span> |
-                        <a href="<?php echo base_url(); ?>employee/cpass/<?php echo $empResult->empId; ?>" data-toggle="tooltip" title="Change Password"><i class="fa fa-key"></i></a>
-                      <?php endif; ?>
-                     </td>
-				    
-                  </tr>
-                  <?php $i++; endforeach; 
-				  } else {
-					  echo '<tr><td colspan="13" class="text-center">No records found.</td></tr>';
-				  }
-				  ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-<?php } ?>
+		<?php $this->load->view('employee/employee_table_ajax'); ?>
 	</div>
 </div>
 <!-- Inlude Footer here -->
@@ -551,6 +427,44 @@ $(document).ready(function () {
 });
 </script>
 
+<script>
+$(document).on('click', '#send_headcount_email', function (e) {
+    e.preventDefault();
+    var $btn = $(this);
+    var originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Sending...');
+    $.ajax({
+        url: "<?php echo base_url('employee/send_headcount_email'); ?>",
+        type: "POST",
+        dataType: "text",
+        data: {
+            department: $('#department').val(),
+            project_manager: $('#project_manager').val(),
+            from_year: $('#from_year').val(),
+            from_month: $('#from_month').val(),
+            to_year: $('#to_year').val(),
+            to_month: $('#to_month').val()
+        },
+        success: function (res) {
+            var msg = 'Headcount email request completed.';
+            try {
+                var data = (typeof res === 'string') ? JSON.parse(res) : res;
+                if (data && data.message) {
+                    msg = data.message;
+                }
+            } catch (err) {}
+            alert(msg);
+        },
+        error: function () {
+            alert('Failed to send email. Please try again.');
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+});
+</script>
+
 <!-------------dropdown close code-------------->
 
 
@@ -734,46 +648,165 @@ $(document).ready(function () {
 			color: #FFF;
 			background-color: #663399 !important;
 	}
-	.employee-summary-wrap {
-    margin-bottom: 8px;
-	width: 78%;
-    margin: 0 auto 10px auto;
-}
-
-.employee-summary-table {
-       width: 100%;
-    margin: 0 auto;
-}
-
-.employee-summary-table thead th {
-    background: #2f6689;
-    color: #fff;
-    font-weight: 600;
-    text-align: center;
-    vertical-align: middle;
-    font-size: 14px;
-    border-color: #8ea5b8 !important;
-    padding: 5px 4px;
-}
-
-.employee-summary-table tbody th,
-.employee-summary-table tbody td {
-    text-align: center;
-    vertical-align: middle;
-    font-size: 16px;
-    font-weight: 600;
-    padding: 6px 5px;
-    border-color: #8ea5b8 !important;
-    background: #d8cfbc;
-    color: #2d2d2d;
-}
-
-.employee-summary-table tbody th {
-    background: #cfd5de;
-    font-size: 16	px;
-    color: #1b2f40;
-    line-height: 1;
-}
+	.employee-summary-card {
+		width: 100%;
+		margin: 0 auto 22px auto;
+		background: #fff;
+		border: 1px solid #d9e6f0;
+		border-radius: 12px;
+		box-shadow: 0 8px 24px rgba(30, 77, 107, 0.08);
+		overflow: hidden;
+	}
+	.employee-summary-card-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+		padding: 14px 20px;
+		background: linear-gradient(90deg, #1d4f6d 0%, #2b7aa8 100%);
+		color: #fff;
+	}
+	.employee-summary-title {
+		font-size: 16px;
+		font-weight: 700;
+		letter-spacing: 0.2px;
+	}
+	.employee-summary-title .fa {
+		margin-right: 8px;
+	}
+	.employee-summary-period-badge {
+		background: rgba(255,255,255,0.16);
+		border: 1px solid rgba(255,255,255,0.28);
+		border-radius: 20px;
+		padding: 6px 14px;
+		font-size: 13px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.employee-summary-head-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.employee-summary-send-btn {
+		background: #28a745 !important;
+		border-color: #28a745 !important;
+		color: #fff !important;
+		font-weight: 700;
+		border-radius: 20px;
+		padding: 6px 16px;
+		line-height: 1.4;
+	}
+	.employee-summary-send-btn:hover,
+	.employee-summary-send-btn:focus {
+		background: #218838 !important;
+		border-color: #1e7e34 !important;
+		color: #fff !important;
+	}
+	.employee-summary-send-btn .fa {
+		margin-right: 6px;
+	}
+	.employee-summary-card .table-responsive {
+		margin: 0;
+		border: none;
+	}
+	.employee-summary-table {
+		width: 100%;
+		margin: 0;
+		border-collapse: separate;
+		border-spacing: 0;
+		background: #fff;
+	}
+	.employee-summary-table > thead > tr > th {
+		background: #f3f7fb !important;
+		color: #31556d !important;
+		font-weight: 700;
+		text-align: center;
+		vertical-align: middle;
+		font-size: 12px;
+		letter-spacing: 0.3px;
+		line-height: 1.35;
+		border: none !important;
+		border-bottom: 1px solid #d5e3ee !important;
+		padding: 13px 14px;
+		white-space: normal;
+	}
+	.employee-summary-table > thead > tr > th.hc-col-dept,
+	.employee-summary-table > tbody > tr > td.hc-dept,
+	.employee-summary-table > tfoot > tr > th.hc-dept {
+		text-align: left;
+		width: 34%;
+	}
+	.employee-summary-table > tbody > tr > td {
+		text-align: center;
+		vertical-align: middle;
+		font-size: 15px;
+		padding: 12px 14px;
+		border: none !important;
+		border-bottom: 1px solid #edf2f7 !important;
+		background: #fff !important;
+		color: #2c3e50;
+	}
+	.employee-summary-table > tbody > tr:nth-child(even) > td {
+		background: #f8fbfd !important;
+	}
+	.employee-summary-table > tbody > tr:hover > td {
+		background: #eef6fb !important;
+	}
+	.employee-summary-table .hc-dept {
+		font-weight: 600;
+		color: #1f3d52;
+		padding-left: 20px !important;
+	}
+	.employee-summary-table .hc-num {
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.2px;
+	}
+	.employee-summary-table .hc-end {
+		color: #1d4f6d;
+	}
+	.employee-summary-table .hc-empty {
+		text-align: center;
+		color: #6b7c8a;
+		font-weight: 500;
+		padding: 22px 14px !important;
+	}
+	.hc-chip {
+		display: inline-block;
+		min-width: 36px;
+		padding: 3px 10px;
+		border-radius: 12px;
+		font-weight: 700;
+		line-height: 1.4;
+	}
+	.hc-chip-muted {
+		background: #eef2f6;
+		color: #6b7c8a;
+	}
+	.hc-chip-join {
+		background: #e4f8ec;
+		color: #1e7a45;
+	}
+	.hc-chip-left {
+		background: #fdecea;
+		color: #c0392b;
+	}
+	.employee-summary-table > tfoot > tr > th {
+		background: #1d4f6d !important;
+		color: #fff !important;
+		font-weight: 700;
+		text-align: center;
+		vertical-align: middle;
+		font-size: 15px;
+		border: none !important;
+		padding: 13px 14px;
+	}
+	.employee-summary-table > tfoot > tr > th.hc-dept {
+		padding-left: 20px !important;
+	}
 	#employee_report_excel_download {
 		border: 1px solid #d9e1ea;
 		border-radius: 6px;
@@ -824,15 +857,24 @@ $(document).ready(function () {
 		font-size: 15px;
 	}
 	@media (max-width: 992px) {
-		.employee-summary-table thead th {
+		.employee-summary-card-head {
+			padding: 12px 14px;
+		}
+		.employee-summary-title {
+			font-size: 15px;
+		}
+		.employee-summary-table > thead > tr > th,
+		.employee-summary-table > tfoot > tr > th {
+			font-size: 11px;
+			padding: 10px 8px;
+		}
+		.employee-summary-table > tbody > tr > td {
 			font-size: 13px;
+			padding: 10px 8px;
 		}
-		.employee-summary-table tbody th,
-		.employee-summary-table tbody td {
-			font-size: 16px;
-		}
-		.employee-summary-table tbody th {
-			font-size: 22px;
+		.employee-summary-table .hc-dept,
+		.employee-summary-table > tfoot > tr > th.hc-dept {
+			padding-left: 12px !important;
 		}
 		#employee_report_excel_download thead th,
 		#employee_report_excel_download tbody td {

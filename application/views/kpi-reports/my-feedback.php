@@ -47,7 +47,7 @@
                             <?php foreach ($feedback_list as $feedback): ?>
                                 <tr>
                                     <td style="padding: 12px; border: 1px solid #dee2e6;">
-                                        <?php echo $feedback->feedback_month ? date('M Y', strtotime($feedback->feedback_month . '-01')) : 'N/A'; ?>
+                                        <?php echo htmlspecialchars($this->feedback_model->format_feedback_month_display($feedback->feedback_month, $feedback->created_at)); ?>
                                     </td>
                                     <td style="padding: 12px; border: 1px solid #dee2e6;">
                                         <?php 
@@ -91,8 +91,8 @@
                                         ?>
                                     </td>
                                     <td style="padding: 12px; border: 1px solid #dee2e6;">
-                                        <span class="badge badge-<?php echo $feedback->status == 'Sent' ? 'warning' : 'success'; ?>" style="padding: 5px 10px; border-radius: 4px;">
-                                            <?php echo $feedback->status; ?>
+                                        <span class="badge feedback-status-badge <?php echo $this->feedback_model->get_feedback_status_badge_class($feedback->status); ?>" style="padding: 5px 10px; border-radius: 4px;">
+                                            <?php echo htmlspecialchars($this->feedback_model->get_feedback_status_label($feedback->status)); ?>
                                         </span>
                                     </td>
                                     <td style="padding: 12px; border: 1px solid #dee2e6;">
@@ -119,6 +119,22 @@
 </div>
 
 <style>
+.feedback-status-badge {
+    font-weight: 600;
+    color: #fff !important;
+    border: none;
+    display: inline-block;
+    white-space: nowrap;
+}
+.feedback-status-pending {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+.feedback-status-acknowledged {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+.feedback-status-default {
+    background-color: #6c757d !important;
+}
 .card {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 4px;

@@ -581,7 +581,7 @@ class Emptimelog_Model extends CI_Model {
 						<option value="18595">Timesheet for Client</option>
 						<option value="18597">Meetings</option>
 						<option value="18632">Learning & Development</option>
-						<option value="21329">Available</option>
+						<!-- <option value="21329">Available</option> -->
 					    <option value="21330">Unplanned Leave</option>
 						<option value="21334">KPI Report</option>
 					    <option value="21335">Qcare Report</option>
@@ -931,6 +931,18 @@ class Emptimelog_Model extends CI_Model {
 /********************************************************  Manage Timesheet Report Log in Ussertype Admin Or Manager Added On 04-07-2017 ******************************************************************/
 
  /******************** Project Manager get it's created project list *********************************/
+
+public function getAllDesignations()
+{
+    $this->db->distinct();
+    $this->db->select('designation');
+    $this->db->from('employee_details');
+    $this->db->where('designation IS NOT NULL', NULL, FALSE);
+    $this->db->where("TRIM(designation) != ''", NULL, FALSE);
+    $this->db->order_by('designation', 'ASC');
+
+    return $this->db->get()->result();
+}
   
   private function applyManagerTimesheetScope($empId){
 	  $empId = (int)$empId;
@@ -1696,7 +1708,7 @@ public function getWeeklyApprovedEamilProcess($friday){
 						<option value="18595">Timesheet for Client</option>
 						<option value="18597">Meetings</option>
 						<option value="18632">Learning & Development</option>
-						<option value="21329">Available</option>
+						<!-- <option value="21329">Available</option> -->
 					    <option value="21330">Unplanned Leave</option>						
 					    <option value="21335">Qcare Report</option>
 						<option value="21923">Training Faciliatory</option>';

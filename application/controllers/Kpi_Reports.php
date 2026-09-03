@@ -5078,6 +5078,17 @@ public function feedbackReports() {
     if ($this->input->get('assigned_to')) {
         $filters['assigned_to'] = $this->input->get('assigned_to');
     }
+
+    // Admin/superadmin and HR can view all members' feedback
+    $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
+    $empId = $this->session->userdata['logged_in_timesheet']['empId'];
+    $data['can_view_all_feedback'] = $this->feedback_model->can_view_all_feedback($user_type, $empId);
+    $data['is_hr_user'] = $this->feedback_model->is_hr_department_user($empId);
+
+    // Employee/manager filters are admin/HR only; others see user-wise (own/team) data
+    if (!$data['can_view_all_feedback']) {
+        unset($filters['empId'], $filters['assigned_to']);
+    }
     
     // Get total records count for pagination
     $total_records = $this->feedback_model->get_feedback_count($filters);
@@ -5129,27 +5140,40 @@ public function feedbackReports() {
     
     // Get feedback data with pagination
     $data['feedback_list'] = $this->feedback_model->get_feedback(NULL, $filters);
-    
-    // Get statistics
-    $data['stats'] = $this->feedback_model->get_feedback_stats($filters);
-    $data['dept_stats'] = $this->feedback_model->get_feedback_by_department($filters);
-    $data['type_stats'] = $this->feedback_model->get_feedback_by_type($filters);
-    
-    // Get employees and managers for filters
-    $data['employees'] = $this->feedback_model->get_all_employees();
-    $data['managers'] = $this->feedback_model->get_managers();
+
+    // Summary stats for all users (scoped to own/team data for non-admin/HR)
+    $stats_filters = $filters;
+    unset($stats_filters['limit'], $stats_filters['offset']);
+    $data['stats'] = $this->feedback_model->get_feedback_stats($stats_filters);
+
+    // Employee-wise filters and extended stats: Admin and HR only
+    if ($data['can_view_all_feedback']) {
+        $data['dept_stats'] = $this->feedback_model->get_feedback_by_department($stats_filters);
+        $data['type_stats'] = $this->feedback_model->get_feedback_by_type($stats_filters);
+        $data['employees'] = $this->feedback_model->get_all_employees();
+        $data['managers'] = $this->feedback_model->get_managers();
+    } else {
+        $data['dept_stats'] = null;
+        $data['type_stats'] = null;
+        $data['employees'] = array();
+        $data['managers'] = array();
+    }
     
     // Get current filters for view
     $data['filters'] = $filters;
-
-    // HR department and admin/superadmin can view all members' feedback (and related UI controls)
-    $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
-    $empId = $this->session->userdata['logged_in_timesheet']['empId'];
-    $data['can_view_all_feedback'] = $this->feedback_model->can_view_all_feedback($user_type, $empId);
-    $data['is_hr_user'] = $this->feedback_model->is_hr_department_user($empId);
     
     // Pagination links
     $data['pagination_links'] = $this->pagination->create_links();
+
+    // Deep link from feedback email: open update-status modal for a specific feedback
+    $status_update_id = intval($this->input->get('status_update'));
+    $data['open_status_feedback'] = null;
+    if ($status_update_id > 0) {
+        $open_feedback = $this->feedback_model->get_feedback($status_update_id);
+        if (!empty($open_feedback)) {
+            $data['open_status_feedback'] = is_array($open_feedback) ? $open_feedback[0] : $open_feedback;
+        }
+    }
     
     $this->load->view('kpi-reports/feedback-reports', $data);
 }
@@ -5273,7 +5297,7 @@ public function updateFeedback() {
             log_message('info', 'Status set to: "Acknowledge"');
         } else {
             log_message('error', 'Invalid status value: "' . $status . '" (upper: "' . $status_upper . '")');
-            $this->session->set_flashdata('error', 'Invalid status value. Please select either "Sent" or "Acknowledge".');
+            $this->session->set_flashdata('error', 'Invalid status value. Please select either "Pending Acknowledgment" or "Acknowledge".');
             redirect('kpi_reports/feedbackReports');
         }
         
@@ -5415,9 +5439,11 @@ public function updateFeedback() {
         
         log_message('info', 'Status updated: ' . ($status_updated ? 'YES' : 'NO') . ', Old: "' . $old_status . '", New: "' . $new_status . '"');
         
-        // Send email notification to reporting manager if team member updated status to "Acknowledge"
-        if ($status_updated && !$is_manager && $is_team_member && $reporting_manager_id > 0 && $new_status == 'Acknowledge') {
-            $this->sendStatusUpdateEmail($feedback, $old_status, $new_status, $empId);
+        // Notify reporting manager when feedback is acknowledged (by team member or other authorized user)
+        if ($status_updated && $new_status === 'Acknowledge' && $reporting_manager_id > 0 && $empId !== $reporting_manager_id) {
+            $response_text = isset($data['response']) ? $data['response'] : $response;
+            $email_sent = $this->sendStatusUpdateEmail($feedback, $old_status, $new_status, $response_text);
+            log_message('info', 'Acknowledge email to reporting manager (empId ' . $reporting_manager_id . '): ' . ($email_sent ? 'SENT' : 'FAILED'));
         }
         
         $this->session->set_flashdata('success', 'Feedback updated successfully!');
@@ -5477,7 +5503,10 @@ private function sendFeedbackEmailToTeamMember($feedback, $team_member) {
     $submitted_by = !empty($feedback->employee_name) ? $feedback->employee_name : 'N/A';
     
     // Get feedback month
-    $feedback_month = !empty($feedback->feedback_month) ? date('F Y', strtotime($feedback->feedback_month . '-01')) : date('F Y', strtotime($feedback->created_at));
+    $feedback_month = $this->feedback_model->format_feedback_month_display(
+        !empty($feedback->feedback_month) ? $feedback->feedback_month : null,
+        !empty($feedback->created_at) ? $feedback->created_at : null
+    );
     
     // Get feedback type (Feedback Type field) - handle multiple improvement areas
     $improvement_areas = array();
@@ -5494,29 +5523,84 @@ private function sendFeedbackEmailToTeamMember($feedback, $team_member) {
     
     // Get status
     $status = !empty($feedback->status) ? $feedback->status : 'Sent';
+    $status_label = $this->feedback_model->get_feedback_status_label($status);
     
     // Get feedback message
     $feedback_message = !empty($feedback->feedback_message) ? $feedback->feedback_message : 'N/A';
+
+    $feedback_id = (int) $feedback->feedback_id;
+    $acknowledge_url = site_url('kpi_reports/feedbackReports?status_update=' . $feedback_id);
+    $view_feedback_url = site_url('kpi_reports/viewFeedback/' . $feedback_id);
+    $button_style = 'display:inline-block; padding:12px 28px; font-size:14px; font-weight:bold; text-decoration:none; border-radius:6px; font-family:Arial, Helvetica, sans-serif;';
     
     // Email content
     $subject = 'Notification: Feedback Submitted';
     
-    $body = 'Dear ' . ucwords($team_member->name) . ',<br><br>
-    
-This email is to notify you that the following feedback has been submitted for your review:<br><br>
-
-<strong>Feedback Month:</strong> ' . htmlspecialchars($feedback_month) . '<br>
-<strong>Submitted By:</strong> ' . htmlspecialchars($submitted_by) . '<br>
-<strong>Feedback Type:</strong> ' . htmlspecialchars($feedback_type) . '<br>
-<strong>Status:</strong> ' . htmlspecialchars($status) . '<br><br>
-
-<strong>Feedback Notes:</strong><br>
-' . nl2br(htmlspecialchars($feedback_message)) . '<br><br>
-
-Kindly review the information and acknowledge it in the system.<br><br>
-
-Sincerely,<br>
-eLogic Timesheet System';
+    $body = '<!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Feedback Submitted</title>
+    </head>
+    <body style="margin:0; padding:0; background:#eef2f6; font-family:Arial, Helvetica, sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f6; padding:24px 12px;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px; width:100%; background:#ffffff; border:1px solid #d5dee7; border-radius:10px; overflow:hidden;">
+                        <tr>
+                            <td style="padding:18px 24px; background:#ffffff; border-bottom:1px solid #edf1f5;">
+                                <img src="http://www.elogictechsolutions.com/assets/images/logo.png" alt="eLogicTech" width="160" style="width:160px; height:auto; border:0; display:block;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#004b88; padding:16px 24px;">
+                                <h2 style="margin:0; color:#ffffff; font-size:20px; font-weight:bold;">Feedback Submitted</h2>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:24px; font-size:14px; color:#333; line-height:1.6;">
+                                <p style="margin:0 0 16px 0;">Dear ' . htmlspecialchars(ucwords($team_member->name)) . ',</p>
+                                <p style="margin:0 0 16px 0;">This email is to notify you that the following feedback has been submitted for your review:</p>
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%; margin:0 0 18px 0;">
+                                    <tr>
+                                        <td style="padding:6px 0; color:#555; width:35%;"><strong>Feedback Month:</strong></td>
+                                        <td style="padding:6px 0;">' . htmlspecialchars($feedback_month) . '</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:6px 0; color:#555;"><strong>Submitted By:</strong></td>
+                                        <td style="padding:6px 0;">' . htmlspecialchars($submitted_by) . '</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:6px 0; color:#555;"><strong>Feedback Type:</strong></td>
+                                        <td style="padding:6px 0;">' . htmlspecialchars($feedback_type) . '</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:6px 0; color:#555;"><strong>Status:</strong></td>
+                                        <td style="padding:6px 0;">' . htmlspecialchars($status_label) . '</td>
+                                    </tr>
+                                </table>
+                                <p style="margin:0 0 8px 0;"><strong>Feedback Notes:</strong></p>
+                                <p style="margin:0 0 20px 0; background:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; padding:12px 14px;">' . nl2br(htmlspecialchars($feedback_message)) . '</p>
+                                <p style="margin:0 0 18px 0;">Kindly review the information and acknowledge it in the system.</p>
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 8px auto;">
+                                    <tr>
+                                        <td align="center">
+                                            <a href="' . htmlspecialchars($acknowledge_url) . '" style="' . $button_style . ' background:#28a745; color:#ffffff;">Acknowledge</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin:0 0 20px 0; text-align:center; font-size:13px;">
+                                    <a href="' . htmlspecialchars($view_feedback_url) . '" style="color:#004b88; text-decoration:underline;">View Feedback Details</a>
+                                </p>
+                                <p style="margin:0;">Sincerely,<br><strong>eLogic Timesheet System</strong></p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>';
     
     // Send email
     $this->email->from('info@elogictech.com', 'eLogic Timesheet');
@@ -5619,40 +5703,46 @@ private function sendFeedbackEmailToReportingManager($feedback, $reporting_manag
 }
 
 /**
- * Send email notification to reporting manager when team member updates status
+ * Send email notification to reporting manager when feedback is acknowledged.
  */
-private function sendStatusUpdateEmail($feedback, $old_status, $new_status, $team_member_empId, $response = '') {
-    // Only send email if status is "Acknowledge"
-    if ($new_status != 'Acknowledge') {
+private function sendStatusUpdateEmail($feedback, $old_status, $new_status, $response = '') {
+    if ($new_status !== 'Acknowledge') {
         return false;
     }
-    
-    // Get reporting manager details
+
     if (empty($feedback->reporting_manager)) {
         return false;
     }
-    
+
     $this->db->select('name, email');
     $this->db->from('employee_details');
-    $this->db->where('empId', $feedback->reporting_manager);
+    $this->db->where('empId', (int) $feedback->reporting_manager);
     $this->db->where('status', 'Active');
     $manager = $this->db->get()->row();
-    
+
     if (empty($manager) || empty($manager->email)) {
+        log_message('error', 'Acknowledge email skipped: reporting manager email not found for empId ' . (int) $feedback->reporting_manager);
         return false;
     }
-    
-    // Get team member details
-    $this->db->select('name');
-    $this->db->from('employee_details');
-    $this->db->where('empId', $team_member_empId);
-    $team_member = $this->db->get()->row();
-    $team_member_name = $team_member ? $team_member->name : 'Team Member';
-    
-    // Get feedback month (format as "Month Year")
-    $feedback_month = !empty($feedback->feedback_month) ? date('F Y', strtotime($feedback->feedback_month . '-01')) : date('F Y', strtotime($feedback->created_at));
-    
-    // Get feedback type (use feedback_for field, fallback to feedback_type) - handle multiple improvement areas
+
+    $team_member_name = 'Team Member';
+    if (!empty($feedback->team_member_name)) {
+        $team_member_name = $feedback->team_member_name;
+    } elseif (!empty($feedback->team_members)) {
+        $this->db->select('name');
+        $this->db->from('employee_details');
+        $this->db->where('empId', (int) $feedback->team_members);
+        $team_member = $this->db->get()->row();
+        if (!empty($team_member->name)) {
+            $team_member_name = $team_member->name;
+        }
+    }
+
+    $feedback_month = $this->feedback_model->format_feedback_month_display(
+        !empty($feedback->feedback_month) ? $feedback->feedback_month : null,
+        !empty($feedback->created_at) ? $feedback->created_at : null
+    );
+
     $improvement_areas = array();
     if (!empty($feedback->feedback_type)) {
         $decoded = json_decode($feedback->feedback_type, true);
@@ -5664,37 +5754,85 @@ private function sendStatusUpdateEmail($feedback, $old_status, $new_status, $tea
     }
     $improvement_areas_text = !empty($improvement_areas) ? implode(', ', $improvement_areas) : 'N/A';
     $feedback_type = !empty($feedback->feedback_for) ? $feedback->feedback_for : $improvement_areas_text;
-    
-    // Email configuration
+    $response = trim((string) $response);
+    $response_block = '';
+    if ($response !== '') {
+        $response_block = '<tr>
+                                <td style="padding: 5px 0;">Response:</td>
+                                <td style="padding: 5px 0;">' . nl2br(htmlspecialchars($response)) . '</td>
+                            </tr>';
+    }
+
     $config['mailtype'] = 'html';
     $config['charset'] = 'iso-8859-1';
     $config['wordwrap'] = TRUE;
     $config['newline'] = "\r\n";
+    $this->email->clear(TRUE);
     $this->email->initialize($config);
-    
-    // Email content
+
     $subject = 'Team Member Feedback Acknowledgement';
-    
-    $body = 'Dear ' . ucwords($manager->name) . ',<br><br>
-    
-The feedback submitted for ' . ucwords($team_member_name) . ' has been reviewed and acknowledged.<br><br>
+    $body = '<!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Feedback Acknowledgement</title>
+    </head>
+    <body style="width: 95%; margin: 0 auto; background: #f1f1f1; border:1px solid #888; padding: 0 1% 2% 1%;">
+        <div align="left" style="margin: 3% auto 2% 6%;">
+            <img src="http://www.elogictechsolutions.com/assets/images/logo.png" style="width: 180px;">
+        </div>
+        <div style="background: #004b88; padding: 2%; border-radius: 15px; margin-top: 3%;">
+            <section style="background: #004b88; border-radius: 6px; padding-top: 2%; font-size: 17px;">
+                <div style="color: #fff; margin:2% auto 0px auto; padding-left: 6%;">
+                    Dear ' . htmlspecialchars(ucwords($manager->name)) . ',
+                </div>
+                <div align="left" style="margin: 1% auto; padding-left: 6%; line-height: 24px; color: #fff;">
+                    <p>The feedback submitted for <strong>' . htmlspecialchars(ucwords($team_member_name)) . '</strong> has been reviewed and acknowledged.</p>
+                </div>
+                <div align="left" style="margin: 1% auto; padding-left: 6%; line-height: 24px; color: #fff;">
+                    <table style="color: #fff;">
+                        <tbody>
+                            <tr>
+                                <td width="30%" style="padding: 5px 0;">Month:</td>
+                                <td style="padding: 5px 0;">' . htmlspecialchars($feedback_month) . '</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px 0;">Type:</td>
+                                <td style="padding: 5px 0;">' . htmlspecialchars($feedback_type) . '</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px 0;">Improvement Area:</td>
+                                <td style="padding: 5px 0;">' . htmlspecialchars($improvement_areas_text) . '</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px 0;">Status:</td>
+                                <td style="padding: 5px 0;">Acknowledged</td>
+                            </tr>
+                            ' . $response_block . '
+                        </tbody>
+                    </table>
+                </div>
+                <div align="left" style="margin: 2% auto; padding-left: 6%; line-height: 24px; color: #fff;">
+                    <p>This entry is now closed.</p>
+                    <p>Thanks &amp; Regards,<br>
+                    <span style="color: #fff;">eLogic Timesheet System</span></p>
+                </div>
+            </section>
+        </div>
+    </body>
+    </html>';
 
-<strong>Month:</strong> ' . htmlspecialchars($feedback_month) . '<br>
-<strong>Type:</strong> ' . htmlspecialchars($feedback_type) . '<br>
-<strong>Status:</strong> Acknowledged<br><br>
-
-This entry is now closed.<br><br>
-
-Regards,<br>
-eLogic Timesheet System';
-    
-    // Send email
     $this->email->from('info@elogictech.com', 'eLogic Timesheet');
     $this->email->to($manager->email);
     $this->email->subject($subject);
     $this->email->message($body);
-    
-    return $this->email->send();
+
+    $sent = $this->email->send();
+    if (!$sent) {
+        log_message('error', 'Acknowledge email failed for reporting manager ' . $manager->email . ': ' . $this->email->print_debugger(array('headers')));
+    }
+
+    return $sent;
 }
 
 /**
@@ -5925,7 +6063,8 @@ public function getReportingManagersByDept() {
  */
 public function getProjectCoordinatorsByManager() {
     $manager_id = $this->input->post('manager_id');
-    $coordinators = $this->feedback_model->get_project_coordinators_by_manager($manager_id);
+    $department = $this->input->post('department');
+    $coordinators = $this->feedback_model->get_project_coordinators_by_manager($manager_id, $department);
     echo json_encode($coordinators);
 }
 
@@ -5934,7 +6073,8 @@ public function getProjectCoordinatorsByManager() {
  */
 public function getTeamMembersByDept() {
     $department = $this->input->post('department');
-    $team_members = $this->feedback_model->get_team_members_by_department($department);
+    $reporting_manager_id = $this->input->post('reporting_manager');
+    $team_members = $this->feedback_model->get_team_members_by_department($department, $reporting_manager_id);
     echo json_encode($team_members);
 }
 

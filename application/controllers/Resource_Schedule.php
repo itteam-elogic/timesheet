@@ -968,7 +968,7 @@ class Resource_Schedule extends CI_Controller {
 		);
 		$this->email->initialize($emailConfig);
 		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
-		$this->email->to('elogic_pms@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
+		$this->email->to('elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
 
 		//$this->email->to('laxmikanth@elogictech.com');
 

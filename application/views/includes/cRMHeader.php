@@ -154,7 +154,7 @@ if(
 
  
                   if (in_array($key->department,$departments ) || $this->session->userdata['logged_in_timesheet']['user_type'] == 'admin' ): ?> 
-                        <li><a href="<?php echo base_url(); ?>kpi_reports/index"><i class="fa fa-folder-open"></i><span>Management Reports</span></a></li>	
+                        <li><a href="<?php echo base_url(); ?>kpi_reports/index"><i class="fa fa-folder-open"></i><span>Reports</span></a></li>	
                     <?php endif; ?>
 					
 					<li><a href="<?php echo base_url(); ?>resource_schedule"><i class="fa fa-key"></i><span>Resource Schedule</span></a></li>					
@@ -166,10 +166,11 @@ if(
                     <!-- <li><a href="<?php echo base_url(); ?>lms"><i class="fa fa-file-video-o"></i> <span>LMS</span></a></li> -->
 					
 					<?php if($this->session->userdata['logged_in_timesheet']['username']=='kanth' ): ?> 
-                    
+                    <li><a href="<?php echo base_url(); ?>kpi_reports/index"><i class="fa fa-folder-open"></i><span>Reports</span></a></li>	
                     <li><a href="<?php echo base_url(); ?>emp_record_inactivity"><i class="fa fa-exclamation-triangle"></i><span>Timesheet Inactivity (6 Months)</span></a></li>
                     <li><a href="<?php echo base_url(); ?>projects/hours_notifications"><i class="fa fa-envelope"></i><span>Hours Notifications</span></a></li>
                     <li><a href="<?php echo base_url(); ?>data_allocation"><i class="fa fa-exchange"></i><span>Data Allocation</span></a></li>
+                    <li><a href="<?php echo base_url(); ?>management_plan"><i class="fa fa-briefcase"></i><span>Management Plan</span></a></li>
                     
 					<!-- <li><a href="<?php echo base_url(); ?>lmscategory"><i class="fa fa-users"></i><span>LMS Categories</span></a></li> -->
                     
@@ -188,6 +189,8 @@ if(
                     
                     <li><a href="<?php echo base_url(); ?>projects"><i class="fa fa-clone"></i><span>Project Master Report</span></a></li>
                     
+                    <li><a href="<?php echo base_url(); ?>management_plan"><i class="fa fa-briefcase"></i><span>Management Plan</span></a></li>
+                    
 					<li><a href="<?php echo base_url(); ?>task"><i class="fa fa-tasks"></i><span>Task</span></a></li>	
                     
 					<li><a href="<?php echo base_url(); ?>timesheet"><i class="fa fa-clock-o"></i><span>Timesheet Reports</span></a></li>
@@ -205,6 +208,8 @@ if(
 					<li><a href="<?php echo base_url(); ?>clients/client_list_information"><i class="fa fa-user-plus"></i><span>Clients</span></a></li>
                     
                     <li><a href="<?php echo base_url(); ?>projects"><i class="fa fa-clone"></i><span>Project Master Report</span></a></li>
+                    
+                    <li><a href="<?php echo base_url(); ?>management_plan"><i class="fa fa-briefcase"></i><span>Management Plan</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>task"><i class="fa fa-tasks"></i><span>Task</span></a></li>
                     
@@ -231,6 +236,8 @@ if(
 					<li><a href="<?php echo base_url(); ?>clients/client_list_information"><i class="fa fa-user-plus"></i><span>Clients</span></a></li>
                     
                     <li><a href="<?php echo base_url(); ?>projects"><i class="fa fa-clone"></i><span>Project Master Report</span></a></li>
+                    
+                    <li><a href="<?php echo base_url(); ?>management_plan"><i class="fa fa-briefcase"></i><span>Management Plan</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>task"><i class="fa fa-tasks"></i><span>Task</span></a></li>
                     

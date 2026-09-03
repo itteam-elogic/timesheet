@@ -195,27 +195,27 @@
             autoclose: true,
             todayHighlight: true,
             minDate: "2026-06-01",
-            maxDate: "2026-08-05",
+            maxDate: "2026-09-05",
             beforeShowDay: function(date) {
                 var string = jQuery.datepicker.formatDate('yy-mm-dd', date);
                 return [disabledDates.indexOf(string) == -1];
             }
         });
-        <?php elseif ($hideDateSection >= '2026-08-05') : ?>
+        <?php elseif ($hideDateSection >= '2026-09-05') : ?>
         jQuery(selector).datepicker({
             dateFormat: 'yy-mm-dd',
             autoclose: true,
             todayHighlight: true,
-            minDate: "2026-08-01",
-            maxDate: "2026-09-05"
+            minDate: "2026-09-01",
+            maxDate: "2026-10-05"
         });
         <?php else: ?>
         jQuery(selector).datepicker({
             dateFormat: 'yy-mm-dd',
             autoclose: true,
             todayHighlight: true,
-            minDate: "2026-07-01",
-            maxDate: "2026-08-05",
+            minDate: "2026-08-01",
+            maxDate: "2026-09-05",
             beforeShowDay: function(date) {
                 var string = jQuery.datepicker.formatDate('yy-mm-dd', date);
                 return [disabledDates.indexOf(string) == -1];

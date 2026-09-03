@@ -17,6 +17,7 @@ if (!function_exists('ts_department_options')) {
 			'Marketing',
 			'Accounting',
 			'Business Development',
+			'Management',
 			'Others'
 		);
 	}

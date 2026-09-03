@@ -70,6 +70,84 @@ class Feedback_Model extends CI_Model {
     }
 
     /**
+     * Human-readable label for feedback status (DB value unchanged).
+     */
+    public function get_feedback_status_label($status) {
+        $labels = array(
+            'Sent' => 'Pending Acknowledgment',
+            'Acknowledge' => 'Acknowledge',
+        );
+
+        return isset($labels[$status]) ? $labels[$status] : $status;
+    }
+
+    /**
+     * CSS class for feedback status badge styling.
+     */
+    public function get_feedback_status_badge_class($status) {
+        $classes = array(
+            'Sent' => 'feedback-status-pending',
+            'Acknowledge' => 'feedback-status-acknowledged',
+        );
+
+        return isset($classes[$status]) ? $classes[$status] : 'feedback-status-default';
+    }
+
+    /**
+     * Format feedback_month for display (supports "2026-JAN to 2026-Mar" range).
+     */
+    public function format_feedback_month_display($feedback_month, $created_at = null) {
+        $month_map = array(
+            'JAN' => '01', 'FEB' => '02', 'MAR' => '03', 'APR' => '04',
+            'MAY' => '05', 'JUN' => '06', 'JUL' => '07', 'AUG' => '08',
+            'SEP' => '09', 'OCT' => '10', 'NOV' => '11', 'DEC' => '12'
+        );
+
+        if (!empty($feedback_month)) {
+            if (preg_match('/(\d{4})-([A-Za-z]{3})\s+to\s+(\d{4})-([A-Za-z]{3})/i', trim($feedback_month), $matches)) {
+                $from_year = $matches[1];
+                $from_month_abbr = strtoupper($matches[2]);
+                $to_year = $matches[3];
+                $to_month_abbr = strtoupper($matches[4]);
+
+                if (isset($month_map[$from_month_abbr]) && isset($month_map[$to_month_abbr])) {
+                    $from_ts = strtotime($from_year . '-' . $month_map[$from_month_abbr] . '-01');
+                    $to_ts = strtotime($to_year . '-' . $month_map[$to_month_abbr] . '-01');
+                    if ($from_ts !== false && $to_ts !== false) {
+                        $from_date = date('d M Y', $from_ts);
+                        $last_day = date('t', $to_ts);
+                        $to_date = date('d M Y', strtotime($to_year . '-' . $month_map[$to_month_abbr] . '-' . $last_day));
+
+                        if ($from_year === $to_year && $from_month_abbr === $to_month_abbr) {
+                            return date('F Y', $from_ts);
+                        }
+
+                        return $from_date . ' - ' . $to_date;
+                    }
+                }
+            }
+
+            if (preg_match('/^\d{4}-\d{2}$/', trim($feedback_month))) {
+                $ts = strtotime(trim($feedback_month) . '-01');
+                if ($ts !== false) {
+                    return date('F Y', $ts);
+                }
+            }
+
+            return trim($feedback_month);
+        }
+
+        if (!empty($created_at)) {
+            $ts = strtotime($created_at);
+            if ($ts !== false) {
+                return date('F Y', $ts);
+            }
+        }
+
+        return 'N/A';
+    }
+
+    /**
      * Apply shared list filters for feedback reports (employee, dept, type, dates, etc.).
      */
     protected function apply_feedback_list_filters($filters = array()) {
@@ -124,6 +202,35 @@ class Feedback_Model extends CI_Model {
             $this->db->group_start();
             $this->db->where('ef.assigned_to', $assignedTo);
             $this->db->or_where('ef.reporting_manager', $assignedTo);
+            $this->db->group_end();
+        }
+    }
+
+    /**
+     * Restrict feedback lists/stats to the logged-in user's allowed scope.
+     */
+    protected function apply_feedback_role_filter() {
+        $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
+        $empId = $this->session->userdata['logged_in_timesheet']['empId'];
+
+        if ($this->can_view_all_feedback($user_type, $empId)) {
+            return;
+        }
+
+        if ($user_type == 'business_head') {
+            $dept_query = $this->db->query("SELECT department FROM employee_details WHERE empId = ? AND status = 'Active' LIMIT 1", array($empId));
+            if ($dept_query->num_rows() > 0) {
+                $bh_department = $dept_query->row()->department;
+                if (!empty($bh_department)) {
+                    $this->db->where('ef.department', $bh_department);
+                }
+            }
+        } elseif ($user_type == 'manager') {
+            $this->db->where('ef.reporting_manager', $empId);
+        } else {
+            $this->db->group_start();
+            $this->db->where('ef.empId', $empId);
+            $this->db->or_where('ef.team_members', $empId);
             $this->db->group_end();
         }
     }
@@ -187,37 +294,7 @@ class Feedback_Model extends CI_Model {
         // Role-based filtering - SKIP when fetching specific feedback_id (needed for updates)
         // Only apply role filtering when fetching lists, not when getting a specific feedback by ID
         if (empty($feedback_id)) {
-            $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
-            $empId = $this->session->userdata['logged_in_timesheet']['empId'];
-
-            if ($this->can_view_all_feedback($user_type, $empId)) {
-                // Admin/superadmin and HR department can see all members' feedback - no filter needed
-            } elseif ($user_type == 'business_head') {
-                // Business Head can see feedback filtered by their department
-                // Use a separate query to get department to avoid interfering with main query
-                $dept_query = $this->db->query("SELECT department FROM employee_details WHERE empId = ? AND status = 'Active' LIMIT 1", array($empId));
-                
-                if ($dept_query->num_rows() > 0) {
-                    $bh_department = $dept_query->row()->department;
-                    if (!empty($bh_department)) {
-                        $this->db->where('ef.department', $bh_department);
-                    }
-                }
-            } elseif ($user_type == 'manager') {
-                // Manager can see only their team members' feedback
-                // Team members are those who have reporting_manager = manager's empId
-                $this->db->where('ef.reporting_manager', $empId);
-            } else {
-                // Regular employees can see all feedback given to them
-                // This includes both self-submitted feedback and manager-given feedback
-                // Manager-given feedback has: empId = employee's ID and reporting_manager = manager's ID
-                // When manager gives feedback: empId = team member's ID, reporting_manager = manager's ID
-                // So filter by empId should show manager-given feedback to the employee
-                $this->db->group_start();
-                $this->db->where('ef.empId', $empId);
-                $this->db->or_where('ef.team_members', $empId);
-                $this->db->group_end();
-            }
+            $this->apply_feedback_role_filter();
         }
 
         $this->db->order_by('ef.created_at', 'desc');
@@ -255,27 +332,7 @@ class Feedback_Model extends CI_Model {
         $this->apply_feedback_list_filters($filters);
 
         // Role-based filtering (same as get_feedback)
-        $user_type = $this->session->userdata['logged_in_timesheet']['user_type'];
-        $empId = $this->session->userdata['logged_in_timesheet']['empId'];
-
-        if ($this->can_view_all_feedback($user_type, $empId)) {
-            // Admin/superadmin and HR department can see all members' feedback - no filter needed
-        } elseif ($user_type == 'business_head') {
-            $dept_query = $this->db->query("SELECT department FROM employee_details WHERE empId = ? AND status = 'Active' LIMIT 1", array($empId));
-            if ($dept_query->num_rows() > 0) {
-                $bh_department = $dept_query->row()->department;
-                if (!empty($bh_department)) {
-                    $this->db->where('ef.department', $bh_department);
-                }
-            }
-        } elseif ($user_type == 'manager') {
-            $this->db->where('ef.reporting_manager', $empId);
-        } else {
-            $this->db->group_start();
-            $this->db->where('ef.empId', $empId);
-            $this->db->or_where('ef.team_members', $empId);
-            $this->db->group_end();
-        }
+        $this->apply_feedback_role_filter();
 
         $query = $this->db->get();
         $result = $query->row();
@@ -645,26 +702,29 @@ class Feedback_Model extends CI_Model {
      * Get feedback statistics
      */
     public function get_feedback_stats($filters = array()) {
-        $this->db->select('COUNT(*) as total,
-                          SUM(CASE WHEN status = "Sent" THEN 1 ELSE 0 END) as sent_count,
-                          SUM(CASE WHEN status = "Acknowledge" THEN 1 ELSE 0 END) as acknowledge_count');
-        $this->db->from('employee_feedback');
+        $this->db->select('COUNT(ef.feedback_id) as total,
+                          SUM(CASE WHEN ef.status = "Sent" THEN 1 ELSE 0 END) as sent_count,
+                          SUM(CASE WHEN ef.status = "Acknowledge" THEN 1 ELSE 0 END) as acknowledge_count');
+        $this->db->from('employee_feedback ef');
+        $this->db->join('employee_details e', 'e.empId = ef.empId', 'left');
+        $this->db->join('employee_details m', 'm.empId = ef.assigned_to', 'left');
+        $this->db->join('employee_details rm', 'rm.empId = ef.reporting_manager', 'left');
+        $this->db->join('employee_details pc', 'pc.empId = ef.project_coordinator', 'left');
+        $this->db->join('employee_details tm', 'tm.empId = ef.team_members', 'left');
 
-        // Apply filters
-        if (!empty($filters['from_date'])) {
-            $this->db->where('DATE(created_at) >=', $filters['from_date']);
-        }
-
-        if (!empty($filters['to_date'])) {
-            $this->db->where('DATE(created_at) <=', $filters['to_date']);
-        }
-
-        if (!empty($filters['department'])) {
-            $this->db->where('department', $filters['department']);
-        }
+        $this->apply_feedback_list_filters($filters);
+        $this->apply_feedback_role_filter();
 
         $query = $this->db->get();
-        return $query->row();
+        $row = $query->row();
+        if (empty($row)) {
+            $row = (object) array('total' => 0, 'sent_count' => 0, 'acknowledge_count' => 0);
+        } else {
+            $row->total = ($row->total !== null && $row->total !== '') ? (int) $row->total : 0;
+            $row->sent_count = ($row->sent_count !== null && $row->sent_count !== '') ? (int) $row->sent_count : 0;
+            $row->acknowledge_count = ($row->acknowledge_count !== null && $row->acknowledge_count !== '') ? (int) $row->acknowledge_count : 0;
+        }
+        return $row;
     }
 
     /**
@@ -733,59 +793,210 @@ class Feedback_Model extends CI_Model {
         $this->db->from('employee_details');
         $this->db->where('status', 'Active');
         $this->db->where_in('user_type', ['admin', 'manager', 'business_head']);
+        $this->db->where('name !=', 'eLogic Timesheet');
         $this->db->order_by('name', 'asc');
         $query = $this->db->get();
         return $query->result();
+    }
+
+    /**
+     * Merged feedback-form department covering Software and Operations teams.
+     */
+    const FEEDBACK_SOFTWARE_OPERATIONS_DEPT = 'Software & Operations';
+    const FEEDBACK_MANAGEMENT_DEPT = 'Management';
+    const FEEDBACK_MANAGEMENT_RM_ID = 92;
+
+    /**
+     * Whether the department belongs to the merged Software & Operations group.
+     */
+    public function is_feedback_software_operations_department($department) {
+        $department = trim((string) $department);
+        if ($department === '') {
+            return false;
+        }
+        if ($department === self::FEEDBACK_SOFTWARE_OPERATIONS_DEPT) {
+            return true;
+        }
+        if (strcasecmp($department, 'Operations Manager') === 0) {
+            return true;
+        }
+        return in_array($department, array('Software', 'Operations'), true);
+    }
+
+    /**
+     * Department options for the feedback form (all helper departments; Software + Operations merged).
+     */
+    public function get_feedback_form_department_options() {
+        $options = function_exists('ts_department_options')
+            ? ts_department_options()
+            : array(
+                'Architectural', 'Structural', '3D Visualization', '2D Auto CAD', 'MEP',
+                'Software', 'IT', 'HR', 'Recruiter', 'Operations', 'Marketing',
+                'Accounting', 'Business Development', 'Management', 'Others'
+            );
+
+        $result = array();
+        $mergedAdded = false;
+        foreach ($options as $option) {
+            if ($this->is_feedback_software_operations_department($option)) {
+                if (!$mergedAdded) {
+                    $result[] = self::FEEDBACK_SOFTWARE_OPERATIONS_DEPT;
+                    $mergedAdded = true;
+                }
+                continue;
+            }
+            $result[] = $option;
+        }
+        if (!$mergedAdded) {
+            $result[] = self::FEEDBACK_SOFTWARE_OPERATIONS_DEPT;
+        }
+        return $result;
+    }
+
+    /**
+     * Software & Operations and Management use a fixed reporting manager on the feedback form.
+     */
+    protected function get_feedback_department_reporting_manager_id($department) {
+        if ($this->is_feedback_software_operations_department($department)) {
+            return 384;
+        }
+        if ($this->normalize_feedback_form_department($department) === self::FEEDBACK_MANAGEMENT_DEPT) {
+            return self::FEEDBACK_MANAGEMENT_RM_ID;
+        }
+        return null;
+    }
+
+    /**
+     * Normalize feedback-form department labels to employee_details values.
+     */
+    protected function normalize_feedback_form_department($department) {
+        $department = trim((string) $department);
+        if ($department === '') {
+            return '';
+        }
+        if ($this->is_feedback_software_operations_department($department)) {
+            return self::FEEDBACK_SOFTWARE_OPERATIONS_DEPT;
+        }
+        return $department;
+    }
+
+    /**
+     * Employee department values to match for a feedback-form department selection.
+     */
+    protected function get_feedback_form_employee_departments($department) {
+        $department = $this->normalize_feedback_form_department($department);
+        if ($department === '') {
+            return array();
+        }
+        if ($department === self::FEEDBACK_SOFTWARE_OPERATIONS_DEPT) {
+            return array('Software', 'Operations', 'Operations Manager');
+        }
+        return array($department);
     }
 
     /**
      * Get reporting managers by department
      */
     public function get_reporting_managers_by_department($department) {
+        $mapped_rm_id = $this->get_feedback_department_reporting_manager_id($department);
+        if (!empty($mapped_rm_id)) {
+            $this->db->select('empId, name, department');
+            $this->db->from('employee_details');
+            $this->db->where('status', 'Active');
+            $this->db->where('empId', (int) $mapped_rm_id);
+            $this->db->order_by('name', 'asc');
+            $query = $this->db->get();
+            if ($query->num_rows() > 0) {
+                return $query->result();
+            }
+        }
+
+        $employee_departments = $this->get_feedback_form_employee_departments($department);
+        if (empty($employee_departments)) {
+            return array();
+        }
+
+        $managers = array();
+        $seen_ids = array();
+        $exclude_rm_id = self::FEEDBACK_MANAGEMENT_RM_ID;
+
+        // Reporting managers who have active team members in this department
+        $this->db->select('DISTINCT rm.empId, rm.name, rm.department', false);
+        $this->db->from('employee_details e');
+        $this->db->join('employee_details rm', 'rm.empId = e.reporting_manger', 'inner');
+        $this->db->where('e.status', 'Active');
+        $this->db->where('rm.status', 'Active');
+        $this->db->where('rm.name !=', 'eLogic Timesheet');
+        $this->db->where('rm.empId !=', $exclude_rm_id);
+        $this->db->where_in('e.department', $employee_departments);
+        $this->db->order_by('rm.name', 'asc');
+        $query = $this->db->get();
+        foreach ($query->result() as $row) {
+            $managers[] = $row;
+            $seen_ids[(int) $row->empId] = true;
+        }
+
+        // Include active managers/admins assigned to this department
         $this->db->select('empId, name, department');
         $this->db->from('employee_details');
         $this->db->where('status', 'Active');
-        $this->db->where_in('user_type', ['manager', 'admin', 'business_head']);
-        
-        if (!empty($department)) {
-            $this->db->where('department', $department);
-        }
-        
+        $this->db->where_in('user_type', array('admin', 'manager', 'business_head'));
+        $this->db->where('name !=', 'eLogic Timesheet');
+        $this->db->where('empId !=', $exclude_rm_id);
+        $this->db->where_in('department', $employee_departments);
         $this->db->order_by('name', 'asc');
-        $query = $this->db->get();
-        return $query->result();
+        $dept_managers_query = $this->db->get();
+        foreach ($dept_managers_query->result() as $row) {
+            $emp_id = (int) $row->empId;
+            if (!isset($seen_ids[$emp_id])) {
+                $managers[] = $row;
+                $seen_ids[$emp_id] = true;
+            }
+        }
+
+        usort($managers, function ($a, $b) {
+            return strcasecmp($a->name, $b->name);
+        });
+
+        return $managers;
     }
 
     /**
-     * Get project coordinators by reporting manager
-     * Project coordinators are employees who report to the selected manager
+     * Get project coordinators by reporting manager.
+     * Project coordinators are all active employees who report to the selected manager.
      */
-    public function get_project_coordinators_by_manager($manager_id) {
+    public function get_project_coordinators_by_manager($manager_id, $department = null) {
+        if (empty($manager_id)) {
+            return array();
+        }
+
         $this->db->select('empId, name, department, designation, emp_com_id');
         $this->db->from('employee_details');
         $this->db->where('status', 'Active');
-        
-        if (!empty($manager_id)) {
-            $this->db->where('reporting_manger', $manager_id);
-        }
-        
+        $this->db->where('name !=', 'eLogic Timesheet');
+        $this->db->where('reporting_manger', (int) $manager_id);
         $this->db->order_by('name', 'asc');
         $query = $this->db->get();
         return $query->result();
     }
 
     /**
-     * Get team members by department
+     * Get team members by reporting manager (all active direct reports).
      */
-    public function get_team_members_by_department($department) {
-        $this->db->select('empId, name, department, emp_com_id');
+    public function get_team_members_by_department($department, $reporting_manager_id = null) {
+        $rm_id = !empty($reporting_manager_id) ? (int) $reporting_manager_id : null;
+        if (empty($rm_id)) {
+            $rm_id = $this->get_feedback_department_reporting_manager_id($department);
+        }
+        if (empty($rm_id)) {
+            return array();
+        }
+
+        $this->db->select('empId, name, department, designation, emp_com_id');
         $this->db->from('employee_details');
         $this->db->where('status', 'Active');
-        
-        if (!empty($department)) {
-            $this->db->where('department', $department);
-        }
-        
+        $this->db->where('name !=', 'eLogic Timesheet');
+        $this->db->where('reporting_manger', $rm_id);
         $this->db->order_by('name', 'asc');
         $query = $this->db->get();
         return $query->result();
