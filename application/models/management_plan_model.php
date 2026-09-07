@@ -3,12 +3,47 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Management_plan_model extends CI_Model {
 
+	private $excludedClientIdList = null;
+
 	public function __construct() {
 		parent::__construct();
 	}
 
 	private function get_elogic_client_ids() {
 		return array('363','374','370','369','368','367','364','361','355','270','262','253','236','210','85','78','74','49','34','32','428');
+	}
+
+	private function get_all_excluded_client_ids() {
+		if ($this->excludedClientIdList !== null) {
+			return $this->excludedClientIdList;
+		}
+
+		$ids = $this->get_elogic_client_ids();
+		$nameRows = $this->db->query("
+			SELECT client_Id
+			FROM client_details
+			WHERE LOWER(TRIM(client_name)) LIKE '%elogic%'
+				OR LOWER(TRIM(client_name)) LIKE '%it team%'
+		")->result();
+		foreach ($nameRows as $nameRow) {
+			if (isset($nameRow->client_Id) && $nameRow->client_Id !== '') {
+				$ids[] = (string)$nameRow->client_Id;
+			}
+		}
+
+		$this->excludedClientIdList = array_values(array_unique($ids));
+		return $this->excludedClientIdList;
+	}
+
+	private function excluded_clients_sql() {
+		$escapedClientIds = array();
+		foreach ($this->get_all_excluded_client_ids() as $clientId) {
+			$escapedClientIds[] = $this->db->escape($clientId);
+		}
+		if (empty($escapedClientIds)) {
+			return '0';
+		}
+		return implode(',', $escapedClientIds);
 	}
 
 	private function build_report_date_range($from_year, $from_month, $to_year, $to_month) {
@@ -57,10 +92,11 @@ class Management_plan_model extends CI_Model {
 	private function build_timesheet_date_filter_sql($fromDate, $toDate, $dateColumn = 'erd.emp_report_dates') {
 		$conditions = array();
 		if ($fromDate !== '') {
-			$conditions[] = 'DATE(' . $dateColumn . ') >= ' . $this->db->escape($fromDate);
+			$conditions[] = $dateColumn . ' >= ' . $this->db->escape($fromDate . ' 00:00:00');
 		}
 		if ($toDate !== '') {
-			$conditions[] = 'DATE(' . $dateColumn . ') <= ' . $this->db->escape($toDate);
+			$toExclusive = date('Y-m-d', strtotime($toDate . ' +1 day'));
+			$conditions[] = $dateColumn . ' < ' . $this->db->escape($toExclusive . ' 00:00:00');
 		}
 		if (empty($conditions)) {
 			return '';
@@ -82,21 +118,16 @@ class Management_plan_model extends CI_Model {
 		return ' AND ' . implode(' AND ', $conditions);
 	}
 
-	private function excluded_clients_sql() {
-		$escapedClientIds = array();
-		foreach ($this->get_elogic_client_ids() as $clientId) {
-			$escapedClientIds[] = $this->db->escape($clientId);
-		}
-		return implode(',', $escapedClientIds);
-	}
-
-	private function excluded_client_name_condition($clientIdColumn = 'c.client_Id') {
-		return $clientIdColumn . " NOT IN (
-			SELECT cexc.client_Id
-			FROM client_details cexc
-			WHERE LOWER(TRIM(cexc.client_name)) LIKE '%elogic%'
-				OR LOWER(TRIM(cexc.client_name)) LIKE '%it team%'
-		)";
+	private function matching_general_projects_sql() {
+		return "
+			SELECT DISTINCT gp.project_Id, gp.client_Id
+			FROM project_details gp
+			INNER JOIN project_details prod
+				ON prod.client_Id = gp.client_Id
+				AND LOWER(COALESCE(prod.project_name, '')) NOT LIKE '%general%'
+				AND LOWER(TRIM(prod.project_name)) = LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))
+			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'
+		";
 	}
 
 	private function prepare_filters($params) {
@@ -111,6 +142,7 @@ class Management_plan_model extends CI_Model {
 
 		$clientFilterSql = '';
 		$clientIdFilterSql = '';
+		$erdClientFilterSql = '';
 		if (!empty($client_Id)) {
 			$escapedClients = array();
 			foreach ($client_Id as $id) {
@@ -123,6 +155,7 @@ class Management_plan_model extends CI_Model {
 				$inList = implode(',', $escapedClients);
 				$clientFilterSql = ' AND c.client_Id IN (' . $inList . ')';
 				$clientIdFilterSql = ' AND p.client_Id IN (' . $inList . ')';
+				$erdClientFilterSql = ' AND erd.client_Id IN (' . $inList . ')';
 			}
 		}
 
@@ -137,10 +170,52 @@ class Management_plan_model extends CI_Model {
 			'invoiceDateFilter' => $this->build_invoice_date_filter_sql($dateRange['fromKey'], $dateRange['toKey']),
 			'clientFilterSql' => $clientFilterSql,
 			'clientIdFilterSql' => $clientIdFilterSql,
-			'nameExclusionC' => ' AND ' . $this->excluded_client_name_condition('c.client_Id'),
-			'nameExclusionP' => ' AND ' . $this->excluded_client_name_condition('p.client_Id'),
-			'nameExclusionErd' => ' AND ' . $this->excluded_client_name_condition('erd.client_Id')
+			'erdClientFilterSql' => $erdClientFilterSql,
+			'matchingGeneralSql' => $this->matching_general_projects_sql()
 		);
+	}
+
+	private function timesheet_hours_select_sql($filters, $groupByMonth = false) {
+		$excludedClients = $filters['excludedClients'];
+		$tsDateFilter = $filters['tsDateFilter'];
+		$erdClientFilterSql = $filters['erdClientFilterSql'];
+		$matchingGeneralSql = $filters['matchingGeneralSql'];
+		$yearSelect = $groupByMonth ? ', YEAR(erd.emp_report_dates) AS year_val, MONTH(erd.emp_report_dates) AS month_val' : '';
+		$yearGroup = $groupByMonth ? ', YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)' : '';
+
+		return "
+			SELECT
+				combined.client_Id" . ($groupByMonth ? ', combined.year_val, combined.month_val' : '') . ",
+				SUM(combined.timesheet_hours) AS timesheet_hours,
+				MAX(combined.timesheet_date) AS timesheet_date
+			FROM (
+				SELECT erd.client_Id" . $yearSelect . ",
+					SUM(erd.emp_time_hours) AS timesheet_hours,
+					MAX(erd.emp_report_dates) AS timesheet_date
+				FROM emp_record_details erd
+				INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
+				WHERE erd.client_Id NOT IN ({$excludedClients})
+				AND LOWER(COALESCE(p.project_name, '')) NOT LIKE '%general%'
+				{$tsDateFilter}
+				{$erdClientFilterSql}
+				AND erd.emp_report_dates IS NOT NULL
+				AND erd.emp_report_dates != '0000-00-00'
+				GROUP BY erd.client_Id{$yearGroup}
+				UNION ALL
+				SELECT erd.client_Id" . $yearSelect . ",
+					SUM(erd.emp_time_hours) AS timesheet_hours,
+					MAX(erd.emp_report_dates) AS timesheet_date
+				FROM emp_record_details erd
+				INNER JOIN ({$matchingGeneralSql}) gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
+				WHERE erd.client_Id NOT IN ({$excludedClients})
+				{$tsDateFilter}
+				{$erdClientFilterSql}
+				AND erd.emp_report_dates IS NOT NULL
+				AND erd.emp_report_dates != '0000-00-00'
+				GROUP BY erd.client_Id{$yearGroup}
+			) combined
+			GROUP BY combined.client_Id" . ($groupByMonth ? ', combined.year_val, combined.month_val' : '') . "
+		";
 	}
 
 	public function get_management_plan_report($params) {
@@ -149,12 +224,9 @@ class Management_plan_model extends CI_Model {
 		$toDate = $filters['toDate'];
 		$excludedClients = $filters['excludedClients'];
 		$generalExclusion = $filters['generalExclusion'];
-		$tsDateFilter = $filters['tsDateFilter'];
 		$invoiceDateFilter = $filters['invoiceDateFilter'];
 		$clientFilterSql = $filters['clientFilterSql'];
-		$nameExclusionC = $filters['nameExclusionC'];
-		$nameExclusionP = $filters['nameExclusionP'];
-		$nameExclusionErd = $filters['nameExclusionErd'];
+		$timesheetSql = $this->timesheet_hours_select_sql($filters, false);
 
 		$periodFilterSql = '';
 		if ($fromDate !== '' || $toDate !== '') {
@@ -166,10 +238,12 @@ class Management_plan_model extends CI_Model {
 					OR COALESCE(inv.invoice_hours, 0) > 0
 					OR (
 						dates.client_start_date IS NOT NULL
-						AND DATE(dates.client_start_date) <= {$toEsc}
+						AND dates.client_start_date != '0000-00-00'
+						AND dates.client_start_date <= {$toEsc}
 						AND (
 							dates.client_end_date IS NULL
-							OR DATE(dates.client_end_date) >= {$fromEsc}
+							OR dates.client_end_date = '0000-00-00'
+							OR dates.client_end_date >= {$fromEsc}
 						)
 					)
 				)";
@@ -182,6 +256,7 @@ class Management_plan_model extends CI_Model {
 				dates.client_start_date AS start_date,
 				dates.client_end_date AS end_date,
 				ts.timesheet_date,
+				COALESCE(ts.timesheet_hours, 0) AS timesheet_hours,
 				COALESCE(inv.invoice_hours, 0) AS invoice_hours
 			FROM client_details c
 			INNER JOIN (
@@ -190,32 +265,22 @@ class Management_plan_model extends CI_Model {
 					MAX(CASE WHEN p.project_end_date IS NOT NULL AND p.project_end_date != '0000-00-00' THEN p.project_end_date END) AS client_end_date
 				FROM project_details p
 				WHERE p.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionP}
 				{$generalExclusion}
 				GROUP BY p.client_Id
 			) dates ON dates.client_Id = c.client_Id
 			LEFT JOIN (
-				SELECT erd.client_Id, MAX(erd.emp_report_dates) AS timesheet_date
-				FROM emp_record_details erd
-				INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
-				WHERE erd.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionErd}
-				{$generalExclusion}
-				{$tsDateFilter}
-				GROUP BY erd.client_Id
+				{$timesheetSql}
 			) ts ON ts.client_Id = c.client_Id
 			LEFT JOIN (
 				SELECT p.client_Id, SUM(pim.invoice_hours) AS invoice_hours
 				FROM project_invoice_monthly pim
 				INNER JOIN project_details p ON p.project_Id = pim.project_Id
 				WHERE p.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionP}
 				{$generalExclusion}
 				{$invoiceDateFilter}
 				GROUP BY p.client_Id
 			) inv ON inv.client_Id = c.client_Id
 			WHERE c.client_Id NOT IN ({$excludedClients})
-			{$nameExclusionC}
 			{$clientFilterSql}
 			{$periodFilterSql}
 			ORDER BY COALESCE(dates.client_end_date, dates.client_start_date) DESC, c.client_name ASC
@@ -224,89 +289,77 @@ class Management_plan_model extends CI_Model {
 		return $this->db->query($sql)->result();
 	}
 
-	public function get_month_wise_by_client($params) {
+	public function get_month_wise_by_client($params, $clientIds = array()) {
 		$filters = $this->prepare_filters($params);
+		if (!empty($clientIds)) {
+			$escapedClients = array();
+			foreach ((array)$clientIds as $id) {
+				$id = trim((string)$id);
+				if ($id !== '') {
+					$escapedClients[] = $this->db->escape($id);
+				}
+			}
+			if (!empty($escapedClients)) {
+				$inList = implode(',', $escapedClients);
+				$filters['clientIdFilterSql'] = ' AND p.client_Id IN (' . $inList . ')';
+				$filters['erdClientFilterSql'] = ' AND erd.client_Id IN (' . $inList . ')';
+			}
+		}
+
 		$excludedClients = $filters['excludedClients'];
 		$generalExclusion = $filters['generalExclusion'];
-		$tsDateFilter = $filters['tsDateFilter'];
 		$invoiceDateFilter = $filters['invoiceDateFilter'];
 		$clientIdFilterSql = $filters['clientIdFilterSql'];
-		$erdClientFilterSql = str_replace('p.client_Id', 'erd.client_Id', $clientIdFilterSql);
-		$nameExclusionP = $filters['nameExclusionP'];
-		$nameExclusionErd = $filters['nameExclusionErd'];
+		$timesheetSql = $this->timesheet_hours_select_sql($filters, true);
 
 		$sql = "
 			SELECT
-				months.client_Id,
-				months.year_val,
-				months.month_val,
-				COALESCE(inv.invoice_hours, 0) AS invoice_hours,
-				COALESCE(ts.timesheet_hours, 0) AS timesheet_hours,
-				ts.timesheet_date
+				combined.client_Id,
+				combined.year_val,
+				combined.month_val,
+				SUM(combined.invoice_hours) AS invoice_hours,
+				SUM(combined.timesheet_hours) AS timesheet_hours,
+				MAX(combined.timesheet_date) AS timesheet_date
 			FROM (
-				SELECT p.client_Id, pim.invoice_year AS year_val, pim.invoice_month AS month_val
+				SELECT p.client_Id,
+					pim.invoice_year AS year_val,
+					pim.invoice_month AS month_val,
+					SUM(pim.invoice_hours) AS invoice_hours,
+					0 AS timesheet_hours,
+					NULL AS timesheet_date
 				FROM project_invoice_monthly pim
 				INNER JOIN project_details p ON p.project_Id = pim.project_Id
 				WHERE p.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionP}
 				{$generalExclusion}
 				{$invoiceDateFilter}
 				{$clientIdFilterSql}
 				GROUP BY p.client_Id, pim.invoice_year, pim.invoice_month
-				UNION
-				SELECT erd.client_Id, YEAR(erd.emp_report_dates) AS year_val, MONTH(erd.emp_report_dates) AS month_val
-				FROM emp_record_details erd
-				INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
-				WHERE erd.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionErd}
-				{$generalExclusion}
-				{$tsDateFilter}
-				{$erdClientFilterSql}
-				AND erd.emp_report_dates IS NOT NULL
-				AND erd.emp_report_dates != '0000-00-00'
-				GROUP BY erd.client_Id, YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)
-			) months
-			LEFT JOIN (
-				SELECT p.client_Id, pim.invoice_year AS year_val, pim.invoice_month AS month_val, SUM(pim.invoice_hours) AS invoice_hours
-				FROM project_invoice_monthly pim
-				INNER JOIN project_details p ON p.project_Id = pim.project_Id
-				WHERE p.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionP}
-				{$generalExclusion}
-				{$invoiceDateFilter}
-				{$clientIdFilterSql}
-				GROUP BY p.client_Id, pim.invoice_year, pim.invoice_month
-			) inv ON inv.client_Id = months.client_Id AND inv.year_val = months.year_val AND inv.month_val = months.month_val
-			LEFT JOIN (
-				SELECT erd.client_Id,
-					YEAR(erd.emp_report_dates) AS year_val,
-					MONTH(erd.emp_report_dates) AS month_val,
-					SUM(erd.emp_time_hours) AS timesheet_hours,
-					MAX(erd.emp_report_dates) AS timesheet_date
-				FROM emp_record_details erd
-				INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
-				WHERE erd.client_Id NOT IN ({$excludedClients})
-				{$nameExclusionErd}
-				{$generalExclusion}
-				{$tsDateFilter}
-				{$erdClientFilterSql}
-				AND erd.emp_report_dates IS NOT NULL
-				AND erd.emp_report_dates != '0000-00-00'
-				GROUP BY erd.client_Id, YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)
-			) ts ON ts.client_Id = months.client_Id AND ts.year_val = months.year_val AND ts.month_val = months.month_val
-			ORDER BY months.client_Id ASC, months.year_val DESC, months.month_val DESC
+				UNION ALL
+				SELECT ts.client_Id,
+					ts.year_val,
+					ts.month_val,
+					0 AS invoice_hours,
+					ts.timesheet_hours,
+					ts.timesheet_date
+				FROM (
+					{$timesheetSql}
+				) ts
+			) combined
+			GROUP BY combined.client_Id, combined.year_val, combined.month_val
+			ORDER BY combined.client_Id ASC, combined.year_val DESC, combined.month_val DESC
 		";
 
 		return $this->db->query($sql)->result();
 	}
 
 	public function get_filter_clients() {
-		$this->db->select('c.client_Id, c.client_name');
-		$this->db->from('client_details as c');
-		$this->db->where_not_in('c.client_Id', $this->get_elogic_client_ids());
-		$this->db->where($this->excluded_client_name_condition('c.client_Id'), null, false);
-		$this->db->order_by('c.client_Id', 'desc');
-		$clients = $this->db->get()->result();
+		$excludedClients = $this->excluded_clients_sql();
+		$clients = $this->db->query("
+			SELECT c.client_Id, c.client_name
+			FROM client_details c
+			WHERE c.client_Id NOT IN ({$excludedClients})
+			ORDER BY c.client_name ASC
+		")->result();
 		foreach ($clients as $client) {
 			if (isset($client->client_name)) {
 				$client->client_name = ucfirst(str_replace("'", " ", (string)$client->client_name));
@@ -316,45 +369,12 @@ class Management_plan_model extends CI_Model {
 	}
 
 	public function get_filter_years() {
-		$excludedClientsSql = $this->excluded_clients_sql();
 		$currentYear = (int)date('Y');
-
-		$nameExclusionC = ' AND ' . $this->excluded_client_name_condition('c.client_Id');
-
-		$sql = "SELECT DISTINCT year_val AS year FROM (
-			SELECT YEAR(p.project_start_date) AS year_val
-			FROM project_details p
-			INNER JOIN client_details c ON c.client_Id = p.client_Id
-			WHERE c.client_Id NOT IN ({$excludedClientsSql})
-			{$nameExclusionC}
-			AND p.project_start_date IS NOT NULL
-			AND p.project_start_date != '0000-00-00'
-			AND LOWER(COALESCE(p.project_name, '')) NOT LIKE '%general%'
-			UNION
-			SELECT YEAR(erd.emp_report_dates) AS year_val
-			FROM emp_record_details erd
-			INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
-			INNER JOIN client_details c ON c.client_Id = erd.client_Id
-			WHERE c.client_Id NOT IN ({$excludedClientsSql})
-			{$nameExclusionC}
-			AND erd.emp_report_dates IS NOT NULL
-			AND erd.emp_report_dates != '0000-00-00'
-			AND LOWER(COALESCE(p.project_name, '')) NOT LIKE '%general%'
-			UNION
-			SELECT pim.invoice_year AS year_val
-			FROM project_invoice_monthly pim
-			INNER JOIN project_details p ON p.project_Id = pim.project_Id
-			INNER JOIN client_details c ON c.client_Id = p.client_Id
-			WHERE c.client_Id NOT IN ({$excludedClientsSql})
-			{$nameExclusionC}
-			AND LOWER(COALESCE(p.project_name, '')) NOT LIKE '%general%'
-			UNION
-			SELECT {$currentYear} AS year_val
-		) combined_years
-		WHERE year_val IS NOT NULL AND year_val > 0
-		ORDER BY year DESC";
-
-		return $this->db->query($sql)->result();
+		$years = array();
+		for ($year = $currentYear; $year >= 2015; $year--) {
+			$years[] = (object)array('year' => $year);
+		}
+		return $years;
 	}
 
 	public function get_filter_months() {

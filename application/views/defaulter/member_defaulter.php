@@ -29,28 +29,43 @@
 							<form class="" name="user_defaulter" id="user_defaulter" method="post" action="<?php echo base_url('defaulter/memberSearch');?>">
 								<div class="tab-pane fade active in" id="Add">
 									<div class="row">
-										<div class="col-md-3">
+										<div class="col-md-4">
+											<div class="form-group">
+												<label class="control-label">Department</label>
+												<?php
+													$departmentOptions = function_exists('ts_department_options') ? ts_department_options() : array();
+												?>
+												<select class="form-control" id="department" name="department[]" multiple="multiple">
+													<?php foreach($departmentOptions as $deptOption): ?>
+														<option value="<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>">
+															<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>
+														</option>
+													<?php endforeach; ?>
+												</select>
+											</div>
+										</div>
+										<div class="col-md-4">
 											<div class="form-group">
 												<label class="control-label">Members</label>
-												<select class="form-control" id="member_empId" name="member_empId">
-													<option value="">All Members</option>
+												<select class="form-control" id="member_empId" name="member_empId[]" multiple="multiple">
 													<?php foreach($members as $member): ?>
 														<option value="<?php echo $member->empId; ?>"><?php echo ucfirst($member->name); ?></option>
 													<?php endforeach; ?>
 												</select>
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-4">
 											<div class="form-group">
 												<label class="control-label">Reporting Manager</label>
-												<select class="form-control" id="reporting_manager" name="reporting_manager">
-													<option value="">All Reporting Managers</option>
+												<select class="form-control" id="reporting_manager" name="reporting_manager[]" multiple="multiple">
 													<?php foreach($reportingManagers as $manager): ?>
 														<option value="<?php echo $manager->empId; ?>"><?php echo ucfirst($manager->name); ?></option>
 													<?php endforeach; ?>
 												</select>
 											</div>
 										</div>
+									</div>
+									<div class="row">
 										<div class="col-md-3">
 											<div class="form-group">
 												<label class="control-label">Week Start Date</label>
@@ -66,9 +81,8 @@
 									</div>
 									<div class="card-footer">
 										<button class="btn btn-primary icon-btn"><i class="fa fa-fw fa-lg fa-check-circle"></i>Search</button>
-										<a href="<?php echo base_url();?>defaulter/memberSearch" data-toggle="Go To Report Log!" title="Cancel">
-											<button class="btn btn-default icon-btn" type="button"><i class="fa fa-chevron-circle-left"></i>Back</button>
-										</a> </div>
+										<button type="button" id="clearMemberSearchFilters" class="btn btn-warning icon-btn" title="Clear filters"><i class="fa fa-fw fa-lg fa-refresh"></i>Clear Filters</button>
+									</div>
 								</div>
 							</form>
 						</div>
@@ -131,20 +145,49 @@
 
 	})
 
-	$('#reporting_manager').select2();
-	$('#member_empId').select2();
+	$('#department').select2({
+		placeholder: 'All Departments',
+		allowClear: true,
+		multiple: true
+	});
+	$('#reporting_manager').select2({
+		placeholder: 'All Reporting Managers',
+		allowClear: true,
+		multiple: true
+	});
+	$('#member_empId').select2({
+		placeholder: 'All Members',
+		allowClear: true,
+		multiple: true
+	});
 
-	$('#reporting_manager').on('change', function() {
+	function reloadMemberOptions() {
 		$.ajax({
 			type: "POST",
 			url: "<?php echo base_url('defaulter/getMembersByManager');?>",
 			data: {
-				reporting_manager: $(this).val()
+				reporting_manager: $('#reporting_manager').val(),
+				department: $('#department').val()
 			},
 			success: function(response) {
 				$('#member_empId').html(response).trigger('change');
 			}
 		});
+	}
+
+	$('#reporting_manager').on('change', reloadMemberOptions);
+	$('#department').on('change', reloadMemberOptions);
+
+	$('#clearMemberSearchFilters').on('click', function(e) {
+		e.preventDefault();
+		$('#department').off('change', reloadMemberOptions).val(null).trigger('change');
+		$('#reporting_manager').off('change', reloadMemberOptions).val(null).trigger('change');
+		$('#member_empId').val(null).trigger('change');
+		$('#def_form_date').val('<?php echo $monday; ?>');
+		$('#def_to_date').val('<?php echo $friday; ?>');
+		$('#department').on('change', reloadMemberOptions);
+		$('#reporting_manager').on('change', reloadMemberOptions);
+		$('#user_defaulter').submit();
 	});
 	
 	$("#downloadEmployeeData").click(function(){

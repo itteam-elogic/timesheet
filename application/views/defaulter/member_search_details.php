@@ -2,210 +2,402 @@
 <?php $this->load->view('includes/cRMHeader'); 
 	
 	$monday = date( 'Y-m-d', strtotime( 'monday this week' ) );
- 	
 	$friday = date( 'Y-m-d', strtotime( 'friday this week' ) );
-  
-    //$getWeekDates = $this->defaulter_model->getBetweenDays(); 
+	$def_form_date = isset($def_form_date) ? $def_form_date : $this->input->post('def_form_date');
+	$def_to_date = isset($def_to_date) ? $def_to_date : $this->input->post('def_to_date');
+	$listbetweenDates = isset($listbetweenDates) ? $listbetweenDates : array();
+	$hoursMatrix = isset($hoursMatrix) ? $hoursMatrix : array();
+	$members = isset($members) ? $members : array();
+	$reportingManagers = isset($reportingManagers) ? $reportingManagers : array();
+	$getEmpResult = isset($getEmpResult) ? $getEmpResult : array();
+	$selectedMemberEmpId = isset($selectedMemberEmpId) ? $selectedMemberEmpId : array();
+	$selectedReportingManager = isset($selectedReportingManager) ? $selectedReportingManager : array();
+	$departments = isset($departments) ? $departments : (function_exists('ts_department_options') ? ts_department_options() : array());
+	$selectedDepartments = isset($selectedDepartments) ? $selectedDepartments : array();
+	if(!is_array($selectedDepartments)){
+		$selectedDepartments = ($selectedDepartments !== '' && $selectedDepartments !== null) ? array($selectedDepartments) : array();
+	}
 
-    $def_form_date = isset($def_form_date) ? $def_form_date : $this->input->post('def_form_date'); //From dates
+	$periodLabel = '';
+	if(!empty($def_form_date) && !empty($def_to_date)){
+		$periodLabel = date('d M Y', strtotime($def_form_date)) . ' to ' . date('d M Y', strtotime($def_to_date));
+	}
 
-   	$def_to_date = isset($def_to_date) ? $def_to_date : $this->input->post('def_to_date');
-   
-    $listbetweenDates = isset($listbetweenDates) ? $listbetweenDates : array();
-    $hoursMatrix = isset($hoursMatrix) ? $hoursMatrix : array();
-
-
-
- //   $getWeekDates = $this->defaulter_model->getBetweenDays($dateDiff); 
-
-   //echo '<pre>'; print_r($getWeekDates);
-//echo $def_form_date.'====='.$def_to_date; exit;
-
+	$totalMembers = 0;
+	$totalInstances = 0;
+	foreach($getEmpResult as $member){
+		$totalMembers++;
+		$memberHours = isset($hoursMatrix[$member->empId]) ? $hoursMatrix[$member->empId] : array();
+		$joiningDate = isset($member->emp_joining_date) ? trim((string)$member->emp_joining_date) : '';
+		foreach($listbetweenDates as $date){
+			if($joiningDate !== '' && $date < $joiningDate){
+				continue;
+			}
+			$hasRecord = isset($memberHours[$date]) ? $memberHours[$date] : null;
+			if(!$hasRecord){
+				$totalInstances++;
+			}elseif(empty($hasRecord['is_leave']) && $hasRecord['hours'] < 8.5){
+				$totalInstances++;
+			}
+		}
+	}
 ?>
-<div class="content-wrapper">
-	<div class="page-title">
+<div class="content-wrapper ts-defaulter-page">
+	<div class="page-title ts-page-title">
 		<div>
-			<!-- <h1>Timesheet Defaulter Search Log : <?php echo $def_form_date.'  To  '. $def_to_date;?></h1> -->
-			<h1>Timesheet Defaulter	</h1>
+			<h1><i class="fa fa-calendar-check-o"></i> Timesheet Defaulter</h1>
+			<p class="ts-subtitle">Track missing hours, leave, and new joinees for the selected period.</p>
 		</div>
-		<div> <a class="btn btn-primary btn-flat" href="<?php echo base_url('defaulter/user_defaulter');?>" data-toggle="tooltip" title="refresh"><i class="fa fa-chevron-circle-left"></i></a> </div>
+		<?php if($periodLabel !== ''): ?>
+		<div class="ts-period-badge"><i class="fa fa-clock-o"></i> <?php echo htmlspecialchars($periodLabel, ENT_QUOTES, 'UTF-8'); ?></div>
+		<?php endif; ?>
 	</div>
-	<div class="card">
-		<h3 class="card-title"></h3>
+
+	<div class="card ts-filter-card">
 		<div class="card-body">
-			<div class="row">
-				<div class="col-md-12">
-					<div class="bs-component">
-						<div class="tab-content" id="myTabContent">
-							<form class="" name="user_defaulter" id="user_defaulter" method="post" action="<?php echo base_url('defaulter/memberSearch');?>">
-								<div class="tab-pane fade active in" id="Add">
-									<div class="row">
-										<div class="col-md-3">
-											<div class="form-group">
-												<label class="control-label">Members</label>
-												<?php
-													$selectedMemberIds = array();
-													if(is_array($selectedMemberEmpId)){
-														$selectedMemberIds = array_map('strval', $selectedMemberEmpId);
-													}elseif($selectedMemberEmpId !== '' && $selectedMemberEmpId !== null){
-														$selectedMemberIds = array((string)$selectedMemberEmpId);
-													}
-												?>
-												<select class="form-control" id="member_empId" name="member_empId[]" multiple="multiple">
-													<?php foreach($members as $member): ?>
-														<option value="<?php echo $member->empId; ?>" <?php echo in_array((string)$member->empId, $selectedMemberIds, true) ? 'selected' : ''; ?>>
-															<?php echo ucfirst($member->name); ?>
-														</option>
-													<?php endforeach; ?>
-												</select>
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label class="control-label">Reporting Manager</label>
-												<select class="form-control" id="reporting_manager" name="reporting_manager">
-													<option value="">All Reporting Managers</option>
-													<?php foreach($reportingManagers as $manager): ?>
-														<option value="<?php echo $manager->empId; ?>" <?php echo ($selectedReportingManager == $manager->empId) ? 'selected' : ''; ?>>
-															<?php echo ucfirst($manager->name); ?>
-														</option>
-													<?php endforeach; ?>
-												</select>
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label class="control-label">Start Date</label>
-												<input class="form-control" type="text" id="def_form_date" name="def_form_date" placeholder="Select From Date" value="<?=$def_form_date;?>" readonly="" style="background:rebeccapurple; color:white; font-weight: bold">  
-											</div>
-										</div>
-										<div class="col-md-3">
-											<div class="form-group">
-												<label class="control-label">End Date</label>
-												<input class="form-control" type="text" id="def_to_date" name="def_to_date" placeholder="Select To Date" value="<?=$def_to_date;?>" readonly="" style="background:rebeccapurple; color:white; font-weight: bold">
-											</div>
-										</div>
-									</div>
-									<div class="card-footer">
-										<button class="btn btn-primary icon-btn"><i class="fa fa-fw fa-lg fa-check-circle"></i>Search</button>
-										<a href="<?php echo base_url();?>defaulter" data-toggle="Go To Report Log!" title="Cancel">
-											<button class="btn btn-default icon-btn" type="button"><i class="fa fa-chevron-circle-left"></i>Back</button>
-										</a> </div>
-								</div>
-							</form>
-						</div>
+			<form class="" name="user_defaulter" id="user_defaulter" method="post" action="<?php echo base_url('defaulter/memberSearch');?>">
+				<div class="ts-filter-grid">
+					<div class="form-group">
+						<label class="control-label">Department</label>
+						<?php $selectedDeptValues = array_map('strval', $selectedDepartments); ?>
+						<select class="form-control" id="department" name="department[]" multiple="multiple">
+							<?php foreach($departments as $deptOption): ?>
+								<option value="<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo in_array((string)$deptOption, $selectedDeptValues, true) ? 'selected' : ''; ?>>
+									<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Members</label>
+						<?php
+							$selectedMemberIds = array();
+							if(is_array($selectedMemberEmpId)){
+								$selectedMemberIds = array_map('strval', $selectedMemberEmpId);
+							}elseif($selectedMemberEmpId !== '' && $selectedMemberEmpId !== null){
+								$selectedMemberIds = array((string)$selectedMemberEmpId);
+							}
+						?>
+						<select class="form-control" id="member_empId" name="member_empId[]" multiple="multiple">
+							<?php foreach($members as $member): ?>
+								<option value="<?php echo $member->empId; ?>" <?php echo in_array((string)$member->empId, $selectedMemberIds, true) ? 'selected' : ''; ?>>
+									<?php echo ucfirst($member->name); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Reporting Manager</label>
+						<?php
+							$selectedManagerIds = array();
+							if(is_array($selectedReportingManager)){
+								$selectedManagerIds = array_map('strval', $selectedReportingManager);
+							}elseif($selectedReportingManager !== '' && $selectedReportingManager !== null){
+								$selectedManagerIds = array((string)$selectedReportingManager);
+							}
+						?>
+						<select class="form-control" id="reporting_manager" name="reporting_manager[]" multiple="multiple">
+							<?php foreach($reportingManagers as $manager): ?>
+								<option value="<?php echo $manager->empId; ?>" <?php echo in_array((string)$manager->empId, $selectedManagerIds, true) ? 'selected' : ''; ?>>
+									<?php echo ucfirst($manager->name); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Start Date</label>
+						<input class="form-control ts-date-input" type="text" id="def_form_date" name="def_form_date" placeholder="Select From Date" value="<?=$def_form_date;?>" readonly="">
+					</div>
+					<div class="form-group">
+						<label class="control-label">End Date</label>
+						<input class="form-control ts-date-input" type="text" id="def_to_date" name="def_to_date" placeholder="Select To Date" value="<?=$def_to_date;?>" readonly="">
 					</div>
 				</div>
+				<div class="ts-filter-actions">
+					<button class="btn ts-btn ts-btn-search"><i class="fa fa-search"></i> Search</button>
+					<button type="button" id="clearMemberSearchFilters" class="btn ts-btn ts-btn-clear" title="Clear filters"><i class="fa fa-refresh"></i> Clear Filters</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<div class="ts-summary-row">
+		<div class="ts-summary-card">
+			<span class="ts-summary-label">Members</span>
+			<strong><?php echo (int)$totalMembers; ?></strong>
+		</div>
+		<div class="ts-summary-card ts-summary-alert">
+			<span class="ts-summary-label">Total Instances</span>
+			<strong><?php echo (int)$totalInstances; ?></strong>
+		</div>
+		<div class="ts-summary-card ts-summary-legend">
+			<span class="ts-summary-label">Legend</span>
+			<div class="ts-legend">
+				<span><i class="ts-dot ts-dot-ok"></i> Filled</span>
+				<span><i class="ts-dot ts-dot-leave"></i> Leave</span>
+				<span><i class="ts-dot ts-dot-miss"></i> Missing</span>
+				<span><i class="ts-dot ts-dot-prejoin"></i> Before joining</span>
 			</div>
 		</div>
 	</div>
-	<!-- Get List of user not filled report log on date wise -->
 
-	<div class="card">
-
-		<div class="card-body">
-			<div class="page-title">
-				<div>
-					<h1>Members Not Entered Report Log</h1>
-				</div>
-				<div style="display:flex; gap:12px; align-items:center; justify-content:flex-end;">
-					<a href="<?php echo base_url('defaulter/previous_user_defaulter');?>" class="btn btn-danger btn-flat">Previous Week Defaulters</a>
-					<button id="downloadEmployeeData" class="btn btn-primary btn-flat">Export Member data into Excel</button>
-				</div>
+	<div class="card ts-report-card">
+		<div class="ts-report-head">
+			<div>
+				<h2>Members Not Entered Report Log</h2>
+				<p>Green = hours filled / leave, red = missing or below 8.5 hours, gray = before joining date.</p>
 			</div>
-			<div class="row">
-				<div class="col-md-12">
-					<div class="table-responsive">
-						<table class="table table-hover table-bordered text-nowrap" id="table2excel">
-							<thead>
-								<tr>
-									<th style="background-color:#c1c1c1">Sno</th>
-									<th style="background-color:#c1c1c1">Manager Name </th>
-									<th style="background-color:#c1c1c1">Employee Name</th>
-									<th style="background-color:#c1c1c1">Employee ID</th>
-									<th style="background-color:#c1c1c1">No of Instances</th>
-									<?php 
-									foreach($listbetweenDates as $dateValue):
-										$totalDays = date('D / d / M', strtotime($dateValue));
-									?>
-									<th style="background-color:#c1c1c1;font-weight:Bold;"><?php echo $totalDays; ?></th>
-									<?php endforeach; ?>
-								</tr>
-							</thead>
-							<tbody>
-								<?php 
-								$cntNumber = 0;
-								foreach($getEmpResult as $key => $member){ 
+			<div class="ts-report-actions">
+				<a href="<?php echo base_url('defaulter/previous_user_defaulter');?>" class="btn ts-btn ts-btn-prev"><i class="fa fa-chevron-left"></i> Previous Week</a>
+				<button type="button" id="downloadEmployeeData" class="btn ts-btn ts-btn-export"><i class="fa fa-file-excel-o"></i> Export Excel</button>
+				<button type="button" id="sendMemberSearchEmail" class="btn ts-btn ts-btn-sent" title="Send defaulter report"><i class="fa fa-paper-plane"></i> Sent</button>
+			</div>
+		</div>
+		<div class="card-body ts-report-body">
+			<div class="table-responsive ts-table-wrap">
+				<table class="table table-bordered text-nowrap ts-grid" id="table2excel">
+					<thead>
+						<tr>
+							<th bgcolor="#1F5076" style="background-color:#1F5076">Sno</th>
+							<th bgcolor="#1F5076" style="background-color:#1F5076">Manager Name</th>
+							<th bgcolor="#1F5076" style="background-color:#1F5076">Employee Name</th>
+							<th bgcolor="#1F5076" style="background-color:#1F5076">Employee ID</th>
+							<th bgcolor="#1F5076" style="background-color:#1F5076">No of Instances</th>
+							<?php foreach($listbetweenDates as $dateValue): ?>
+							<th bgcolor="#1F5076" style="background-color:#1F5076;font-weight:Bold;">
+								<span class="ts-date-day"><?php echo date('D', strtotime($dateValue)); ?></span>
+								<span class="ts-date-num"><?php echo date('d M', strtotime($dateValue)); ?></span>
+							</th>
+							<?php endforeach; ?>
+						</tr>
+					</thead>
+					<tbody>
+						<?php
+						if(empty($getEmpResult)):
+						?>
+						<tr>
+							<td colspan="<?php echo 5 + count($listbetweenDates); ?>" class="ts-empty">No members found for the selected filters.</td>
+						</tr>
+						<?php
+						else:
+							$cntNumber = 0;
+							foreach($getEmpResult as $member){
+								echo '<tr>';
+								echo '<td class="ts-col-sno">'.($cntNumber+1).'</td>';
+								echo '<td class="ts-col-mgr"><b>'.htmlspecialchars($member->manager_name, ENT_QUOTES, 'UTF-8').'</b></td>';
+								echo '<td class="ts-col-name">'.htmlspecialchars($member->name, ENT_QUOTES, 'UTF-8').'</td>';
+								echo '<td class="ts-col-id">'.htmlspecialchars($member->emp_com_id, ENT_QUOTES, 'UTF-8').'</td>';
 
-									echo '<tr>';
-									echo '<td>'.($cntNumber+1).'</td>';
-									/* if($member->reporting_manger != $prevManager) {
-										echo '<td rowspan="1"><b>'.$reporting_ManagerName.'</b></td>'; // Display Manager Name with rowspan
-										$prevManager = $member->reporting_manger;
-									} else {
-										echo '<td></td>'; // Skip displaying manager name if it's the same as the previous one
-									}*/
-									echo '<td><b>'.htmlspecialchars($member->manager_name, ENT_QUOTES, 'UTF-8').'</b></td>';
-									echo '<td>'.$member->name.'</td>';
-									echo '<td>'.$member->emp_com_id.'</td>';
+								$memberHours = isset($hoursMatrix[$member->empId]) ? $hoursMatrix[$member->empId] : array();
+								$joiningDate = isset($member->emp_joining_date) ? trim((string)$member->emp_joining_date) : '';
+								$emp_count = 0;
+								foreach($listbetweenDates as $date):
+									if($joiningDate !== '' && $date < $joiningDate):
+										continue;
+									endif;
+									$hasRecord = isset($memberHours[$date]) ? $memberHours[$date] : null;
+									if(!$hasRecord):
+										$emp_count++;
+									elseif(empty($hasRecord['is_leave']) && $hasRecord['hours'] < 8.5):
+										$emp_count++;
+									endif;
+								endforeach;
+								$instanceClass = ($emp_count > 0) ? 'ts-instance ts-instance-alert' : 'ts-instance ts-instance-ok';
+								echo '<td class="ts-col-inst"><span class="'.$instanceClass.'">'.$emp_count.'</span></td>';
 
-									$memberHours = isset($hoursMatrix[$member->empId]) ? $hoursMatrix[$member->empId] : array();
-									$emp_count = 0;
-									foreach($listbetweenDates as $date):
-										$hasRecord = isset($memberHours[$date]) ? $memberHours[$date] : null;
-										if(!$hasRecord):
-											// Missing entry counts as a defaulter instance
-											$emp_count++;
-										elseif(empty($hasRecord['is_leave']) && $hasRecord['hours'] < 8.5):
-											// Low hours (non-leave) also count as a defaulter instance
-											$emp_count++;
-										endif;
-									endforeach;
-									$totalCntofInstance = $emp_count;
-									echo '<td>'.$totalCntofInstance.'</td>'; // Display employee count
-									
-									foreach($listbetweenDates as $date):
-										$hasRecord = isset($memberHours[$date]) ? $memberHours[$date] : null;
-										if($hasRecord):
-											if(!empty($hasRecord['is_leave'])): // leave record
-												echo '<td style="background-color:#4caf50; color:#FFF;font-weight:bold;text-align:center;">Leave</td>';
-											elseif($hasRecord['hours'] < 8.5):
-												echo '<td style="background-color:#f44336; color:#FFF;font-weight:bold;text-align:center;">'.($hasRecord['hours'] ? $hasRecord['hours'] : '0').'</td>';
-											else:
-												echo '<td style="background-color:#4caf50; color:#FFF;font-weight:bold;text-align:center;">'.$hasRecord['hours'].'</td>'; // Display hours worked on each day in green
-											endif;
+								foreach($listbetweenDates as $date):
+									if($joiningDate !== '' && $date < $joiningDate):
+										echo '<td class="ts-cell ts-cell-prejoin" bgcolor="#9E9E9E" style="background-color:#9e9e9e !important; color:#FFF;font-weight:bold;text-align:center;">&nbsp;</td>';
+										continue;
+									endif;
+									$hasRecord = isset($memberHours[$date]) ? $memberHours[$date] : null;
+									if($hasRecord):
+										if(!empty($hasRecord['is_leave'])):
+											echo '<td class="ts-cell ts-cell-leave" bgcolor="#2E7D32" style="background-color:#2e7d32; color:#FFF;font-weight:bold;text-align:center;">Leave</td>';
+										elseif($hasRecord['hours'] < 8.5):
+											echo '<td class="ts-cell ts-cell-miss" bgcolor="#C62828" style="background-color:#c62828; color:#FFF;font-weight:bold;text-align:center;">'.($hasRecord['hours'] ? $hasRecord['hours'] : '0').'</td>';
 										else:
-											echo '<td style="background-color:#f44336; color:#FFF;font-weight:bold;text-align:center;">0</td>';
+											echo '<td class="ts-cell ts-cell-ok" bgcolor="#2E7D32" style="background-color:#2e7d32; color:#FFF;font-weight:bold;text-align:center;">'.$hasRecord['hours'].'</td>';
 										endif;
-									endforeach;
-									
-									echo '</tr>';
-									$cntNumber++;
-								}
-								?>
-							</tbody>
-						</table>
-					</div>
-				</div>
-				<!-- Displaying Search Result -->
+									else:
+										echo '<td class="ts-cell ts-cell-miss" bgcolor="#C62828" style="background-color:#c62828; color:#FFF;font-weight:bold;text-align:center;">0</td>';
+									endif;
+								endforeach;
+
+								echo '</tr>';
+								$cntNumber++;
+							}
+						endif;
+						?>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</div>
-
-	<!-- End of the report log -->
-
 </div>
+
+<style>
+.ts-defaulter-page { padding-bottom: 28px; }
+.ts-page-title { align-items: flex-start; margin-bottom: 16px; }
+.ts-page-title h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; color: #1f5076; }
+.ts-page-title h1 i { margin-right: 8px; }
+.ts-subtitle { margin: 0; color: #6c7a89; font-size: 13px; }
+.ts-period-badge {
+	background: #eef5fb;
+	color: #1f5076;
+	border: 1px solid #cfe0ef;
+	border-radius: 999px;
+	padding: 8px 14px;
+	font-weight: 700;
+	font-size: 13px;
+	white-space: nowrap;
+}
+.ts-filter-card, .ts-report-card {
+	border: 1px solid #e3e8ef;
+	border-radius: 12px;
+	box-shadow: 0 2px 10px rgba(31, 80, 118, 0.06);
+	overflow: hidden;
+	margin-bottom: 16px;
+}
+.ts-filter-head, .ts-report-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 18px;
+	background: linear-gradient(180deg, #f7fbfe 0%, #eef4f9 100%);
+	border-bottom: 1px solid #e3e8ef;
+}
+.ts-filter-head span, .ts-report-head h2 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 700;
+	color: #1f5076;
+}
+.ts-report-head p { margin: 4px 0 0; color: #6c7a89; font-size: 12px; }
+.ts-report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ts-filter-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 14px;
+}
+.ts-filter-card .form-group { margin-bottom: 0; }
+.ts-filter-card .control-label {
+	font-size: 12px;
+	font-weight: 700;
+	color: #4a5d6e;
+	margin-bottom: 6px;
+	text-transform: uppercase;
+	letter-spacing: .3px;
+}
+.ts-filter-card .select2-container { width: 100% !important; }
+.ts-filter-card .select2-container--default .select2-selection--multiple {
+	min-height: 38px;
+	border: 1px solid #cfd8e3;
+	border-radius: 8px;
+	padding: 3px 6px;
+}
+.ts-date-input {
+	background: #1f5076 !important;
+	color: #fff !important;
+	font-weight: 700;
+	border: 0 !important;
+	border-radius: 8px;
+	cursor: pointer;
+}
+.ts-filter-actions { margin-top: 16px; display: flex; gap: 10px; }
+.ts-btn {
+	border-radius: 8px !important;
+	font-weight: 700;
+	padding: 8px 14px;
+	border: 0;
+}
+.ts-btn-search { background: #1f5076; color: #fff; }
+.ts-btn-search:hover { background: #163d5b; color: #fff; }
+.ts-btn-clear { background: #f4a261; color: #fff; }
+.ts-btn-clear:hover { background: #e08b45; color: #fff; }
+.ts-btn-prev { background: #c62828; color: #fff; }
+.ts-btn-prev:hover { background: #a51f1f; color: #fff; }
+.ts-btn-export { background: #1f5076; color: #fff; }
+.ts-btn-export:hover { background: #163d5b; color: #fff; }
+.ts-btn-sent { background: #2e7d32; color: #fff; }
+.ts-btn-sent:hover { background: #256428; color: #fff; }
+.ts-summary-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.ts-summary-card {
+	background: #fff;
+	border: 1px solid #e3e8ef;
+	border-radius: 12px;
+	padding: 14px 16px;
+	min-width: 150px;
+	box-shadow: 0 2px 8px rgba(31, 80, 118, 0.06);
+	flex: 1 1 150px;
+}
+.ts-summary-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .4px;
+	text-transform: uppercase;
+	color: #7a8896;
+	margin-bottom: 6px;
+}
+.ts-summary-card strong { font-size: 24px; color: #1f5076; }
+.ts-summary-alert strong { color: #c62828; }
+.ts-legend { display: flex; flex-wrap: wrap; gap: 12px; font-weight: 600; color: #334155; font-size: 13px; }
+.ts-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.ts-dot-ok, .ts-dot-leave { background: #2e7d32; }
+.ts-dot-miss { background: #c62828; }
+.ts-dot-prejoin { background: #9e9e9e; }
+.ts-report-body { padding: 0; }
+.ts-table-wrap { margin: 0; }
+.ts-grid { margin: 0; background: #fff; }
+.ts-grid thead th {
+	background: #1f5076 !important;
+	color: #fff !important;
+	font-weight: 700;
+	text-align: center;
+	vertical-align: middle;
+	padding: 10px 8px;
+	border-color: #17405f !important;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+.ts-date-day { display: block; font-size: 11px; opacity: .85; text-transform: uppercase; }
+.ts-date-num { display: block; font-size: 13px; }
+.ts-grid td {
+	vertical-align: middle;
+	padding: 8px;
+	border-color: #e6edf3 !important;
+}
+.ts-col-sno, .ts-col-id, .ts-col-inst { text-align: center; }
+.ts-col-mgr { color: #1f5076; }
+.ts-instance {
+	display: inline-block;
+	min-width: 28px;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-weight: 700;
+}
+.ts-instance-ok { background: #e8f5e9; color: #2e7d32; }
+.ts-instance-alert { background: #ffebee; color: #c62828; }
+.ts-cell { min-width: 72px; }
+.ts-empty { text-align: center; padding: 28px !important; color: #6c7a89; font-weight: 600; }
+@media (max-width: 1100px) {
+	.ts-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.ts-report-head { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 700px) {
+	.ts-filter-grid { grid-template-columns: 1fr; }
+}
+</style>
+
 <script language="javascript" type="text/javascript">
-	/* DatePicker */
 	$(function() {
 		$("form[name='user_defaulter']").validate({
 			rules: {
-				def_form_date: {
-					required: true
-				},
-				def_to_date: {
-					required: true
-				}
+				def_form_date: { required: true },
+				def_to_date: { required: true }
 			},
 			messages: {
 				def_form_date: "Please Select From Date",
@@ -217,64 +409,109 @@
 		});
 	});
 
-	/*Ajax Based dropdown option changes on Clients , Projects and Tasks*/
-
 	$(document).ready(function() {
-		var today = $("#def_form_date").val();
-
-		var fridayDate = $("#def_to_date").val();
-
 		$("#def_form_date").datepicker({
 			dateFormat: 'yy-mm-dd',
 			changeMonth: true,
-			numberOfMonths: 1,
+			numberOfMonths: 1
 		});
-
 		$("#def_to_date").datepicker({
 			dateFormat: 'yy-mm-dd',
 			changeMonth: true,
-			numberOfMonths: 1,
+			numberOfMonths: 1
 		});
+	});
 
-	})
-
-	$('#reporting_manager').select2();
+	$('#department').select2({
+		placeholder: 'All Departments',
+		allowClear: true,
+		multiple: true
+	});
+	$('#reporting_manager').select2({
+		placeholder: 'All Reporting Managers',
+		allowClear: true,
+		multiple: true
+	});
 	$('#member_empId').select2({
 		placeholder: 'All Members',
 		allowClear: true,
 		multiple: true
 	});
 
-	$('#reporting_manager').on('change', function() {
+	function reloadMemberOptions() {
 		$.ajax({
 			type: "POST",
 			url: "<?php echo base_url('defaulter/getMembersByManager');?>",
 			data: {
-				reporting_manager: $(this).val()
+				reporting_manager: $('#reporting_manager').val(),
+				department: $('#department').val()
 			},
 			success: function(response) {
 				$('#member_empId').html(response).trigger('change');
 			}
 		});
+	}
+
+	$('#reporting_manager').on('change', reloadMemberOptions);
+	$('#department').on('change', reloadMemberOptions);
+
+	$('#clearMemberSearchFilters').on('click', function(e) {
+		e.preventDefault();
+		$('#department').off('change', reloadMemberOptions).val(null).trigger('change');
+		$('#reporting_manager').off('change', reloadMemberOptions).val(null).trigger('change');
+		$('#member_empId').val(null).trigger('change');
+		$('#def_form_date').val('<?php echo $monday; ?>');
+		$('#def_to_date').val('<?php echo $friday; ?>');
+		$('#department').on('change', reloadMemberOptions);
+		$('#reporting_manager').on('change', reloadMemberOptions);
+		$('#user_defaulter').submit();
 	});
 
 	$("#downloadEmployeeData").click(function() {
-		$("#table2excel").table2excel({
-			// exclude CSS class
-			exclude: ".noExl",
-			name: "Report for employees",
-			filename: "ReportLog", //do not include extension
-			fileext: ".xls", // file extension
-			exclude_links: true,
-			exclude_inputs: true,
-			preserveColors: "preserveColors"
+		var $exportForm = $('<form>', {
+			method: 'POST',
+			action: "<?php echo base_url('defaulter/export_member_search_excel'); ?>"
+		});
+		$.each($('#user_defaulter').serializeArray(), function(_, field) {
+			$exportForm.append($('<input>', { type: 'hidden', name: field.name, value: field.value }));
+		});
+		$exportForm.appendTo('body').submit().remove();
+	});
 
-
+	$("#sendMemberSearchEmail").click(function(e) {
+		e.preventDefault();
+		var $btn = $(this);
+		var originalHtml = $btn.html();
+		$btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Sending...');
+		$.ajax({
+			url: "<?php echo base_url('defaulter/send_member_search_email'); ?>",
+			type: "POST",
+			dataType: "text",
+			data: {
+				department: $('#department').val(),
+				reporting_manager: $('#reporting_manager').val(),
+				member_empId: $('#member_empId').val(),
+				def_form_date: $('#def_form_date').val(),
+				def_to_date: $('#def_to_date').val()
+			},
+			success: function(res) {
+				var msg = 'Defaulter report email request completed.';
+				try {
+					var data = (typeof res === 'string') ? JSON.parse(res) : res;
+					if (data && data.message) {
+						msg = data.message;
+					}
+				} catch (err) {}
+				alert(msg);
+			},
+			error: function() {
+				alert('Failed to send email. Please try again.');
+			},
+			complete: function() {
+				$btn.prop('disabled', false).html(originalHtml);
+			}
 		});
 	});
 </script>
-<script src="<?php echo HTTP_JS_PATH; ?>jquery.table2excel.js"></script>
 
-<!-- Inlude Footer here -->
 <?php $this->load->view('includes/cRMFooter'); ?>
-<!-- Inlude Footer here END-->

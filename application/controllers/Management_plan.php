@@ -21,9 +21,50 @@ class Management_plan extends CI_Controller {
 		$this->load->view('management_plan/management_plan', $data);
 	}
 
+	public function month_rows() {
+		$filterState = $this->build_filter_state();
+		$clientIds = $this->normalize_filter_values($this->input->get_post('client_Id'));
+		$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params'], $clientIds);
+
+		$grouped = array();
+		foreach ($monthRows as $monthRow) {
+			$clientId = isset($monthRow->client_Id) ? (string)$monthRow->client_Id : '';
+			if ($clientId === '') {
+				continue;
+			}
+			if (!isset($grouped[$clientId])) {
+				$grouped[$clientId] = array();
+			}
+			$yearVal = isset($monthRow->year_val) ? (int)$monthRow->year_val : 0;
+			$monthVal = isset($monthRow->month_val) ? (int)$monthRow->month_val : 0;
+			$monthStart = ($yearVal > 0 && $monthVal >= 1 && $monthVal <= 12)
+				? sprintf('%04d-%02d-01', $yearVal, $monthVal)
+				: '';
+			$grouped[$clientId][] = array(
+				'year_val' => $yearVal,
+				'month_val' => $monthVal,
+				'month_label' => ($monthStart !== '') ? date('M Y', strtotime($monthStart)) : 'N/A',
+				'start_date' => $this->format_date($monthStart),
+				'end_date' => ($monthStart !== '') ? $this->format_date(date('Y-m-t', strtotime($monthStart))) : '',
+				'timesheet_date' => $this->format_date(isset($monthRow->timesheet_date) ? $monthRow->timesheet_date : '', true),
+				'timesheet_hours' => $this->format_hours(isset($monthRow->timesheet_hours) ? $monthRow->timesheet_hours : 0),
+				'timesheet_hours_raw' => (float)(isset($monthRow->timesheet_hours) ? $monthRow->timesheet_hours : 0),
+				'invoice_hours' => $this->format_hours(isset($monthRow->invoice_hours) ? $monthRow->invoice_hours : 0),
+				'invoice_hours_raw' => (float)(isset($monthRow->invoice_hours) ? $monthRow->invoice_hours : 0)
+			);
+		}
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode(array(
+				'success' => true,
+				'months' => $grouped
+			)));
+	}
+
 	public function export_report() {
 		$filterState = $this->build_filter_state();
-		$viewData = $this->build_view_data($filterState);
+		$viewData = $this->build_view_data($filterState, true);
 		$rows = isset($viewData['records']) ? $viewData['records'] : array();
 
 		$this->load->library('excel');
@@ -31,7 +72,7 @@ class Management_plan extends CI_Controller {
 		$sheet = $objPHPExcel->setActiveSheetIndex(0);
 		$sheet->setTitle('Management Plan');
 
-		$headers = array('S.No', 'Client Name', 'Start Date', 'End Date', 'Timesheet Date', 'Invoice Hours');
+		$headers = array('S.No', 'Client Name', 'Start Date', 'End Date', 'Timesheet Date', 'Timesheet Hours', 'Invoice Hours');
 		$sheet->fromArray($headers, null, 'A1');
 
 		$headerStyle = array(
@@ -42,7 +83,7 @@ class Management_plan extends CI_Controller {
 				'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER
 			)
 		);
-		$sheet->getStyle('A1:F1')->applyFromArray($headerStyle);
+		$sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
 		$sheet->getRowDimension(1)->setRowHeight(28);
 
 		$clientFill = array(
@@ -58,8 +99,9 @@ class Management_plan extends CI_Controller {
 			$sheet->setCellValue('C' . $line, $this->format_date(isset($row->start_date) ? $row->start_date : ''));
 			$sheet->setCellValue('D' . $line, $this->format_date(isset($row->end_date) ? $row->end_date : '', true));
 			$sheet->setCellValue('E' . $line, $this->format_date(isset($row->timesheet_date) ? $row->timesheet_date : '', true));
-			$sheet->setCellValue('F' . $line, $this->format_hours(isset($row->invoice_hours) ? $row->invoice_hours : 0));
-			$sheet->getStyle('A' . $line . ':F' . $line)->applyFromArray($clientFill);
+			$sheet->setCellValue('F' . $line, $this->format_hours(isset($row->timesheet_hours) ? $row->timesheet_hours : 0));
+			$sheet->setCellValue('G' . $line, $this->format_hours(isset($row->invoice_hours) ? $row->invoice_hours : 0));
+			$sheet->getStyle('A' . $line . ':G' . $line)->applyFromArray($clientFill);
 			$line++;
 
 			$monthRows = isset($row->month_rows) ? $row->month_rows : array();
@@ -79,14 +121,15 @@ class Management_plan extends CI_Controller {
 				$sheet->setCellValue('C' . $line, $this->format_date($monthStart));
 				$sheet->setCellValue('D' . $line, $this->format_date($monthEnd, true));
 				$sheet->setCellValue('E' . $line, $this->format_date(isset($monthRow->timesheet_date) ? $monthRow->timesheet_date : '', true));
-				$sheet->setCellValue('F' . $line, $this->format_hours(isset($monthRow->invoice_hours) ? $monthRow->invoice_hours : 0));
+				$sheet->setCellValue('F' . $line, $this->format_hours(isset($monthRow->timesheet_hours) ? $monthRow->timesheet_hours : 0));
+				$sheet->setCellValue('G' . $line, $this->format_hours(isset($monthRow->invoice_hours) ? $monthRow->invoice_hours : 0));
 				$line++;
 			}
 			$sno++;
 		}
 
 		$lastRow = ($line > 2) ? ($line - 1) : 1;
-		$sheet->getStyle('A1:F' . $lastRow)->applyFromArray(array(
+		$sheet->getStyle('A1:G' . $lastRow)->applyFromArray(array(
 			'borders' => array(
 				'allborders' => array(
 					'style' => PHPExcel_Style_Border::BORDER_THIN,
@@ -96,9 +139,9 @@ class Management_plan extends CI_Controller {
 			'alignment' => array('vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER)
 		));
 		$sheet->getStyle('A2:A' . $lastRow)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-		$sheet->getStyle('C2:F' . $lastRow)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+		$sheet->getStyle('C2:G' . $lastRow)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 
-		$columnWidths = array('A' => 10, 'B' => 38, 'C' => 16, 'D' => 16, 'E' => 18, 'F' => 16);
+		$columnWidths = array('A' => 10, 'B' => 38, 'C' => 16, 'D' => 16, 'E' => 18, 'F' => 16, 'G' => 16);
 		foreach ($columnWidths as $col => $width) {
 			$sheet->getColumnDimension($col)->setWidth($width);
 		}
@@ -114,23 +157,25 @@ class Management_plan extends CI_Controller {
 		exit;
 	}
 
-	private function build_view_data($filterState) {
+	private function build_view_data($filterState, $includeMonths = false) {
 		$records = $this->management_plan_model->get_management_plan_report($filterState['params']);
-		$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params']);
-		$monthsByClient = array();
-		foreach ($monthRows as $monthRow) {
-			$clientId = isset($monthRow->client_Id) ? (int)$monthRow->client_Id : 0;
-			if ($clientId <= 0) {
-				continue;
+		if ($includeMonths) {
+			$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params']);
+			$monthsByClient = array();
+			foreach ($monthRows as $monthRow) {
+				$clientId = isset($monthRow->client_Id) ? (int)$monthRow->client_Id : 0;
+				if ($clientId <= 0) {
+					continue;
+				}
+				if (!isset($monthsByClient[$clientId])) {
+					$monthsByClient[$clientId] = array();
+				}
+				$monthsByClient[$clientId][] = $monthRow;
 			}
-			if (!isset($monthsByClient[$clientId])) {
-				$monthsByClient[$clientId] = array();
+			foreach ($records as $row) {
+				$clientId = isset($row->client_Id) ? (int)$row->client_Id : 0;
+				$row->month_rows = isset($monthsByClient[$clientId]) ? $monthsByClient[$clientId] : array();
 			}
-			$monthsByClient[$clientId][] = $monthRow;
-		}
-		foreach ($records as $row) {
-			$clientId = isset($row->client_Id) ? (int)$row->client_Id : 0;
-			$row->month_rows = isset($monthsByClient[$clientId]) ? $monthsByClient[$clientId] : array();
 		}
 
 		return array(

@@ -3294,9 +3294,9 @@ private function _client_report_batch_last_work_dates(array $clientIds, $from_da
 /**
  * Batch SUM general-project hours per client/project — avoids N+1 in client report.
  *
- * @return array<string,float> keys clientId_projectId
+ * @return array<string,float> keys clientId_projectId, or clientId_projectId_YYYY-MM when $by_month
  */
-private function _client_report_batch_general_hours(array $pairs, $from_date, $to_date)
+private function _client_report_batch_general_hours(array $pairs, $from_date, $to_date, $by_month = false)
 {
     if (empty($pairs)) {
         return array();
@@ -3313,6 +3313,9 @@ private function _client_report_batch_general_hours(array $pairs, $from_date, $t
         return array();
     }
     $this->db->select('client_id, project_id, SUM(emp_time_hours) as total_general_hours', false);
+    if ($by_month) {
+        $this->db->select("DATE_FORMAT(emp_report_dates, '%Y-%m') as report_month", false);
+    }
     $this->db->from('emp_record_details');
     $this->db->where_in('client_id', $clientIds);
     $this->db->where_in('project_id', $projectIds);
@@ -3320,20 +3323,310 @@ private function _client_report_batch_general_hours(array $pairs, $from_date, $t
         $this->db->where('emp_report_dates >=', $from_date);
         $this->db->where('emp_report_dates <=', $to_date);
     }
-    $this->db->group_by('client_id, project_id');
+    if ($by_month) {
+        $this->db->group_by('client_id, project_id, report_month');
+    } else {
+        $this->db->group_by('client_id, project_id');
+    }
     $wanted = array();
     foreach ($pairs as $pair) {
         $wanted[(int)$pair['client_id'] . '_' . (int)$pair['project_id']] = true;
     }
     $map = array();
     foreach ($this->db->get()->result() as $row) {
-        $key = (int)$row->client_id . '_' . (int)$row->project_id;
-        if (isset($wanted[$key])) {
-            $map[$key] = (float)$row->total_general_hours;
+        $baseKey = (int)$row->client_id . '_' . (int)$row->project_id;
+        if (!isset($wanted[$baseKey])) {
+            continue;
         }
+        $key = $baseKey;
+        if ($by_month && !empty($row->report_month)) {
+            $key .= '_' . $row->report_month;
+        }
+        $map[$key] = (float)$row->total_general_hours;
     }
     $this->db->reset_query();
     return $map;
+}
+
+/**
+ * Split a batch hours map into month entries for one client/project pair.
+ *
+ * @return array<int,array{month:string,hours:float}>
+ */
+private function _client_report_pair_hour_entries(array $hoursMap, $clientId, $projectId, $by_month)
+{
+    $baseKey = (int)$clientId . '_' . (int)$projectId;
+    if (!$by_month) {
+        $hours = isset($hoursMap[$baseKey]) ? (float)$hoursMap[$baseKey] : 0;
+        return $hours > 0 ? array(array('month' => '', 'hours' => $hours)) : array();
+    }
+    $prefix = $baseKey . '_';
+    $entries = array();
+    foreach ($hoursMap as $key => $hours) {
+        $hours = (float)$hours;
+        if ($hours <= 0 || strpos((string)$key, $prefix) !== 0) {
+            continue;
+        }
+        $month = substr((string)$key, strlen($prefix));
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            continue;
+        }
+        $entries[] = array('month' => $month, 'hours' => $hours);
+    }
+    return $entries;
+}
+
+/**
+ * Flexible project-name match used when pairing production vs General projects.
+ */
+private function _client_report_project_names_match($nameA, $nameB)
+{
+    $normalize = function ($name) {
+        $normalized = strtolower(trim((string)$name));
+        $normalized = preg_replace('/[\'`]s?/', '', $normalized);
+        $normalized = preg_replace('/[_\-\s]+/', '', $normalized);
+        return $normalized;
+    };
+    $a = $normalize($nameA);
+    $b = $normalize($nameB);
+    if ($a === '' || $b === '') {
+        return false;
+    }
+    if ($a === $b || strpos($a, $b) === 0 || strpos($b, $a) === 0) {
+        return true;
+    }
+    $aLen = strlen($a);
+    $bLen = strlen($b);
+    if ($aLen < 5 || $bLen < 5) {
+        return false;
+    }
+    if (strpos($a, $b) === false && strpos($b, $a) === false) {
+        return false;
+    }
+    $shorterLen = min($aLen, $bLen);
+    $longerLen = max($aLen, $bLen);
+    return $shorterLen > 0 && ($shorterLen / $longerLen) >= 0.6;
+}
+
+/**
+ * True when a production row already represents this general project for the month.
+ */
+private function _client_report_orphan_matches_existing(array $projects, $clientId, $baseName, $reportMonth, $aggregate_by_month)
+{
+    foreach ($projects as $p) {
+        if ((int)$p->client_Id !== (int)$clientId) {
+            continue;
+        }
+        if ($aggregate_by_month) {
+            $pMonth = isset($p->report_month) ? (string)$p->report_month : '';
+            if ($pMonth !== '' && $pMonth !== (string)$reportMonth) {
+                continue;
+            }
+        }
+        $existingName = isset($p->project_name) ? trim((string)$p->project_name) : '';
+        if ($existingName === '') {
+            continue;
+        }
+        if (strcasecmp($existingName, $baseName) === 0 || $this->_client_report_project_names_match($baseName, $existingName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Append General-only projects (0 production hours) so they still appear on the client report.
+ */
+private function _client_report_append_orphan_general_projects(
+    array $projects,
+    $from_date,
+    $to_date,
+    $department,
+    $aggregate_by_month,
+    $userType,
+    $empId,
+    $isMEPManager,
+    $isARCManager
+) {
+    $this->db->distinct();
+    $this->db->select('
+        erd.client_id,
+        erd.project_id,
+        pd.project_name,
+        cd.client_name,
+        cd.empId as clientpm,
+        COALESCE(NULLIF(pd.project_type, ""), cd.department) as department,
+        pd.empId as projectpm,
+        pd.status,
+        pd.man_days,
+        pd.project_start_date,
+        pd.project_end_date,
+        pd.project_invoice_amt
+    ');
+    $this->db->from('emp_record_details erd');
+    $this->db->join('project_details pd', 'pd.project_id = erd.project_id', 'inner');
+    $this->db->join('client_details cd', 'cd.client_Id = erd.client_id', 'inner');
+    $this->db->where('cd.status', 'Active');
+    $this->db->where("cd.client_name != ''");
+    $this->db->where("cd.client_name NOT LIKE '%eLogic Solutions%' ESCAPE '!'");
+    $this->db->like('pd.project_name', 'General', 'both');
+
+    if (!empty($from_date) && !empty($to_date)) {
+        $this->db->where('erd.emp_report_dates >=', $from_date);
+        $this->db->where('erd.emp_report_dates <=', $to_date);
+    }
+
+    if (!empty($department)) {
+        if (is_array($department)) {
+            $this->db->where_in("COALESCE(NULLIF(pd.project_type, ''), cd.department)", $department);
+        } else {
+            $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) =", $department);
+        }
+    } elseif ($userType == 'admin' || $empId == '140') {
+        $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) IN", "('MEP', '3D Visualization', 'Architectural', 'Structural', '2D Auto CAD')", false);
+    } elseif ($empId == '149'|| $isMEPManager ) {
+        $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) =", 'MEP');
+    } elseif ($empId == '47' || $isARCManager) {
+        $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) IN", "('Architectural', 'Structural', '3D Visualization', '2D Auto CAD')", false);
+    }
+
+    $generalProjectsWithHours = $this->db->get()->result();
+    $this->db->reset_query();
+
+    $orphanCandidates = array();
+    $orphanHourPairs = array();
+    foreach ($generalProjectsWithHours as $gp) {
+        $baseName = preg_replace('/\s*[-]?\s*\(?General\)?\s*/i', '', $gp->project_name);
+        $baseName = preg_replace('/\s*General\s*/i', '', $baseName);
+        $baseName = trim($baseName);
+        if ($baseName === '') {
+            continue;
+        }
+        $orphanCandidates[] = array('gp' => $gp, 'baseName' => $baseName);
+        $orphanHourPairs[] = array(
+            'client_id' => (int)$gp->client_id,
+            'project_id' => (int)$gp->project_id,
+        );
+    }
+
+    if (empty($orphanCandidates)) {
+        return $projects;
+    }
+
+    $orphanHoursMap = $this->_client_report_batch_general_hours(
+        $orphanHourPairs,
+        $from_date,
+        $to_date,
+        (bool)$aggregate_by_month
+    );
+    $orphanClientIds = array();
+    $pmIds = array();
+    foreach ($orphanCandidates as $item) {
+        $orphanClientIds[] = $item['gp']->client_id;
+        if (!empty($item['gp']->projectpm)) {
+            $pmIds[] = $item['gp']->projectpm;
+        }
+        if (!empty($item['gp']->clientpm)) {
+            $pmIds[] = $item['gp']->clientpm;
+        }
+    }
+    $orphanLastMap = $this->_client_report_batch_last_work_dates(
+        $orphanClientIds,
+        $from_date,
+        $to_date,
+        (bool)$aggregate_by_month
+    );
+    $pmNamesById = array();
+    $pmIds = array_values(array_unique(array_filter($pmIds)));
+    if (!empty($pmIds)) {
+        $pmRows = $this->db->select('empId, name')->from('employee_details')->where_in('empId', $pmIds)->get()->result();
+        foreach ($pmRows as $pmRow) {
+            $pmNamesById[$pmRow->empId] = $pmRow->name;
+        }
+        $this->db->reset_query();
+    }
+
+    $shownGeneralHoursKeys = array();
+    foreach ($orphanCandidates as $item) {
+        $gp = $item['gp'];
+        $baseName = $item['baseName'];
+        $hourEntries = $this->_client_report_pair_hour_entries(
+            $orphanHoursMap,
+            $gp->client_id,
+            $gp->project_id,
+            (bool)$aggregate_by_month
+        );
+        if (empty($hourEntries)) {
+            continue;
+        }
+
+        $pmName = !empty($gp->projectpm) && isset($pmNamesById[$gp->projectpm]) ? $pmNamesById[$gp->projectpm] : '';
+        $clientPmName = !empty($gp->clientpm) && isset($pmNamesById[$gp->clientpm]) ? $pmNamesById[$gp->clientpm] : '';
+        $hoursKey = (int)$gp->client_id . '_' . (int)$gp->project_id;
+        $normalizedBaseNameForNew = strtolower($baseName);
+        $normalizedBaseNameForNew = preg_replace('/[\'`]s?/', '', $normalizedBaseNameForNew);
+        $normalizedBaseNameForNew = preg_replace('/[_\-\s]+/', '', $normalizedBaseNameForNew);
+
+        foreach ($hourEntries as $entry) {
+            $reportMonth = $entry['month'];
+            $generalHours = $entry['hours'];
+            if ($generalHours <= 0) {
+                continue;
+            }
+            if ($this->_client_report_orphan_matches_existing($projects, $gp->client_id, $baseName, $reportMonth, $aggregate_by_month)) {
+                continue;
+            }
+
+            $dedupeKey = $gp->client_id . '_' . $normalizedBaseNameForNew;
+            if ($aggregate_by_month && $reportMonth !== '') {
+                $dedupeKey .= '_' . $reportMonth;
+            }
+            $shouldShowGeneralHours = !isset($shownGeneralHoursKeys[$dedupeKey]);
+            $shownHours = $shouldShowGeneralHours ? $generalHours : 0;
+            if ($shouldShowGeneralHours) {
+                $shownGeneralHoursKeys[$dedupeKey] = true;
+            }
+            if ($shownHours <= 0) {
+                continue;
+            }
+
+            $lastKey = $hoursKey;
+            if ($aggregate_by_month && $reportMonth !== '') {
+                $lastKey .= '_' . $reportMonth;
+            }
+
+            $newProject = new stdClass();
+            $newProject->client_Id = $gp->client_id;
+            $newProject->project_Id = $gp->project_id;
+            $newProject->client_name = $gp->client_name;
+            $newProject->project_name = $baseName;
+            $newProject->department = $gp->department;
+            $newProject->clientpm = $gp->clientpm;
+            $newProject->projectpm = $gp->projectpm;
+            $newProject->pm_name = $pmName;
+            $newProject->client_pm_name = $clientPmName;
+            $newProject->status = $gp->status;
+            $newProject->man_days = $gp->man_days;
+            $newProject->project_start_date = $gp->project_start_date;
+            $newProject->project_end_date = $gp->project_end_date;
+            $newProject->client_start_date = $gp->project_start_date;
+            $newProject->client_end_date = $gp->project_end_date;
+            $newProject->project_invoice_amt = isset($gp->project_invoice_amt) ? $gp->project_invoice_amt : null;
+            $newProject->total_hours = 0;
+            $newProject->general_hours = $shownHours;
+            $newProject->qty_project_Id = null;
+            $newProject->analyzer_num_of_errors = 0;
+            $newProject->reviewer_num_of_errors = 0;
+            $newProject->analyzer_report_date = null;
+            $newProject->last_work_date = isset($orphanLastMap[$lastKey]) ? $orphanLastMap[$lastKey] : null;
+            if ($aggregate_by_month && $reportMonth !== '') {
+                $newProject->report_month = $reportMonth;
+            }
+            $projects[] = $newProject;
+        }
+    }
+
+    return $projects;
 }
 
 //func for monthly client report table ( without limit - for excel )         
@@ -3712,7 +4005,8 @@ $isMEPManager = in_array($empId, $mepManagers);
         $generalHoursMapByGeneralProjectId = $this->_client_report_batch_general_hours(
             array_values($generalHourPairs),
             $from_date,
-            $to_date
+            $to_date,
+            (bool)$aggregate_by_month
         );
         
         $clientIds = array();
@@ -3733,12 +4027,18 @@ $isMEPManager = in_array($empId, $mepManagers);
 
             if ($generalProjectId) {
                 $generalProjectKey = $project->client_Id . '_' . $generalProjectId;
-                $gen_hours = isset($generalHoursMapByGeneralProjectId[$generalProjectKey]) ? $generalHoursMapByGeneralProjectId[$generalProjectKey] : 0;
+                $hoursLookupKey = $generalProjectKey;
+                $shownKey = $generalProjectKey;
+                if ($aggregate_by_month && !empty($project->report_month)) {
+                    $hoursLookupKey .= '_' . $project->report_month;
+                    $shownKey .= '_' . $project->report_month;
+                }
+                $gen_hours = isset($generalHoursMapByGeneralProjectId[$hoursLookupKey]) ? $generalHoursMapByGeneralProjectId[$hoursLookupKey] : 0;
 
-                if ($gen_hours > 0 && !isset($shownGeneralProjectIds[$generalProjectKey])) {
+                if ($gen_hours > 0 && !isset($shownGeneralProjectIds[$shownKey])) {
                     if (stripos($project->project_name, 'General') === false) {
                         $project->general_hours = $gen_hours;
-                        $shownGeneralProjectIds[$generalProjectKey] = true;
+                        $shownGeneralProjectIds[$shownKey] = true;
                     } else {
                         $project->general_hours = 0;
                     }
@@ -3756,192 +4056,22 @@ $isMEPManager = in_array($empId, $mepManagers);
             $project->last_work_date = isset($lastWorkDateMap[$lastKey]) ? $lastWorkDateMap[$lastKey] : null;
         }
         unset($project);
-        
-        // Find general projects that have hours but no matching regular project
-        $existingClientProjectKeys = array();
-        foreach ($projects as $p) {
-            $key = $p->client_Id . '_' . $p->project_name;
-            $existingClientProjectKeys[$key] = true;
-        }
-
-        $this->db->distinct();
-        $this->db->select('
-            erd.client_id,
-            erd.project_id,
-            pd.project_name,
-            cd.client_name,
-            cd.empId as clientpm,
-            COALESCE(NULLIF(pd.project_type, ""), cd.department) as department,
-            pd.empId as projectpm,
-            pd.status,
-            pd.man_days,
-            pd.project_start_date,
-            pd.project_end_date
-        ');
-        $this->db->from('emp_record_details erd');
-        $this->db->join('project_details pd', 'pd.project_id = erd.project_id', 'inner');
-        $this->db->join('client_details cd', 'cd.client_Id = erd.client_id', 'inner');
-        $this->db->where('cd.status', 'Active');
-        $this->db->where("cd.client_name != ''");
-        $this->db->where("cd.client_name NOT LIKE '%eLogic Solutions%' ESCAPE '!'");
-        $this->db->like('pd.project_name', 'General', 'both');
-
-        if (!empty($from_date) && !empty($to_date)) {
-            $this->db->where('erd.emp_report_dates >=', $from_date);
-            $this->db->where('erd.emp_report_dates <=', $to_date);
-        }
-
-        if (!empty($department)) {
-            if (is_array($department)) {
-                $this->db->where_in("COALESCE(NULLIF(pd.project_type, ''), cd.department)", $department);
-            } else {
-                $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) =", $department);
-            }
-        } elseif ($userType == 'admin' || $empId == '140') {
-            $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) IN", "('MEP', '3D Visualization', 'Architectural', 'Structural', '2D Auto CAD')", false);
-        } elseif ($empId == '149'|| $isMEPManager ) {
-            $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) =", 'MEP');
-        } elseif ($empId == '47' || $isARCManager) {
-            $this->db->where("COALESCE(NULLIF(pd.project_type, ''), cd.department) IN", "('Architectural', 'Structural', '3D Visualization', '2D Auto CAD')", false);
-        }
-
-        $generalProjectsWithHours = $this->db->get()->result();
-        $this->db->reset_query();
-
-        $shownGeneralHoursKeys = array();
-        $orphanCandidates = array();
-        $orphanHourPairs = array();
-
-        foreach ($generalProjectsWithHours as $gp) {
-            $generalProjectName = $gp->project_name;
-            $baseName = preg_replace('/\s*[-]?\s*\(?General\)?\s*/i', '', $generalProjectName);
-            $baseName = preg_replace('/\s*General\s*/i', '', $baseName);
-            $baseName = trim($baseName);
-
-            if (empty($baseName)) {
-                continue;
-            }
-
-            $key = $gp->client_id . '_' . $baseName;
-            if (isset($existingClientProjectKeys[$key])) {
-                continue;
-            }
-
-            $matched = false;
-            foreach ($existingClientProjectKeys as $existingKey => $val) {
-                list($existingClientId, $existingProjectName) = explode('_', $existingKey, 2);
-                if ($existingClientId != $gp->client_id) {
-                    continue;
-                }
-                $normalizedBaseName = strtolower($baseName);
-                $normalizedBaseName = preg_replace('/[\'`]s?/', '', $normalizedBaseName);
-                $normalizedBaseName = preg_replace('/[_\-\s]+/', '', $normalizedBaseName);
-                $normalizedExistingName = strtolower($existingProjectName);
-                $normalizedExistingName = preg_replace('/[\'`]s?/', '', $normalizedExistingName);
-                $normalizedExistingName = preg_replace('/[_\-\s]+/', '', $normalizedExistingName);
-                if (!empty($normalizedBaseName) && !empty($normalizedExistingName)) {
-                    if (strpos($normalizedExistingName, $normalizedBaseName) === 0 ||
-                        strpos($normalizedBaseName, $normalizedExistingName) === 0) {
-                        $matched = true;
-                        break;
-                    } elseif (strlen($normalizedBaseName) >= 5 && strlen($normalizedExistingName) >= 5) {
-                        if (strpos($normalizedExistingName, $normalizedBaseName) !== false ||
-                            strpos($normalizedBaseName, $normalizedExistingName) !== false) {
-                            $shorterLen = min(strlen($normalizedBaseName), strlen($normalizedExistingName));
-                            $longerLen = max(strlen($normalizedBaseName), strlen($normalizedExistingName));
-                            if ($shorterLen > 0 && ($shorterLen / $longerLen) >= 0.6) {
-                                $matched = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if ($matched) {
-                continue;
-            }
-
-            $orphanCandidates[] = array('gp' => $gp, 'baseName' => $baseName);
-            $orphanHourPairs[] = array(
-                'client_id' => (int)$gp->client_id,
-                'project_id' => (int)$gp->project_id,
-            );
-        }
-
-        if (!empty($orphanCandidates)) {
-            $orphanHoursMap = $this->_client_report_batch_general_hours($orphanHourPairs, $from_date, $to_date);
-            $orphanClientIds = array();
-            $pmIds = array();
-            foreach ($orphanCandidates as $item) {
-                $orphanClientIds[] = $item['gp']->client_id;
-                if (!empty($item['gp']->projectpm)) {
-                    $pmIds[] = $item['gp']->projectpm;
-                }
-                if (!empty($item['gp']->clientpm)) {
-                    $pmIds[] = $item['gp']->clientpm;
-                }
-            }
-            $orphanLastMap = $this->_client_report_batch_last_work_dates($orphanClientIds, $from_date, $to_date, false);
-            $pmNamesById = array();
-            $pmIds = array_values(array_unique(array_filter($pmIds)));
-            if (!empty($pmIds)) {
-                $pmRows = $this->db->select('empId, name')->from('employee_details')->where_in('empId', $pmIds)->get()->result();
-                foreach ($pmRows as $pmRow) {
-                    $pmNamesById[$pmRow->empId] = $pmRow->name;
-                }
-                $this->db->reset_query();
-            }
-
-            foreach ($orphanCandidates as $item) {
-                $gp = $item['gp'];
-                $baseName = $item['baseName'];
-                $hoursKey = (int)$gp->client_id . '_' . (int)$gp->project_id;
-                $generalHours = isset($orphanHoursMap[$hoursKey]) ? $orphanHoursMap[$hoursKey] : 0;
-                if ($generalHours <= 0) {
-                    continue;
-                }
-
-                $pmName = !empty($gp->projectpm) && isset($pmNamesById[$gp->projectpm]) ? $pmNamesById[$gp->projectpm] : '';
-                $clientPmName = !empty($gp->clientpm) && isset($pmNamesById[$gp->clientpm]) ? $pmNamesById[$gp->clientpm] : '';
-
-                $newProject = new stdClass();
-                $newProject->client_Id = $gp->client_id;
-                $newProject->project_Id = $gp->project_id;
-                $newProject->client_name = $gp->client_name;
-                $newProject->project_name = $baseName;
-                $newProject->department = $gp->department;
-                $newProject->clientpm = $gp->clientpm;
-                $newProject->projectpm = $gp->projectpm;
-                $newProject->pm_name = $pmName;
-                $newProject->client_pm_name = $clientPmName;
-                $newProject->status = $gp->status;
-                $newProject->man_days = $gp->man_days;
-                $newProject->project_start_date = $gp->project_start_date;
-                $newProject->project_end_date = $gp->project_end_date;
-                $newProject->total_hours = 0;
-
-                $normalizedBaseNameForNew = strtolower($baseName);
-                $normalizedBaseNameForNew = preg_replace('/[\'`]s?/', '', $normalizedBaseNameForNew);
-                $normalizedBaseNameForNew = preg_replace('/[_\-\s]+/', '', $normalizedBaseNameForNew);
-                $generalHoursKeyForNew = $gp->client_id . '_' . $normalizedBaseNameForNew;
-
-                $shouldShowGeneralHours = !isset($shownGeneralHoursKeys[$generalHoursKeyForNew]);
-                $newProject->general_hours = $shouldShowGeneralHours ? $generalHours : 0;
-                if ($shouldShowGeneralHours) {
-                    $shownGeneralHoursKeys[$generalHoursKeyForNew] = true;
-                }
-
-                $newProject->qty_project_Id = null;
-                $newProject->analyzer_num_of_errors = 0;
-                $newProject->reviewer_num_of_errors = 0;
-                $newProject->analyzer_report_date = null;
-                $newProject->last_work_date = isset($orphanLastMap[$hoursKey]) ? $orphanLastMap[$hoursKey] : null;
-
-                $projects[] = $newProject;
-            }
-        }
     }
+
+    if (!is_array($projects)) {
+        $projects = array();
+    }
+    $projects = $this->_client_report_append_orphan_general_projects(
+        $projects,
+        $from_date,
+        $to_date,
+        $department,
+        $aggregate_by_month,
+        $userType,
+        $empId,
+        $isMEPManager,
+        $isARCManager
+    );
 
     return $projects;
 }

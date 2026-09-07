@@ -20,7 +20,18 @@ class Defaulter_Model extends CI_Model {
 	public function getMemberNotEnterReportLog($filters = array()){
 		
 		 //Get list of employee information of query
-		$selectedReportingManager = isset($filters['reporting_manager']) ? trim((string)$filters['reporting_manager']) : '';
+		$rawSelectedManager = isset($filters['reporting_manager']) ? $filters['reporting_manager'] : '';
+		$selectedManagerIds = array();
+		if(is_array($rawSelectedManager)){
+			foreach($rawSelectedManager as $rawId){
+				$rawId = trim((string)$rawId);
+				if($rawId !== ''){
+					$selectedManagerIds[] = $rawId;
+				}
+			}
+		}elseif(trim((string)$rawSelectedManager) !== ''){
+			$selectedManagerIds[] = trim((string)$rawSelectedManager);
+		}
 		$rawSelectedMember = isset($filters['member_empId']) ? $filters['member_empId'] : '';
 		$selectedMemberIds = array();
 		if(is_array($rawSelectedMember)){
@@ -33,11 +44,23 @@ class Defaulter_Model extends CI_Model {
 		}elseif(trim((string)$rawSelectedMember) !== ''){
 			$selectedMemberIds[] = trim((string)$rawSelectedMember);
 		}
+		$rawSelectedDepartment = isset($filters['department']) ? $filters['department'] : '';
+		$selectedDepartments = array();
+		if(is_array($rawSelectedDepartment)){
+			foreach($rawSelectedDepartment as $rawDept){
+				$rawDept = trim((string)$rawDept);
+				if($rawDept !== '' && strtolower($rawDept) !== 'all'){
+					$selectedDepartments[] = $rawDept;
+				}
+			}
+		}elseif(trim((string)$rawSelectedDepartment) !== '' && strtolower(trim((string)$rawSelectedDepartment)) !== 'all'){
+			$selectedDepartments[] = trim((string)$rawSelectedDepartment);
+		}
 		$userType = isset($this->session->userdata['logged_in_timesheet']['user_type']) ? $this->session->userdata['logged_in_timesheet']['user_type'] : '';
 		$logedInUser = isset($this->session->userdata['logged_in_timesheet']['empId']) ? $this->session->userdata['logged_in_timesheet']['empId'] : '';
 		$isPrivilegedViewer = $this->isPrivilegedViewer();
         
-		$this->db->select('emp.empId,emp.name,emp.emp_com_id,emp.reporting_manger,mgr.name as manager_name')
+		$this->db->select('emp.empId,emp.name,emp.emp_com_id,emp.reporting_manger,emp.emp_joining_date,emp.created_at,mgr.name as manager_name')
 			->from('employee_details emp')
 			->join('employee_details as mgr', 'mgr.empId = emp.reporting_manger', 'left')
 			->where('emp.status','Active')
@@ -56,11 +79,14 @@ class Defaulter_Model extends CI_Model {
 			}
 		}
 
-		if($selectedReportingManager !== ''){
+		if(!empty($selectedManagerIds)){
 			$this->db->group_start();
-			$this->db->where('emp.reporting_manger', $selectedReportingManager);
-			$this->db->or_where('emp.empId', $selectedReportingManager);
+			$this->db->where_in('emp.reporting_manger', $selectedManagerIds);
+			$this->db->or_where_in('emp.empId', $selectedManagerIds);
 			$this->db->group_end();
+		}
+		if(!empty($selectedDepartments)){
+			$this->db->where_in('emp.department', $selectedDepartments);
 		}
 		if(!empty($selectedMemberIds)){
 			$this->db->where_in('emp.empId', $selectedMemberIds);
@@ -124,32 +150,51 @@ class Defaulter_Model extends CI_Model {
 		return $managerRows;
 	}
 
-	public function getMembersByReportingManager($reportingManagerEmpId = ''){
+	public function getMembersByReportingManager($reportingManagerEmpId = '', $departments = array()){
 		$userType = isset($this->session->userdata['logged_in_timesheet']['user_type']) ? $this->session->userdata['logged_in_timesheet']['user_type'] : '';
 		$logedInUser = isset($this->session->userdata['logged_in_timesheet']['empId']) ? $this->session->userdata['logged_in_timesheet']['empId'] : '';
 		$isPrivilegedViewer = $this->isPrivilegedViewer();
 
-		$this->db->select('emp.empId,emp.name')
+		$this->db->select('emp.empId,emp.name,emp.emp_com_id')
 			->from('employee_details emp')
 			->where('emp.status', 'Active');
 
-		// Decide target manager id to filter by (when applicable)
-		$targetManager = '';
-		if(trim((string)$reportingManagerEmpId) !== ''){
-			$targetManager = trim((string)$reportingManagerEmpId);
+		$targetManagers = array();
+		if(is_array($reportingManagerEmpId)){
+			foreach($reportingManagerEmpId as $rawId){
+				$rawId = trim((string)$rawId);
+				if($rawId !== ''){
+					$targetManagers[] = $rawId;
+				}
+			}
+		}elseif(trim((string)$reportingManagerEmpId) !== ''){
+			$targetManagers[] = trim((string)$reportingManagerEmpId);
 		} elseif(!$isPrivilegedViewer && $userType == 'manager'){
-			$targetManager = $logedInUser;
+			$targetManagers[] = $logedInUser;
 		}
 
-		if($targetManager !== ''){
-			// Include both team members and the manager themself
+		$deptList = array();
+		if(is_array($departments)){
+			foreach($departments as $rawDept){
+				$rawDept = trim((string)$rawDept);
+				if($rawDept !== '' && strtolower($rawDept) !== 'all'){
+					$deptList[] = $rawDept;
+				}
+			}
+		}elseif(trim((string)$departments) !== '' && strtolower(trim((string)$departments)) !== 'all'){
+			$deptList[] = trim((string)$departments);
+		}
+
+		if(!empty($targetManagers)){
 			$this->db->group_start();
-			$this->db->where('emp.reporting_manger', $targetManager);
-			$this->db->or_where('emp.empId', $targetManager);
+			$this->db->where_in('emp.reporting_manger', $targetManagers);
+			$this->db->or_where_in('emp.empId', $targetManagers);
 			$this->db->group_end();
 		} else {
-			// No specific manager target: show active employees who have a reporting manager
 			$this->db->where('emp.reporting_manger !=', '');
+		}
+		if(!empty($deptList)){
+			$this->db->where_in('emp.department', $deptList);
 		}
 
 		return $this->db->order_by('emp.name', 'asc')->get()->result();
@@ -160,13 +205,15 @@ class Defaulter_Model extends CI_Model {
 			return array();
 		}
 
+		// 18592 = Leave, 21330 = Unplanned Leave — both display as green "Leave"
 		$rows = $this->db
-			->select('empId, emp_report_dates, SUM(emp_time_hours) as total_hours, MAX(CASE WHEN task_Id = 18592 THEN 1 ELSE 0 END) as is_leave', false)
-			->from('emp_record_details')
-			->where_in('empId', $employeeIds)
-			->where('emp_report_dates >=', $fromDate)
-			->where('emp_report_dates <=', $toDate)
-			->group_by(array('empId', 'emp_report_dates'))
+			->select("er.empId, DATE(er.emp_report_dates) as emp_report_dates, SUM(er.emp_time_hours) as total_hours, MAX(CASE WHEN er.task_Id IN (18592, 21330) OR t.task_name IN ('Leave', 'Unplanned Leave') THEN 1 ELSE 0 END) as is_leave", false)
+			->from('emp_record_details er')
+			->join('task_details t', 't.task_Id = er.task_Id', 'left')
+			->where_in('er.empId', $employeeIds)
+			->where('er.emp_report_dates >=', $fromDate)
+			->where('er.emp_report_dates <=', $toDate)
+			->group_by('er.empId, DATE(er.emp_report_dates)', false)
 			->get()
 			->result();
 
@@ -264,7 +311,7 @@ class Defaulter_Model extends CI_Model {
 		$logedInUser = isset($this->session->userdata['logged_in_timesheet']['empId']) ? $this->session->userdata['logged_in_timesheet']['empId'] : '';
 		$isPrivilegedViewer = $this->isPrivilegedViewer();
 		
-		$this->db->select('emp.empId,emp.name,emp.emp_com_id,emp.reporting_manger,mgr.name as manager_name')
+		$this->db->select('emp.empId,emp.name,emp.emp_com_id,emp.reporting_manger,emp.emp_joining_date,emp.created_at,mgr.name as manager_name')
 			->from('employee_details emp')
 			->join('employee_details as mgr', 'mgr.empId = emp.reporting_manger', 'left')
 			->where('emp.status','Active')
@@ -308,7 +355,7 @@ class Defaulter_Model extends CI_Model {
 	private function isPrivilegedViewer(){
 		$username = isset($this->session->userdata['logged_in_timesheet']['username']) ? strtolower(trim($this->session->userdata['logged_in_timesheet']['username'])) : '';
 		$name = isset($this->session->userdata['logged_in_timesheet']['name']) ? strtolower(trim($this->session->userdata['logged_in_timesheet']['name'])) : '';
-		$privilegedUsers = array('shirley', 'krishna');
+		$privilegedUsers = array('shirley', 'krishna', 'suman');
 		return in_array($username, $privilegedUsers) || in_array($name, $privilegedUsers);
 	}
 		

@@ -11,10 +11,10 @@
 	$to_month = isset($to_month) ? (array)$to_month : array();
 	$totalRecords = count($records);
 	$totalInvoiceHours = 0;
-	$totalMonthRows = 0;
+	$totalTimesheetHours = 0;
 	foreach ($records as $statRow) {
 		$totalInvoiceHours += isset($statRow->invoice_hours) ? (float)$statRow->invoice_hours : 0;
-		$totalMonthRows += (!empty($statRow->month_rows) && is_array($statRow->month_rows)) ? count($statRow->month_rows) : 0;
+		$totalTimesheetHours += isset($statRow->timesheet_hours) ? (float)$statRow->timesheet_hours : 0;
 	}
 	$monthNameMap = array(
 		1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
@@ -118,12 +118,12 @@
 			<strong><?php echo (int)$totalRecords; ?></strong>
 		</div>
 		<div class="mp-summary-card">
-			<span class="mp-summary-label">Invoice Hours</span>
-			<strong><?php echo htmlspecialchars(management_plan_hours_display($totalInvoiceHours), ENT_QUOTES, 'UTF-8'); ?></strong>
+			<span class="mp-summary-label">Timesheet Hours</span>
+			<strong><?php echo htmlspecialchars(management_plan_hours_display($totalTimesheetHours), ENT_QUOTES, 'UTF-8'); ?></strong>
 		</div>
 		<div class="mp-summary-card">
-			<span class="mp-summary-label">Month Rows</span>
-			<strong><?php echo (int)$totalMonthRows; ?></strong>
+			<span class="mp-summary-label">Invoice Hours</span>
+			<strong><?php echo htmlspecialchars(management_plan_hours_display($totalInvoiceHours), ENT_QUOTES, 'UTF-8'); ?></strong>
 		</div>
 		<div class="mp-summary-card mp-summary-period">
 			<span class="mp-summary-label">Selected Period</span>
@@ -225,13 +225,14 @@
 							<th class="mp-col-date">Start Date</th>
 							<th class="mp-col-date">End Date</th>
 							<th class="mp-col-date">Timesheet Date</th>
+							<th class="mp-col-hours">Timesheet Hours</th>
 							<th class="mp-col-hours">Invoice Hours</th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php if (empty($records)): ?>
 							<tr>
-								<td colspan="6" class="mp-empty-state">
+								<td colspan="7" class="mp-empty-state">
 									<i class="fa fa-inbox"></i>
 									<strong>No records found</strong>
 									<span>Try another client or date range.</span>
@@ -263,6 +264,7 @@
 									<td class="date-cell"><?php echo management_plan_date_cell(isset($row->start_date) ? $row->start_date : ''); ?></td>
 									<td class="date-cell"><?php echo management_plan_date_cell(isset($row->end_date) ? $row->end_date : '', true); ?></td>
 									<td class="date-cell"><?php echo management_plan_date_cell(isset($row->timesheet_date) ? $row->timesheet_date : '', true); ?></td>
+									<td class="num-cell"><?php echo management_plan_hours_cell(isset($row->timesheet_hours) ? $row->timesheet_hours : 0, true); ?></td>
 									<td class="num-cell"><?php echo management_plan_hours_cell(isset($row->invoice_hours) ? $row->invoice_hours : 0, true); ?></td>
 								</tr>
 								<?php foreach ($monthRows as $monthRow):
@@ -287,6 +289,7 @@
 									<td class="date-cell"><?php echo management_plan_date_cell($monthStart); ?></td>
 									<td class="date-cell"><?php echo management_plan_date_cell($monthEnd, true); ?></td>
 									<td class="date-cell"><?php echo management_plan_date_cell(isset($monthRow->timesheet_date) ? $monthRow->timesheet_date : '', true); ?></td>
+									<td class="num-cell"><?php echo management_plan_hours_cell(isset($monthRow->timesheet_hours) ? $monthRow->timesheet_hours : 0); ?></td>
 									<td class="num-cell"><?php echo management_plan_hours_cell(isset($monthRow->invoice_hours) ? $monthRow->invoice_hours : 0); ?></td>
 								</tr>
 								<?php endforeach; ?>
