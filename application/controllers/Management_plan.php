@@ -23,8 +23,8 @@ class Management_plan extends CI_Controller {
 
 	public function month_rows() {
 		$filterState = $this->build_filter_state();
-		$clientIds = $this->normalize_filter_values($this->input->get_post('client_Id'));
-		$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params'], $clientIds);
+		$expandIds = $this->normalize_filter_values($this->input->get_post('expand_client_Id'));
+		$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params'], $expandIds);
 
 		$grouped = array();
 		foreach ($monthRows as $monthRow) {

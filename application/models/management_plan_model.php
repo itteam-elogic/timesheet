@@ -118,7 +118,9 @@ class Management_plan_model extends CI_Model {
 		return ' AND ' . implode(' AND ', $conditions);
 	}
 
-	private function matching_general_projects_sql() {
+	private function matching_general_projects_sql($clientIdFilterSql = '') {
+		$gpClientFilterSql = str_replace('p.client_Id', 'gp.client_Id', $clientIdFilterSql);
+		$prodClientFilterSql = str_replace('p.client_Id', 'prod.client_Id', $clientIdFilterSql);
 		return "
 			SELECT DISTINCT gp.project_Id, gp.client_Id
 			FROM project_details gp
@@ -127,6 +129,8 @@ class Management_plan_model extends CI_Model {
 				AND LOWER(COALESCE(prod.project_name, '')) NOT LIKE '%general%'
 				AND LOWER(TRIM(prod.project_name)) = LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))
 			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'
+			{$gpClientFilterSql}
+			{$prodClientFilterSql}
 		";
 	}
 
@@ -170,8 +174,7 @@ class Management_plan_model extends CI_Model {
 			'invoiceDateFilter' => $this->build_invoice_date_filter_sql($dateRange['fromKey'], $dateRange['toKey']),
 			'clientFilterSql' => $clientFilterSql,
 			'clientIdFilterSql' => $clientIdFilterSql,
-			'erdClientFilterSql' => $erdClientFilterSql,
-			'matchingGeneralSql' => $this->matching_general_projects_sql()
+			'erdClientFilterSql' => $erdClientFilterSql
 		);
 	}
 
@@ -179,7 +182,7 @@ class Management_plan_model extends CI_Model {
 		$excludedClients = $filters['excludedClients'];
 		$tsDateFilter = $filters['tsDateFilter'];
 		$erdClientFilterSql = $filters['erdClientFilterSql'];
-		$matchingGeneralSql = $filters['matchingGeneralSql'];
+		$matchingGeneralSql = $this->matching_general_projects_sql(isset($filters['clientIdFilterSql']) ? $filters['clientIdFilterSql'] : '');
 		$yearSelect = $groupByMonth ? ', YEAR(erd.emp_report_dates) AS year_val, MONTH(erd.emp_report_dates) AS month_val' : '';
 		$yearGroup = $groupByMonth ? ', YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)' : '';
 

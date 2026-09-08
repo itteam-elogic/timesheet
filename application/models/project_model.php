@@ -1325,11 +1325,11 @@ public function getProjectsPaginated(
 
 		$clientName = !empty($project->client_name) ? $project->client_name : 'N/A';
 		$projectNumber = !empty($project->project_number) ? $project->project_number : 'N/A';
-		$headerTitle = $isFinal ? 'Final Invoice Reminder' : 'Invoice Reminder';
+		$headerTitle = $isFinal ? 'Estimation Hours Reminder' : 'Project Notification Hours Reminer';
 		$headerColor = $isFinal ? '#b45309' : '#004b88';
 		$percentComplete = ($estimatedHours > 0) ? min(100, round(($completedHours / $estimatedHours) * 100, 1)) : 0;
 		$progressWidth = max(4, (int)round($percentComplete));
-		$subjectPrefix = $isFinal ? 'Final Invoice Reminder' : 'Invoice Reminder';
+		$subjectPrefix = $isFinal ? 'Estimation Hours Reminder' : 'Project Notification Hours Reminer';
 		$subject = $subjectPrefix . ' - ';
 		if ($clientName !== '' && $clientName !== 'N/A') {
 			$subject .= $clientName . ' - ';

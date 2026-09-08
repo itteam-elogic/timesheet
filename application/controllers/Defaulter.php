@@ -295,13 +295,14 @@ class Defaulter extends CI_Controller {
 		$userType = $this->session->userdata['logged_in_timesheet']['user_type'];
 		$loggedInEmpId = $this->session->userdata['logged_in_timesheet']['empId'];
 		$isPrivilegedViewer = $this->isPrivilegedViewer();
-		$selectedReportingManager = (string)$this->input->post('reporting_manager');
+		$selectedReportingManagers = $this->collectPostedList('reporting_manager');
 		$selectedMemberEmpIds = $this->collectPostedList('member_empId');
+		$selectedDepartments = $this->collectPostedList('department');
 
 		if(!$isPrivilegedViewer){
-			if($selectedReportingManager === ''){
+			if(empty($selectedReportingManagers)){
 				if($userType == 'manager'){
-					$selectedReportingManager = $loggedInEmpId;
+					$selectedReportingManagers[] = (string)$loggedInEmpId;
 				}
 			}
 			if(empty($selectedMemberEmpIds)){
@@ -311,8 +312,9 @@ class Defaulter extends CI_Controller {
 			}
 		}
 		$filters = array(
-			'reporting_manager' => $selectedReportingManager,
-			'member_empId' => $selectedMemberEmpIds
+			'reporting_manager' => $selectedReportingManagers,
+			'member_empId' => $selectedMemberEmpIds,
+			'department' => $selectedDepartments
 		);
 
 		$previousExcluded = $this->previousUserDefaulterExcludedNames();
@@ -330,9 +332,14 @@ class Defaulter extends CI_Controller {
 		$data['def_form_date'] = $defFormDate;
 		$data['def_to_date'] = $defToDate;
 		$data['reportingManagers'] = $this->defaulter_model->getReportingManagersList();
-		$data['members'] = $this->filterRowsByExcludedNames($this->defaulter_model->getMembersByReportingManager($selectedReportingManager), $previousExcluded);
-		$data['selectedReportingManager'] = $selectedReportingManager;
+		$data['members'] = $this->filterRowsByExcludedNames(
+			$this->defaulter_model->getMembersByReportingManager($selectedReportingManagers, $selectedDepartments),
+			$previousExcluded
+		);
+		$data['departments'] = function_exists('ts_department_options') ? ts_department_options() : array();
+		$data['selectedReportingManager'] = $selectedReportingManagers;
 		$data['selectedMemberEmpId'] = $selectedMemberEmpIds;
+		$data['selectedDepartments'] = $selectedDepartments;
 
 		return $data;
 	}

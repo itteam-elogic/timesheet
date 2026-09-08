@@ -148,7 +148,7 @@
 				<p>Green = hours filled / leave, red = missing or below 8.5 hours, gray = before joining date.</p>
 			</div>
 			<div class="ts-report-actions">
-				<a href="<?php echo base_url('defaulter/previous_user_defaulter');?>" class="btn ts-btn ts-btn-prev"><i class="fa fa-chevron-left"></i> Previous Week</a>
+				<button type="button" id="goPreviousWeek" class="btn ts-btn ts-btn-prev"><i class="fa fa-chevron-left"></i> Previous Week</button>
 				<button type="button" id="downloadEmployeeData" class="btn ts-btn ts-btn-export"><i class="fa fa-file-excel-o"></i> Export Excel</button>
 				<button type="button" id="sendMemberSearchEmail" class="btn ts-btn ts-btn-sent" title="Send defaulter report"><i class="fa fa-paper-plane"></i> Sent</button>
 			</div>
@@ -465,6 +465,21 @@
 		$('#department').on('change', reloadMemberOptions);
 		$('#reporting_manager').on('change', reloadMemberOptions);
 		$('#user_defaulter').submit();
+	});
+
+	$("#goPreviousWeek").click(function(e) {
+		e.preventDefault();
+		var $prevForm = $('<form>', {
+			method: 'POST',
+			action: "<?php echo base_url('defaulter/previous_user_defaulter'); ?>"
+		});
+		$.each($('#user_defaulter').serializeArray(), function(_, field) {
+			if (field.name === 'def_form_date' || field.name === 'def_to_date') {
+				return;
+			}
+			$prevForm.append($('<input>', { type: 'hidden', name: field.name, value: field.value }));
+		});
+		$prevForm.appendTo('body').submit().remove();
 	});
 
 	$("#downloadEmployeeData").click(function() {

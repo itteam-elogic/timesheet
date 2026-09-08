@@ -9,7 +9,12 @@
 	$members = isset($members) ? $members : array();
 	$reportingManagers = isset($reportingManagers) ? $reportingManagers : array();
 	$selectedMemberEmpId = isset($selectedMemberEmpId) ? $selectedMemberEmpId : array();
-	$selectedReportingManager = isset($selectedReportingManager) ? $selectedReportingManager : '';
+	$selectedReportingManager = isset($selectedReportingManager) ? $selectedReportingManager : array();
+	$departments = isset($departments) ? $departments : (function_exists('ts_department_options') ? ts_department_options() : array());
+	$selectedDepartments = isset($selectedDepartments) ? $selectedDepartments : array();
+	if(!is_array($selectedDepartments)){
+		$selectedDepartments = ($selectedDepartments !== '' && $selectedDepartments !== null) ? array($selectedDepartments) : array();
+	}
 	$periodLabel = date('d M Y', strtotime($monday)) . ' to ' . date('d M Y', strtotime($friday));
 
 	$totalMembers = 0;
@@ -43,7 +48,18 @@
 	<div class="card ts-filter-card">
 		<div class="card-body">
 			<form class="" name="previous_user_defaulter" id="previous_user_defaulter" method="post" action="<?php echo base_url('defaulter/previous_user_defaulter');?>">
-				<div class="ts-filter-grid ts-filter-grid-4">
+				<div class="ts-filter-grid">
+					<div class="form-group">
+						<label class="control-label">Department</label>
+						<?php $selectedDeptValues = array_map('strval', $selectedDepartments); ?>
+						<select class="form-control" id="department" name="department[]" multiple="multiple">
+							<?php foreach($departments as $deptOption): ?>
+								<option value="<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo in_array((string)$deptOption, $selectedDeptValues, true) ? 'selected' : ''; ?>>
+									<?php echo htmlspecialchars($deptOption, ENT_QUOTES, 'UTF-8'); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
 					<div class="form-group">
 						<label class="control-label">Members</label>
 						<?php
@@ -64,10 +80,17 @@
 					</div>
 					<div class="form-group">
 						<label class="control-label">Reporting Manager</label>
-						<select class="form-control" id="reporting_manager" name="reporting_manager">
-							<option value="">All Reporting Managers</option>
+						<?php
+							$selectedManagerIds = array();
+							if(is_array($selectedReportingManager)){
+								$selectedManagerIds = array_map('strval', $selectedReportingManager);
+							}elseif($selectedReportingManager !== '' && $selectedReportingManager !== null){
+								$selectedManagerIds = array((string)$selectedReportingManager);
+							}
+						?>
+						<select class="form-control" id="reporting_manager" name="reporting_manager[]" multiple="multiple">
 							<?php foreach($reportingManagers as $manager): ?>
-								<option value="<?php echo $manager->empId; ?>" <?php echo ((string)$selectedReportingManager === (string)$manager->empId) ? 'selected' : ''; ?>>
+								<option value="<?php echo $manager->empId; ?>" <?php echo in_array((string)$manager->empId, $selectedManagerIds, true) ? 'selected' : ''; ?>>
 									<?php echo ucfirst($manager->name); ?>
 								</option>
 							<?php endforeach; ?>
@@ -117,7 +140,7 @@
 				<p>Green = hours filled / leave, red = missing or below 8.5 hours, gray = before joining date.</p>
 			</div>
 			<div class="ts-report-actions">
-				<a href="<?php echo base_url('defaulter/user_defaulter');?>" class="btn ts-btn ts-btn-current"><i class="fa fa-calendar"></i> Current Week</a>
+				<button type="button" id="goCurrentWeek" class="btn ts-btn ts-btn-current"><i class="fa fa-calendar"></i> Current Week</button>
 				<button type="button" id="downloadEmployeeData" class="btn ts-btn ts-btn-export"><i class="fa fa-file-excel-o"></i> Export Excel</button>
 			</div>
 		</div>
@@ -245,7 +268,7 @@
 .ts-report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ts-filter-grid {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(5, minmax(0, 1fr));
 	gap: 14px;
 }
 .ts-filter-card .form-group { margin-bottom: 0; }
@@ -363,9 +386,15 @@
 </style>
 
 <script language="javascript" type="text/javascript">
+	$('#department').select2({
+		placeholder: 'All Departments',
+		allowClear: true,
+		multiple: true
+	});
 	$('#reporting_manager').select2({
 		placeholder: 'All Reporting Managers',
-		allowClear: true
+		allowClear: true,
+		multiple: true
 	});
 	$('#member_empId').select2({
 		placeholder: 'All Members',
@@ -373,24 +402,45 @@
 		multiple: true
 	});
 
-	$('#reporting_manager').on('change', function() {
+	function reloadMemberOptions() {
 		$.ajax({
 			type: "POST",
 			url: "<?php echo base_url('defaulter/getMembersByManager');?>",
 			data: {
-				reporting_manager: $(this).val()
+				reporting_manager: $('#reporting_manager').val(),
+				department: $('#department').val()
 			},
 			success: function(response) {
 				$('#member_empId').html(response).trigger('change');
 			}
 		});
-	});
+	}
+
+	$('#reporting_manager').on('change', reloadMemberOptions);
+	$('#department').on('change', reloadMemberOptions);
 
 	$('#clearPreviousDefaulterFilters').on('click', function(e) {
 		e.preventDefault();
-		$('#reporting_manager').val('').trigger('change');
+		$('#department').off('change', reloadMemberOptions).val(null).trigger('change');
+		$('#reporting_manager').off('change', reloadMemberOptions).val(null).trigger('change');
 		$('#member_empId').val(null).trigger('change');
+		$('#department').on('change', reloadMemberOptions);
+		$('#reporting_manager').on('change', reloadMemberOptions);
 		$('#previous_user_defaulter').submit();
+	});
+
+	$("#goCurrentWeek").click(function(e) {
+		e.preventDefault();
+		var $currentForm = $('<form>', {
+			method: 'POST',
+			action: "<?php echo base_url('defaulter/memberSearch'); ?>"
+		});
+		$.each($('#previous_user_defaulter').serializeArray(), function(_, field) {
+			$currentForm.append($('<input>', { type: 'hidden', name: field.name, value: field.value }));
+		});
+		$currentForm.append($('<input>', { type: 'hidden', name: 'def_form_date', value: '<?php echo date('Y-m-d', strtotime('monday this week')); ?>' }));
+		$currentForm.append($('<input>', { type: 'hidden', name: 'def_to_date', value: '<?php echo date('Y-m-d', strtotime('friday this week')); ?>' }));
+		$currentForm.appendTo('body').submit().remove();
 	});
 
 	$("#downloadEmployeeData").click(function(){

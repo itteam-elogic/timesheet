@@ -294,7 +294,18 @@ class Defaulter_Model extends CI_Model {
 	public function getPreviousWeekMemberNotEnterReportLog($filters = array()){
 		
 		 //Get list of employee information of query
-		$selectedReportingManager = isset($filters['reporting_manager']) ? trim((string)$filters['reporting_manager']) : '';
+		$rawSelectedManager = isset($filters['reporting_manager']) ? $filters['reporting_manager'] : '';
+		$selectedManagerIds = array();
+		if(is_array($rawSelectedManager)){
+			foreach($rawSelectedManager as $rawId){
+				$rawId = trim((string)$rawId);
+				if($rawId !== ''){
+					$selectedManagerIds[] = $rawId;
+				}
+			}
+		}elseif(trim((string)$rawSelectedManager) !== ''){
+			$selectedManagerIds[] = trim((string)$rawSelectedManager);
+		}
 		$rawSelectedMember = isset($filters['member_empId']) ? $filters['member_empId'] : '';
 		$selectedMemberIds = array();
 		if(is_array($rawSelectedMember)){
@@ -306,6 +317,18 @@ class Defaulter_Model extends CI_Model {
 			}
 		}elseif(trim((string)$rawSelectedMember) !== ''){
 			$selectedMemberIds[] = trim((string)$rawSelectedMember);
+		}
+		$rawSelectedDepartment = isset($filters['department']) ? $filters['department'] : '';
+		$selectedDepartments = array();
+		if(is_array($rawSelectedDepartment)){
+			foreach($rawSelectedDepartment as $rawDept){
+				$rawDept = trim((string)$rawDept);
+				if($rawDept !== '' && strtolower($rawDept) !== 'all'){
+					$selectedDepartments[] = $rawDept;
+				}
+			}
+		}elseif(trim((string)$rawSelectedDepartment) !== '' && strtolower(trim((string)$rawSelectedDepartment)) !== 'all'){
+			$selectedDepartments[] = trim((string)$rawSelectedDepartment);
 		}
 		$userType = isset($this->session->userdata['logged_in_timesheet']['user_type']) ? $this->session->userdata['logged_in_timesheet']['user_type'] : '';
 		$logedInUser = isset($this->session->userdata['logged_in_timesheet']['empId']) ? $this->session->userdata['logged_in_timesheet']['empId'] : '';
@@ -333,11 +356,14 @@ class Defaulter_Model extends CI_Model {
 			}
 		}
 
-		if($selectedReportingManager !== ''){
+		if(!empty($selectedManagerIds)){
 			$this->db->group_start();
-			$this->db->where('emp.reporting_manger', $selectedReportingManager);
-			$this->db->or_where('emp.empId', $selectedReportingManager);
+			$this->db->where_in('emp.reporting_manger', $selectedManagerIds);
+			$this->db->or_where_in('emp.empId', $selectedManagerIds);
 			$this->db->group_end();
+		}
+		if(!empty($selectedDepartments)){
+			$this->db->where_in('emp.department', $selectedDepartments);
 		}
 		if(!empty($selectedMemberIds)){
 			$this->db->where_in('emp.empId', $selectedMemberIds);
