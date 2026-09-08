@@ -141,6 +141,18 @@ endif;
         </a>
     </div>
 
+    <div class="square-card-wrapper">
+        <a href="<?php echo base_url('management_plan'); ?>" class="square-card">
+            <div class="square-card-content">
+                <div class="square-icon-box">
+                    <i class="fas fa-briefcase"></i>
+                </div>
+                <h3>Management Plan</h3>
+                <div class="square-hover-effect"></div>
+            </div>
+        </a>
+    </div>
+
 
 
 </div> <!-- .square-cards-grid -->

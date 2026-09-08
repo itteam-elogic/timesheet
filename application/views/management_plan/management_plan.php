@@ -25,7 +25,6 @@
 	$toYearLabel = !empty($to_year) ? reset($to_year) : 'All';
 	$fromMonthLabel = (!empty($from_month) && isset($monthNameMap[(int)reset($from_month)])) ? $monthNameMap[(int)reset($from_month)] : 'All months';
 	$toMonthLabel = (!empty($to_month) && isset($monthNameMap[(int)reset($to_month)])) ? $monthNameMap[(int)reset($to_month)] : 'All months';
-	$currentYearValue = (string)date('Y');
 	$monthRowsUrl = base_url('management_plan/month_rows');
 	$exportUrl = base_url('management_plan/export_report');
 
@@ -106,50 +105,53 @@
 
 	<div class="mp-hero">
 		<div class="mp-hero-copy">
-			<p class="mp-kicker">Reports</p>
-			<h1>Management Plan</h1>
-			<p>Client timelines, timesheet hours, and invoice hours in one view. Open a client to see month-wise details.</p>
-		</div>
-		<div class="mp-hero-actions">
-			<a class="mp-btn mp-btn-ghost" href="<?php echo base_url('management_plan'); ?>"><i class="fa fa-refresh"></i> Reset</a>
-			<button type="button" class="mp-btn mp-btn-success" id="mp_export_report_btn">
-				<i class="fa fa-download"></i> Export Excel
-			</button>
+			<div class="mp-hero-badge"><i class="fa fa-briefcase"></i></div>
+			<div>
+				<p class="mp-kicker">Reports</p>
+				<h1>Management Plan</h1>
+				<p>Client timelines, timesheet hours, and invoice hours in one view. Open a client to see month-wise details.</p>
+			</div>
 		</div>
 	</div>
 
 	<div class="mp-summary-row">
 		<div class="mp-summary-card is-clients">
 			<div class="mp-summary-icon"><i class="fa fa-users"></i></div>
-			<div>
+			<div class="mp-summary-copy">
 				<span>Clients</span>
 				<strong><?php echo (int)$totalRecords; ?></strong>
 			</div>
 		</div>
 		<div class="mp-summary-card is-timesheet">
 			<div class="mp-summary-icon"><i class="fa fa-clock-o"></i></div>
-			<div>
+			<div class="mp-summary-copy">
 				<span>Timesheet Hours</span>
 				<strong><?php echo htmlspecialchars(management_plan_hours_display($totalTimesheetHours), ENT_QUOTES); ?></strong>
 			</div>
 		</div>
 		<div class="mp-summary-card is-invoice">
 			<div class="mp-summary-icon"><i class="fa fa-file-text-o"></i></div>
-			<div>
+			<div class="mp-summary-copy">
 				<span>Invoice Hours</span>
 				<strong><?php echo htmlspecialchars(management_plan_hours_display($totalInvoiceHours), ENT_QUOTES); ?></strong>
 			</div>
 		</div>
 		<div class="mp-summary-card is-period">
 			<div class="mp-summary-icon"><i class="fa fa-calendar"></i></div>
-			<div>
+			<div class="mp-summary-copy">
 				<span>Selected Period</span>
 				<strong><?php echo htmlspecialchars($fromMonthLabel . ' ' . $fromYearLabel . ' - ' . $toMonthLabel . ' ' . $toYearLabel, ENT_QUOTES); ?></strong>
 			</div>
 		</div>
 	</div>
 
-	<div class="mp-panel">
+	<div class="mp-panel mp-filter-panel">
+		<div class="mp-panel-head">
+			<div>
+				<h3><i class="fa fa-filter"></i> Filters</h3>
+				<small>Choose a client and period, then search</small>
+			</div>
+		</div>
 		<form id="management_plan_search_form" method="post" action="<?php echo base_url('management_plan'); ?>">
 			<div class="mp-filter-grid">
 				<div class="mp-filter-client">
@@ -208,9 +210,7 @@
 					<button type="submit" class="mp-btn mp-btn-primary" id="mp_search_btn">
 						<i class="fa fa-search"></i> Search
 					</button>
-					<button type="button" class="mp-btn mp-btn-ghost" id="mp_current_year_btn" data-year="<?php echo htmlspecialchars($currentYearValue, ENT_QUOTES); ?>">
-						<i class="fa fa-calendar"></i> <?php echo htmlspecialchars($currentYearValue, ENT_QUOTES); ?>
-					</button>
+					<a class="mp-btn mp-btn-ghost" href="<?php echo base_url('management_plan'); ?>"><i class="fa fa-refresh"></i> Reset</a>
 				</div>
 			</div>
 		</form>
@@ -219,16 +219,15 @@
 	<div class="mp-panel mp-grid-panel">
 		<div class="mp-table-toolbar">
 			<div>
-				<h3>Client Invoice Grid</h3>
-				<small>Click a client to load month-wise hours on demand</small>
+				<h3>Client Invoice Grid <span class="mp-count-badge"><?php echo (int)$totalRecords; ?></span></h3>
+				<small>Click a client to view month-wise hours</small>
 			</div>
 			<div class="mp-toolbar-right">
-				<div class="mp-search-wrap">
-					<i class="fa fa-search"></i>
-					<input type="text" id="mp_quick_search" placeholder="Search client...">
-				</div>
-				<button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" id="mp_expand_all_btn"><i class="fa fa-plus-square-o"></i> Expand All</button>
 				<button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" id="mp_collapse_all_btn"><i class="fa fa-minus-square-o"></i> Collapse All</button>
+				<button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" id="mp_expand_all_btn"><i class="fa fa-plus-square-o"></i> Expand All</button>
+				<button type="button" class="mp-btn mp-btn-success mp-btn-sm" id="mp_export_report_btn">
+					<i class="fa fa-download"></i> Export Excel
+				</button>
 			</div>
 		</div>
 		<div class="mp-table-wrap">
@@ -260,11 +259,14 @@
 								$clientName = management_plan_client_name(isset($row->client_name) ? $row->client_name : '');
 								$clientId = isset($row->client_Id) ? (int)$row->client_Id : 0;
 								$rowSearch = strtolower($clientName);
+								$clientInitial = management_plan_initial($clientName);
+								$avatarPalette = array('#1d4ed8', '#0f766e', '#b45309', '#6d28d9', '#be123c', '#0369a1');
+								$avatarBg = $avatarPalette[ord($clientInitial) % 6];
 							?>
 							<tr class="client-header-row is-expandable" data-client-index="<?php echo $clientIndex; ?>" data-client-id="<?php echo $clientId; ?>" data-search="<?php echo htmlspecialchars($rowSearch, ENT_QUOTES); ?>" data-loaded="0">
 								<td class="mp-col-sno"><?php echo $i; ?></td>
 								<td class="client-cell">
-									<span class="mp-client-avatar"><?php echo htmlspecialchars(management_plan_initial($clientName), ENT_QUOTES); ?></span>
+									<span class="mp-client-avatar" style="background:<?php echo $avatarBg; ?>"><?php echo htmlspecialchars($clientInitial, ENT_QUOTES); ?></span>
 									<span class="mp-client-copy">
 										<span class="client-name-text"><?php echo htmlspecialchars($clientName, ENT_QUOTES); ?></span>
 										<span class="mp-month-count">Click to view months</span>
@@ -288,133 +290,254 @@
 <iframe id="mp_export_iframe" name="mp_export_iframe" style="display:none;"></iframe>
 
 <style>
-.mp-page { padding-bottom: 32px; }
+.mp-page {
+	padding-bottom: 36px;
+	font-size: 15px;
+	color: #1e3348;
+}
 .mp-hero {
+	position: relative;
+	overflow: hidden;
 	display: flex;
 	justify-content: space-between;
-	align-items: flex-end;
-	gap: 16px;
+	align-items: center;
+	gap: 18px;
 	margin-bottom: 18px;
-	padding: 22px 24px;
-	border-radius: 18px;
-	background: linear-gradient(135deg, #14375a 0%, #1f5f8b 55%, #2a7aa8 100%);
+	padding: 26px 28px;
+	border-radius: 22px;
+	background: linear-gradient(135deg, #0b2a4a 0%, #155a86 48%, #12807c 100%);
 	color: #fff;
-	box-shadow: 0 12px 28px rgba(20, 55, 90, 0.18);
+	box-shadow: 0 18px 36px rgba(11, 42, 74, 0.22);
+}
+.mp-hero:before,
+.mp-hero:after {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	pointer-events: none;
+}
+.mp-hero:before {
+	width: 220px;
+	height: 220px;
+	right: -50px;
+	top: -80px;
+	background: rgba(255,255,255,.08);
+}
+.mp-hero:after {
+	width: 140px;
+	height: 140px;
+	right: 120px;
+	bottom: -70px;
+	background: rgba(16, 185, 129, .16);
+}
+.mp-hero-copy {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+.mp-hero-badge {
+	width: 58px;
+	height: 58px;
+	border-radius: 16px;
+	background: rgba(255,255,255,.14);
+	border: 1px solid rgba(255,255,255,.18);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
+	flex: 0 0 58px;
+	box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
 }
 .mp-kicker {
 	margin: 0 0 4px;
 	text-transform: uppercase;
-	letter-spacing: .12em;
-	font-size: 11px;
+	letter-spacing: .14em;
+	font-size: 12px;
 	font-weight: 700;
-	opacity: .75;
+	opacity: .72;
 }
 .mp-hero h1 {
 	margin: 0 0 6px;
-	font-size: 28px;
-	font-weight: 700;
+	font-size: 32px;
+	font-weight: 800;
+	letter-spacing: -0.3px;
 }
-.mp-hero p { margin: 0; max-width: 620px; opacity: .88; font-size: 13px; line-height: 1.5; }
-.mp-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mp-hero p { margin: 0; max-width: 680px; opacity: .9; font-size: 15px; line-height: 1.55; }
+.mp-hero-actions {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
 .mp-btn {
 	border: 0;
-	border-radius: 10px;
+	border-radius: 12px;
 	font-weight: 700;
-	padding: 9px 14px;
+	padding: 10px 16px;
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
 	cursor: pointer;
 	text-decoration: none !important;
 	line-height: 1.2;
+	font-size: 15px;
+	transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
 }
-.mp-btn-sm { padding: 7px 11px; font-size: 12px; }
-.mp-btn-primary { background: #1f5f8b; color: #fff; }
-.mp-btn-primary:hover { background: #16496c; color: #fff; }
-.mp-btn-success { background: #1f9d6a; color: #fff; }
-.mp-btn-success:hover { background: #178258; color: #fff; }
+.mp-btn:hover { transform: translateY(-1px); }
+.mp-btn-sm { padding: 8px 13px; font-size: 14px; }
+.mp-btn-primary { background: #0f4c75; color: #fff; box-shadow: 0 8px 16px rgba(15, 76, 117, .18); }
+.mp-btn-primary:hover { background: #0b3b5c; color: #fff; }
+.mp-btn-success { background: #10946d; color: #fff; box-shadow: 0 8px 16px rgba(16, 148, 109, .22); }
+.mp-btn-success:hover { background: #0c7a5a; color: #fff; }
 .mp-btn-ghost {
 	background: rgba(255,255,255,.14);
 	color: #fff;
-	border: 1px solid rgba(255,255,255,.18);
+	border: 1px solid rgba(255,255,255,.2);
 }
+.mp-btn-ghost:hover { color: #fff; background: rgba(255,255,255,.22); }
 .mp-panel .mp-btn-ghost,
 .mp-toolbar-right .mp-btn-ghost {
-	background: #f4f7fb;
+	background: #fff;
 	color: #31546f;
-	border: 1px solid #dbe4ee;
+	border: 1px solid #d7e2ec;
+	box-shadow: 0 1px 2px rgba(15, 48, 80, .04);
+}
+.mp-panel .mp-btn-ghost:hover,
+.mp-toolbar-right .mp-btn-ghost:hover {
+	background: #f4f8fc;
+	color: #17364f;
 }
 .mp-summary-row {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
+	gap: 14px;
 	margin-bottom: 16px;
 }
 .mp-summary-card {
 	background: #fff;
-	border: 1px solid #e6edf4;
-	border-radius: 16px;
-	padding: 16px;
+	border: 1px solid #e4edf5;
+	border-radius: 18px;
+	padding: 16px 18px;
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	box-shadow: 0 6px 18px rgba(20, 55, 90, 0.06);
+	gap: 14px;
+	box-shadow: 0 8px 22px rgba(15, 48, 80, 0.06);
 	min-width: 0;
+	position: relative;
+	overflow: hidden;
+	transition: transform .18s ease, box-shadow .18s ease;
 }
+.mp-summary-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 14px 28px rgba(15, 48, 80, 0.1);
+}
+.mp-summary-card:before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 5px;
+}
+.is-clients:before { background: #2563eb; }
+.is-timesheet:before { background: #10946d; }
+.is-invoice:before { background: #d97706; }
+.is-period:before { background: #7c3aed; }
+.mp-summary-copy { min-width: 0; }
 .mp-summary-card span {
 	display: block;
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: .04em;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: .06em;
 	text-transform: uppercase;
 	color: #7a8896;
-	margin-bottom: 3px;
+	margin-bottom: 4px;
 }
 .mp-summary-card strong {
 	display: block;
-	font-size: 22px;
-	color: #17364f;
+	font-size: 26px;
+	color: #10263b;
 	line-height: 1.2;
 	word-break: break-word;
 }
-.mp-summary-card.is-period strong { font-size: 14px; }
+.mp-summary-card.is-period strong { font-size: 16px; }
 .mp-summary-icon {
-	width: 42px;
-	height: 42px;
-	border-radius: 12px;
+	width: 46px;
+	height: 46px;
+	border-radius: 14px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 42px;
+	flex: 0 0 46px;
 	color: #fff;
 	font-size: 18px;
+	box-shadow: 0 8px 16px rgba(16, 38, 59, .12);
 }
-.is-clients .mp-summary-icon { background: #2c5aa0; }
-.is-timesheet .mp-summary-icon { background: #1f9d6a; }
-.is-invoice .mp-summary-icon { background: #d97706; }
-.is-period .mp-summary-icon { background: #7c3aed; }
+.is-clients .mp-summary-icon { background: linear-gradient(180deg, #3b82f6, #1d4ed8); }
+.is-timesheet .mp-summary-icon { background: linear-gradient(180deg, #14b889, #0f766e); }
+.is-invoice .mp-summary-icon { background: linear-gradient(180deg, #f59e0b, #c2410c); }
+.is-period .mp-summary-icon { background: linear-gradient(180deg, #8b5cf6, #6d28d9); }
 .mp-panel {
 	background: #fff;
-	border: 1px solid #e6edf4;
-	border-radius: 16px;
-	box-shadow: 0 8px 22px rgba(20, 55, 90, 0.06);
+	border: 1px solid #e4edf5;
+	border-radius: 20px;
+	box-shadow: 0 10px 28px rgba(15, 48, 80, 0.06);
 	margin-bottom: 16px;
 	overflow: hidden;
+}
+.mp-panel-head,
+.mp-table-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 20px;
+	background: linear-gradient(180deg, #f7fbff 0%, #fff 100%);
+	border-bottom: 1px solid #e8eef5;
+	flex-wrap: wrap;
+}
+.mp-panel-head h3,
+.mp-table-toolbar h3 {
+	margin: 0 0 3px;
+	font-size: 18px;
+	font-weight: 800;
+	color: #10263b;
+}
+.mp-panel-head h3 i { margin-right: 6px; color: #1d6ea8; }
+.mp-panel-head small,
+.mp-table-toolbar small { color: #7a8896; font-size: 14px; }
+.mp-count-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 28px;
+	height: 24px;
+	padding: 0 8px;
+	margin-left: 8px;
+	border-radius: 999px;
+	background: #e8f3fb;
+	color: #155a86;
+	font-size: 13px;
+	vertical-align: middle;
 }
 .mp-filter-grid {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12px;
 	align-items: flex-end;
-	padding: 16px 18px;
+	padding: 16px 20px 18px;
+	background: #fbfcfe;
 }
 .mp-filter-client { flex: 1 1 240px; min-width: 220px; }
 .mp-filter-grid label {
 	display: block;
-	font-size: 11px;
-	font-weight: 700;
+	font-size: 12px;
+	font-weight: 800;
 	text-transform: uppercase;
-	letter-spacing: .04em;
+	letter-spacing: .05em;
 	color: #667888;
 	margin-bottom: 6px;
 }
@@ -423,50 +546,20 @@
 .mp-ym-fields select { flex: 1; }
 .mp-filter-actions { display: flex; gap: 8px; padding-bottom: 2px; }
 .mp-panel .form-control {
-	border-radius: 10px;
+	border-radius: 12px;
 	border-color: #d5dbe3;
-	height: 38px;
+	height: 44px;
+	font-size: 15px;
 	box-shadow: none;
+	background: #fff;
 }
-.mp-table-toolbar {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 16px 18px;
-	background: linear-gradient(to right, #f7fbff, #fff);
-	border-bottom: 1px solid #e8edf3;
-	flex-wrap: wrap;
-}
-.mp-table-toolbar h3 {
-	margin: 0 0 3px;
-	font-size: 16px;
-	font-weight: 700;
-	color: #17364f;
-}
-.mp-table-toolbar small { color: #7a8896; }
 .mp-toolbar-right {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
 }
-.mp-search-wrap { position: relative; }
-.mp-search-wrap i {
-	position: absolute;
-	left: 11px;
-	top: 50%;
-	transform: translateY(-50%);
-	color: #8a97a5;
-}
-#mp_quick_search {
-	width: 210px;
-	height: 36px;
-	border-radius: 10px;
-	border: 1px solid #d5dbe3;
-	padding: 6px 10px 6px 30px;
-}
-.mp-table-wrap { overflow: auto; max-height: calc(100vh - 280px); }
+.mp-table-wrap { overflow: auto; max-height: calc(100vh - 260px); background: #fff; }
 #management_plan_table {
 	width: 100%;
 	margin-bottom: 0;
@@ -474,13 +567,13 @@
 	border-spacing: 0;
 }
 #management_plan_table thead th {
-	background: #17364f;
+	background: linear-gradient(180deg, #16324d, #10263b);
 	color: #fff;
-	font-weight: 700;
-	font-size: 11px;
+	font-weight: 800;
+	font-size: 13px;
 	text-transform: uppercase;
-	letter-spacing: .04em;
-	padding: 13px 12px;
+	letter-spacing: .05em;
+	padding: 14px 12px;
 	border: 0;
 	text-align: center;
 	vertical-align: middle;
@@ -489,40 +582,44 @@
 	top: 0;
 	z-index: 2;
 }
+#management_plan_table thead th.mp-col-client { text-align: left; }
 #management_plan_table tbody td {
-	padding: 12px;
+	padding: 14px 12px;
 	vertical-align: middle;
-	font-size: 13px;
+	font-size: 15px;
 	color: #2c3e50;
 	border-bottom: 1px solid #eef3f8;
 	background: #fff;
 }
-#management_plan_table .mp-col-sno { text-align: center; width: 54px; color: #7a8896; }
-#management_plan_table .mp-col-client { min-width: 280px; text-align: left; }
+#management_plan_table .mp-col-sno { text-align: center; width: 54px; color: #8a97a5; font-weight: 700; }
+#management_plan_table .mp-col-client { min-width: 300px; text-align: left; }
 .client-header-row td { background: #f8fbfe !important; }
 .client-header-row.is-expandable { cursor: pointer; }
 .client-header-row.is-expandable:hover td { background: #eef6fd !important; }
-.client-header-row.is-open td { background: #e7f1fb !important; }
+.client-header-row.is-open td { background: #eaf4ff !important; }
+.client-header-row.is-open td:first-child {
+	box-shadow: inset 4px 0 0 #10946d;
+}
 .client-header-row.is-loading td { opacity: .75; }
 .client-cell {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	color: #17364f;
-	font-size: 14px;
+	gap: 12px;
+	color: #10263b;
+	font-size: 16px;
 }
 .mp-client-avatar {
-	width: 34px;
-	height: 34px;
-	border-radius: 11px;
-	background: linear-gradient(180deg, #2c5aa0, #1f4578);
+	width: 38px;
+	height: 38px;
+	border-radius: 12px;
 	color: #fff;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 13px;
-	font-weight: 700;
-	flex: 0 0 34px;
+	font-size: 15px;
+	font-weight: 800;
+	flex: 0 0 38px;
+	box-shadow: 0 6px 12px rgba(16, 38, 59, .16);
 }
 .mp-client-copy {
 	display: flex;
@@ -531,92 +628,134 @@
 	flex: 1;
 	line-height: 1.25;
 }
-.client-name-text { color: #17364f; font-weight: 700; }
+.client-name-text { color: #10263b; font-weight: 800; }
 .mp-month-count {
-	font-size: 11px;
+	font-size: 13px;
 	color: #6f7f90;
 	font-weight: 600;
 }
 .client-toggle-icon {
-	width: 28px;
-	height: 28px;
-	border-radius: 8px;
-	background: #1f5f8b;
+	width: 30px;
+	height: 30px;
+	border-radius: 9px;
+	background: #155a86;
 	color: #fff;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 28px;
+	flex: 0 0 30px;
+	box-shadow: 0 6px 12px rgba(21, 90, 134, .2);
 }
-.client-header-row.is-open .client-toggle-icon { background: #1f9d6a; }
-.client-month-row td { background: #fcfdff !important; }
-.client-month-row:hover td { background: #f7fbff !important; }
-.month-cell { padding-left: 58px !important; }
+.client-header-row.is-open .client-toggle-icon { background: #10946d; }
+.client-month-row td {
+	background: #f7fafc !important;
+	border-bottom: 1px dashed #e4edf5 !important;
+}
+.client-month-row:hover td { background: #eef7f4 !important; }
+.month-cell {
+	position: relative;
+	padding-left: 64px !important;
+}
+.month-cell:before {
+	content: "";
+	position: absolute;
+	left: 30px;
+	top: 50%;
+	width: 16px;
+	height: 2px;
+	background: #c9d8e6;
+	border-radius: 2px;
+}
 .mp-month-chip {
 	display: inline-block;
-	background: #eef5fc;
-	border: 1px solid #d5e5f4;
-	color: #245f8a;
+	background: #e8f4ff;
+	border: 1px solid #cfe4f7;
+	color: #155a86;
 	border-radius: 999px;
-	padding: 4px 10px;
-	font-size: 12px;
-	font-weight: 700;
+	padding: 5px 12px;
+	font-size: 14px;
+	font-weight: 800;
 }
 .date-cell, .num-cell { text-align: center; }
-.mp-date { color: #4a5b6b; font-weight: 600; }
-.mp-muted { color: #c0c8d0; font-weight: 600; }
+.mp-date {
+	display: inline-block;
+	color: #3d5366;
+	font-weight: 700;
+	font-size: 15px;
+	background: #f4f7fb;
+	border: 1px solid #e6edf4;
+	border-radius: 999px;
+	padding: 5px 10px;
+}
+.mp-muted { color: #c0c8d0; font-weight: 700; font-size: 15px; }
 .mp-hours {
 	display: inline-block;
-	min-width: 54px;
-	padding: 4px 10px;
+	min-width: 58px;
+	padding: 5px 12px;
 	border-radius: 999px;
 	background: #f3f6fa;
 	color: #5a6a7a;
-	font-weight: 700;
+	font-weight: 800;
+	font-size: 15px;
 }
-.mp-hours.has-value { background: #e7f7ee; color: #178258; }
-.mp-hours.is-total { background: #e4eef8; color: #1f5f8b; }
+.mp-hours.has-value { background: #e5f8ef; color: #0f766e; }
+.mp-hours.is-total { background: #e4eef8; color: #155a86; }
 .mp-empty-state {
-	padding: 52px 16px !important;
+	padding: 56px 16px !important;
 	text-align: center;
 	color: #6c757d;
+	background: #fbfcfe !important;
 }
-.mp-empty-state i { display: block; font-size: 30px; margin-bottom: 8px; color: #adb5bd; }
-.mp-empty-state strong { display: block; font-size: 16px; margin-bottom: 4px; color: #4a5b6b; }
+.mp-empty-state i { display: block; font-size: 34px; margin-bottom: 10px; color: #b7c3cf; }
+.mp-empty-state strong { display: block; font-size: 18px; margin-bottom: 4px; color: #4a5b6b; }
+.mp-empty-state span { font-size: 15px; }
 .mp-page-loader {
 	position: fixed;
 	inset: 0;
-	background: rgba(16, 32, 48, .28);
+	background: rgba(10, 24, 40, .32);
 	z-index: 9999;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	backdrop-filter: blur(2px);
 }
 .mp-page-loader-content {
 	background: #fff;
-	border-radius: 16px;
+	border-radius: 18px;
 	padding: 18px 22px;
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	box-shadow: 0 16px 40px rgba(0,0,0,.16);
-	color: #17364f;
+	box-shadow: 0 18px 40px rgba(0,0,0,.18);
+	color: #10263b;
+	font-size: 16px;
 }
-.mp-page-loader-content span { display: block; font-size: 12px; color: #6c7a89; }
+.mp-page-loader-content span { display: block; font-size: 14px; color: #6c7a89; }
 .mp-page-loader-spinner {
 	width: 22px;
 	height: 22px;
 	border: 3px solid #dbe7f3;
-	border-top-color: #1f5f8b;
+	border-top-color: #155a86;
 	border-radius: 50%;
 	animation: mpspin .7s linear infinite;
 }
 @keyframes mpspin { to { transform: rotate(360deg); } }
 #management_plan_search_form .select2-container .select2-selection--multiple,
 #management_plan_search_form .select2-container .select2-selection--single {
-	min-height: 38px;
+	min-height: 44px;
 	border-color: #d5dbe3;
-	border-radius: 10px;
+	border-radius: 12px;
+	font-size: 15px;
+	background: #fff;
+}
+#management_plan_search_form .select2-container .select2-selection__rendered {
+	font-size: 15px;
+}
+#management_plan_search_form .select2-container .select2-selection--single .select2-selection__rendered {
+	line-height: 42px;
+}
+#management_plan_search_form .select2-container .select2-selection--multiple .select2-selection__rendered {
+	line-height: 28px;
 }
 #management_plan_search_form .select2-container.mp-selected-bg .select2-selection--single,
 #management_plan_search_form .select2-container.mp-selected-bg .select2-selection--multiple {
@@ -631,9 +770,12 @@
 	.mp-summary-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 992px) {
-	.mp-hero { display: block; }
+	.mp-hero,
+	.mp-hero-copy { display: block; }
+	.mp-hero-badge { margin-bottom: 12px; }
 	.mp-hero-actions { margin-top: 14px; }
 	.month-cell { padding-left: 22px !important; }
+	.month-cell:before { display: none; }
 }
 @media (max-width: 640px) {
 	.mp-summary-row { grid-template-columns: 1fr; }
@@ -834,30 +976,6 @@ $(document).ready(function() {
 		$('.client-header-row.is-expandable').each(function() {
 			setOpenState($(this), false);
 		});
-	});
-
-	$('#mp_quick_search').on('keyup', function() {
-		var query = $.trim($(this).val()).toLowerCase();
-		$('.client-header-row').each(function() {
-			var $header = $(this);
-			var match = query === '' || String($header.data('search') || '').indexOf(query) !== -1;
-			$header.toggle(match);
-			if (!match) {
-				setOpenState($header, false);
-			} else if ($header.hasClass('is-open')) {
-				$('.client-months-' + $header.data('client-index')).show();
-			}
-		});
-	});
-
-	$('#mp_current_year_btn').on('click', function() {
-		var year = String($(this).data('year') || '');
-		$('#from_year').val(year).trigger('change');
-		$('#to_year').val(year).trigger('change');
-		$('#from_month').val('all').trigger('change');
-		$('#to_month').val('all').trigger('change');
-		$('#mp_page_loader').show();
-		$('#management_plan_search_form').trigger('submit');
 	});
 
 	$('#management_plan_search_form').on('submit', function() {

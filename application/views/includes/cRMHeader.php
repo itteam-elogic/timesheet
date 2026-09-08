@@ -155,7 +155,6 @@ if(
  
                   if (in_array($key->department,$departments ) || $this->session->userdata['logged_in_timesheet']['user_type'] == 'admin' ): ?> 
                         <li><a href="<?php echo base_url(); ?>kpi_reports/index"><i class="fa fa-folder-open"></i><span>Reports</span></a></li>	
-                    <li><a href="<?php echo base_url(); ?>management_plan"><i class="fa fa-briefcase"></i><span>Management Plan</span></a></li>
                     <?php endif; ?>
 					
 					<li><a href="<?php echo base_url(); ?>resource_schedule"><i class="fa fa-key"></i><span>Resource Schedule</span></a></li>					

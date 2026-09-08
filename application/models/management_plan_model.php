@@ -92,11 +92,10 @@ class Management_plan_model extends CI_Model {
 	private function build_timesheet_date_filter_sql($fromDate, $toDate, $dateColumn = 'erd.emp_report_dates') {
 		$conditions = array();
 		if ($fromDate !== '') {
-			$conditions[] = $dateColumn . ' >= ' . $this->db->escape($fromDate . ' 00:00:00');
+			$conditions[] = 'DATE(' . $dateColumn . ') >= ' . $this->db->escape($fromDate);
 		}
 		if ($toDate !== '') {
-			$toExclusive = date('Y-m-d', strtotime($toDate . ' +1 day'));
-			$conditions[] = $dateColumn . ' < ' . $this->db->escape($toExclusive . ' 00:00:00');
+			$conditions[] = 'DATE(' . $dateColumn . ') <= ' . $this->db->escape($toDate);
 		}
 		if (empty($conditions)) {
 			return '';
@@ -118,19 +117,135 @@ class Management_plan_model extends CI_Model {
 		return ' AND ' . implode(' AND ', $conditions);
 	}
 
-	private function matching_general_projects_sql($clientIdFilterSql = '') {
-		$gpClientFilterSql = str_replace('p.client_Id', 'gp.client_Id', $clientIdFilterSql);
-		$prodClientFilterSql = str_replace('p.client_Id', 'prod.client_Id', $clientIdFilterSql);
+	private function build_project_period_overlap_sql($fromDate, $toDate) {
+		if ($fromDate !== '' && $toDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			$toEsc = $this->db->escape($toDate);
+			return '(
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_start_date) <= ' . $toEsc . ' AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+				OR
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND (p.project_end_date IS NULL OR p.project_end_date = \'0000-00-00\')
+					AND DATE(p.project_start_date) <= ' . $toEsc . ')
+				OR
+				((p.project_start_date IS NULL OR p.project_start_date = \'0000-00-00\')
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+			)';
+		}
+		if ($fromDate !== '') {
+			$fromEsc = $this->db->escape($fromDate);
+			return '(
+				(p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\' AND DATE(p.project_end_date) >= ' . $fromEsc . ')
+				OR
+				((p.project_end_date IS NULL OR p.project_end_date = \'0000-00-00\')
+					AND p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\'
+					AND DATE(p.project_start_date) <= ' . $fromEsc . ')
+			)';
+		}
+		if ($toDate !== '') {
+			$toEsc = $this->db->escape($toDate);
+			return '(
+				(p.project_start_date IS NOT NULL AND p.project_start_date != \'0000-00-00\' AND DATE(p.project_start_date) <= ' . $toEsc . ')
+				OR
+				((p.project_start_date IS NULL OR p.project_start_date = \'0000-00-00\')
+					AND p.project_end_date IS NOT NULL AND p.project_end_date != \'0000-00-00\'
+					AND DATE(p.project_end_date) >= ' . $toEsc . ')
+			)';
+		}
+		return '';
+	}
+
+	private function build_project_visibility_sql($filters) {
+		$fromDate = $filters['fromDate'];
+		$toDate = $filters['toDate'];
+		$fromKey = $filters['fromKey'];
+		$toKey = $filters['toKey'];
+		$tsDateFilter = $filters['tsDateFilter'];
+		if ($fromDate === '' && $toDate === '') {
+			return '';
+		}
+
+		$conditions = array();
+		$overlapSql = $this->build_project_period_overlap_sql($fromDate, $toDate);
+		if ($overlapSql !== '') {
+			$conditions[] = $overlapSql;
+		}
+		if ($tsDateFilter !== '') {
+			$conditions[] = 'EXISTS (SELECT 1 FROM emp_record_details erd WHERE erd.project_Id = p.project_Id AND erd.client_Id = p.client_Id' . $tsDateFilter . ')';
+		}
+
+		$invoiceConditions = array();
+		if ($fromKey !== null) {
+			$invoiceConditions[] = '(pim.invoice_year * 100 + pim.invoice_month) >= ' . (int)$fromKey;
+		}
+		if ($toKey !== null) {
+			$invoiceConditions[] = '(pim.invoice_year * 100 + pim.invoice_month) <= ' . (int)$toKey;
+		}
+		if (!empty($invoiceConditions)) {
+			$conditions[] = 'EXISTS (SELECT 1 FROM project_invoice_monthly pim WHERE pim.project_Id = p.project_Id AND ' . implode(' AND ', $invoiceConditions) . ')';
+		}
+		if (empty($conditions)) {
+			return '';
+		}
+		return ' AND (' . implode(' OR ', $conditions) . ')';
+	}
+
+	private function visible_production_projects_sql($filters) {
+		$excludedClients = $filters['excludedClients'];
+		$generalExclusion = $filters['generalExclusion'];
+		$clientIdFilterSql = isset($filters['clientIdFilterSql']) ? $filters['clientIdFilterSql'] : '';
+		$visibilitySql = $this->build_project_visibility_sql($filters);
 		return "
-			SELECT DISTINCT gp.project_Id, gp.client_Id
-			FROM project_details gp
-			INNER JOIN project_details prod
-				ON prod.client_Id = gp.client_Id
-				AND LOWER(COALESCE(prod.project_name, '')) NOT LIKE '%general%'
-				AND LOWER(TRIM(prod.project_name)) = LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))
+			SELECT p.project_Id, p.client_Id, p.project_name
+			FROM project_details p
+			WHERE p.client_Id NOT IN ({$excludedClients})
+			{$generalExclusion}
+			{$clientIdFilterSql}
+			{$visibilitySql}
+		";
+	}
+
+	private function general_timesheet_totals_sql($filters, $groupByMonth = false) {
+		$tsDateFilter = $filters['tsDateFilter'];
+		$erdClientFilterSql = isset($filters['erdClientFilterSql']) ? $filters['erdClientFilterSql'] : '';
+		$yearSelect = $groupByMonth ? ', YEAR(erd.emp_report_dates) AS year_val, MONTH(erd.emp_report_dates) AS month_val' : '';
+		$yearGroup = $groupByMonth ? ', YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)' : '';
+		$baseNameSql = "LOWER(TRIM(REPLACE(REPLACE(gp.project_name, ' - (General)', ''), '(General)', '')))";
+		return "
+			SELECT gp.client_Id,
+				{$baseNameSql} AS base_project_name
+				{$yearSelect},
+				SUM(erd.emp_time_hours) AS general_timesheet_hours,
+				MAX(erd.emp_report_dates) AS timesheet_date
+			FROM emp_record_details erd
+			INNER JOIN project_details gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
 			WHERE LOWER(TRIM(gp.project_name)) LIKE '%(general)%'
-			{$gpClientFilterSql}
-			{$prodClientFilterSql}
+			{$tsDateFilter}
+			{$erdClientFilterSql}
+			GROUP BY gp.client_Id, {$baseNameSql}{$yearGroup}
+		";
+	}
+
+	private function production_timesheet_totals_sql($filters, $groupByMonth = false) {
+		$tsDateFilter = str_replace('erd.emp_report_dates', 'emp_report_dates', $filters['tsDateFilter']);
+		$erdClientFilterSql = str_replace('erd.client_Id', 'client_Id', isset($filters['erdClientFilterSql']) ? $filters['erdClientFilterSql'] : '');
+		$yearSelect = $groupByMonth ? ', YEAR(emp_report_dates) AS year_val, MONTH(emp_report_dates) AS month_val' : '';
+		$yearGroup = $groupByMonth ? ', YEAR(emp_report_dates), MONTH(emp_report_dates)' : '';
+		return "
+			SELECT project_Id, client_Id
+				{$yearSelect},
+				SUM(emp_time_hours) AS timesheet_hours,
+				MAX(emp_report_dates) AS timesheet_date
+			FROM emp_record_details
+			WHERE 1=1
+			{$tsDateFilter}
+			{$erdClientFilterSql}
+			AND emp_report_dates IS NOT NULL
+			AND emp_report_dates != '0000-00-00'
+			GROUP BY project_Id, client_Id{$yearGroup}
 		";
 	}
 
@@ -178,46 +293,107 @@ class Management_plan_model extends CI_Model {
 		);
 	}
 
+	private function month_project_visibility_sql($projectAlias = 'p', $yearExpr = 'gen.year_val', $monthExpr = 'gen.month_val') {
+		$monthStart = "DATE(CONCAT({$yearExpr}, '-', LPAD({$monthExpr}, 2, '0'), '-01'))";
+		$monthEnd = 'LAST_DAY(' . $monthStart . ')';
+		return '(
+			(
+				(' . $projectAlias . '.project_start_date IS NOT NULL AND ' . $projectAlias . '.project_start_date != \'0000-00-00\'
+					AND ' . $projectAlias . '.project_end_date IS NOT NULL AND ' . $projectAlias . '.project_end_date != \'0000-00-00\'
+					AND DATE(' . $projectAlias . '.project_start_date) <= ' . $monthEnd . '
+					AND DATE(' . $projectAlias . '.project_end_date) >= ' . $monthStart . ')
+				OR
+				(' . $projectAlias . '.project_start_date IS NOT NULL AND ' . $projectAlias . '.project_start_date != \'0000-00-00\'
+					AND (' . $projectAlias . '.project_end_date IS NULL OR ' . $projectAlias . '.project_end_date = \'0000-00-00\')
+					AND DATE(' . $projectAlias . '.project_start_date) <= ' . $monthEnd . ')
+				OR
+				((' . $projectAlias . '.project_start_date IS NULL OR ' . $projectAlias . '.project_start_date = \'0000-00-00\')
+					AND ' . $projectAlias . '.project_end_date IS NOT NULL AND ' . $projectAlias . '.project_end_date != \'0000-00-00\'
+					AND DATE(' . $projectAlias . '.project_end_date) >= ' . $monthStart . ')
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM emp_record_details erd_m
+				WHERE erd_m.project_Id = ' . $projectAlias . '.project_Id
+					AND erd_m.client_Id = ' . $projectAlias . '.client_Id
+					AND DATE(erd_m.emp_report_dates) >= ' . $monthStart . '
+					AND DATE(erd_m.emp_report_dates) <= ' . $monthEnd . '
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM project_invoice_monthly pim_m
+				WHERE pim_m.project_Id = ' . $projectAlias . '.project_Id
+					AND pim_m.invoice_year = ' . $yearExpr . '
+					AND pim_m.invoice_month = ' . $monthExpr . '
+			)
+		)';
+	}
+
 	private function timesheet_hours_select_sql($filters, $groupByMonth = false) {
+		$visibleSql = $this->visible_production_projects_sql($filters);
+		$productionTsSql = $this->production_timesheet_totals_sql($filters, $groupByMonth);
+		$generalTsSql = $this->general_timesheet_totals_sql($filters, $groupByMonth);
+
+		if (!$groupByMonth) {
+			return "
+				SELECT
+					p.client_Id,
+					SUM(COALESCE(ts.timesheet_hours, 0) + COALESCE(gen.general_timesheet_hours, 0)) AS timesheet_hours,
+					MAX(CASE
+						WHEN ts.timesheet_date IS NULL THEN gen.timesheet_date
+						WHEN gen.timesheet_date IS NULL THEN ts.timesheet_date
+						WHEN ts.timesheet_date >= gen.timesheet_date THEN ts.timesheet_date
+						ELSE gen.timesheet_date
+					END) AS timesheet_date
+				FROM ({$visibleSql}) p
+				LEFT JOIN (
+					{$productionTsSql}
+				) ts ON ts.project_Id = p.project_Id AND ts.client_Id = p.client_Id
+				LEFT JOIN (
+					{$generalTsSql}
+				) gen ON gen.client_Id = p.client_Id AND gen.base_project_name = LOWER(TRIM(p.project_name))
+				GROUP BY p.client_Id
+			";
+		}
+
 		$excludedClients = $filters['excludedClients'];
-		$tsDateFilter = $filters['tsDateFilter'];
-		$erdClientFilterSql = $filters['erdClientFilterSql'];
-		$matchingGeneralSql = $this->matching_general_projects_sql(isset($filters['clientIdFilterSql']) ? $filters['clientIdFilterSql'] : '');
-		$yearSelect = $groupByMonth ? ', YEAR(erd.emp_report_dates) AS year_val, MONTH(erd.emp_report_dates) AS month_val' : '';
-		$yearGroup = $groupByMonth ? ', YEAR(erd.emp_report_dates), MONTH(erd.emp_report_dates)' : '';
+		$generalExclusion = $filters['generalExclusion'];
+		$clientIdFilterSql = isset($filters['clientIdFilterSql']) ? $filters['clientIdFilterSql'] : '';
+		$monthVisibilitySql = $this->month_project_visibility_sql('p', 'gen.year_val', 'gen.month_val');
 
 		return "
 			SELECT
-				combined.client_Id" . ($groupByMonth ? ', combined.year_val, combined.month_val' : '') . ",
+				combined.client_Id,
+				combined.year_val,
+				combined.month_val,
 				SUM(combined.timesheet_hours) AS timesheet_hours,
 				MAX(combined.timesheet_date) AS timesheet_date
 			FROM (
-				SELECT erd.client_Id" . $yearSelect . ",
-					SUM(erd.emp_time_hours) AS timesheet_hours,
-					MAX(erd.emp_report_dates) AS timesheet_date
-				FROM emp_record_details erd
-				INNER JOIN project_details p ON p.project_Id = erd.project_Id AND p.client_Id = erd.client_Id
-				WHERE erd.client_Id NOT IN ({$excludedClients})
-				AND LOWER(COALESCE(p.project_name, '')) NOT LIKE '%general%'
-				{$tsDateFilter}
-				{$erdClientFilterSql}
-				AND erd.emp_report_dates IS NOT NULL
-				AND erd.emp_report_dates != '0000-00-00'
-				GROUP BY erd.client_Id{$yearGroup}
+				SELECT p.client_Id,
+					ts.year_val,
+					ts.month_val,
+					ts.timesheet_hours,
+					ts.timesheet_date
+				FROM ({$visibleSql}) p
+				INNER JOIN (
+					{$productionTsSql}
+				) ts ON ts.project_Id = p.project_Id AND ts.client_Id = p.client_Id
 				UNION ALL
-				SELECT erd.client_Id" . $yearSelect . ",
-					SUM(erd.emp_time_hours) AS timesheet_hours,
-					MAX(erd.emp_report_dates) AS timesheet_date
-				FROM emp_record_details erd
-				INNER JOIN ({$matchingGeneralSql}) gp ON gp.project_Id = erd.project_Id AND gp.client_Id = erd.client_Id
-				WHERE erd.client_Id NOT IN ({$excludedClients})
-				{$tsDateFilter}
-				{$erdClientFilterSql}
-				AND erd.emp_report_dates IS NOT NULL
-				AND erd.emp_report_dates != '0000-00-00'
-				GROUP BY erd.client_Id{$yearGroup}
+				SELECT p.client_Id,
+					gen.year_val,
+					gen.month_val,
+					gen.general_timesheet_hours AS timesheet_hours,
+					gen.timesheet_date
+				FROM project_details p
+				INNER JOIN (
+					{$generalTsSql}
+				) gen ON gen.client_Id = p.client_Id AND gen.base_project_name = LOWER(TRIM(p.project_name))
+				WHERE p.client_Id NOT IN ({$excludedClients})
+				{$generalExclusion}
+				{$clientIdFilterSql}
+				AND {$monthVisibilitySql}
 			) combined
-			GROUP BY combined.client_Id" . ($groupByMonth ? ', combined.year_val, combined.month_val' : '') . "
+			GROUP BY combined.client_Id, combined.year_val, combined.month_val
 		";
 	}
 
