@@ -62,6 +62,37 @@ class Management_plan extends CI_Controller {
 			)));
 	}
 
+	public function grid_page() {
+		$filterState = $this->build_filter_state();
+		$paging = $this->build_paging_state($filterState['params']);
+		$rows = array();
+		$sno = $paging['start_record'];
+		foreach ($paging['records'] as $row) {
+			$rows[] = $this->format_grid_row($row, $sno);
+			$sno++;
+		}
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode(array(
+				'success' => true,
+				'rows' => $rows,
+				'pagination' => array(
+					'page' => $paging['page'],
+					'per_page' => $paging['per_page'],
+					'total_records' => $paging['total_records'],
+					'total_pages' => $paging['total_pages'],
+					'start_record' => $paging['start_record'],
+					'end_record' => $paging['end_record']
+				),
+				'totals' => array(
+					'clients' => $paging['total_records'],
+					'timesheet_hours' => $this->format_hours($paging['total_timesheet_hours']),
+					'invoice_hours' => $this->format_hours($paging['total_invoice_hours'])
+				)
+			)));
+	}
+
 	public function export_report() {
 		$filterState = $this->build_filter_state();
 		$viewData = $this->build_view_data($filterState, true);
@@ -158,9 +189,10 @@ class Management_plan extends CI_Controller {
 	}
 
 	private function build_view_data($filterState, $includeMonths = false) {
-		$records = $this->management_plan_model->get_management_plan_report($filterState['params']);
+		$params = $filterState['params'];
 		if ($includeMonths) {
-			$monthRows = $this->management_plan_model->get_month_wise_by_client($filterState['params']);
+			$records = $this->management_plan_model->get_management_plan_report($params);
+			$monthRows = $this->management_plan_model->get_month_wise_by_client($params);
 			$monthsByClient = array();
 			foreach ($monthRows as $monthRow) {
 				$clientId = isset($monthRow->client_Id) ? (int)$monthRow->client_Id : 0;
@@ -176,10 +208,31 @@ class Management_plan extends CI_Controller {
 				$clientId = isset($row->client_Id) ? (int)$row->client_Id : 0;
 				$row->month_rows = isset($monthsByClient[$clientId]) ? $monthsByClient[$clientId] : array();
 			}
+			$totals = $this->management_plan_model->get_management_plan_totals($params);
+			return array(
+				'records' => $records,
+				'clients' => $this->management_plan_model->get_filter_clients(),
+				'years' => $this->management_plan_model->get_filter_years(),
+				'months' => $this->management_plan_model->get_filter_months(),
+				'client_Id' => $filterState['client_Id'],
+				'from_year' => $filterState['from_year'],
+				'from_month' => $filterState['from_month'],
+				'to_year' => $filterState['to_year'],
+				'to_month' => $filterState['to_month'],
+				'totalRecords' => isset($totals->total_records) ? (int)$totals->total_records : count($records),
+				'totalTimesheetHours' => isset($totals->total_timesheet_hours) ? (float)$totals->total_timesheet_hours : 0,
+				'totalInvoiceHours' => isset($totals->total_invoice_hours) ? (float)$totals->total_invoice_hours : 0,
+				'page' => 1,
+				'per_page' => 20,
+				'total_pages' => 1,
+				'start_record' => count($records) ? 1 : 0,
+				'end_record' => count($records)
+			);
 		}
 
+		$paging = $this->build_paging_state($params);
 		return array(
-			'records' => $records,
+			'records' => $paging['records'],
 			'clients' => $this->management_plan_model->get_filter_clients(),
 			'years' => $this->management_plan_model->get_filter_years(),
 			'months' => $this->management_plan_model->get_filter_months(),
@@ -187,8 +240,110 @@ class Management_plan extends CI_Controller {
 			'from_year' => $filterState['from_year'],
 			'from_month' => $filterState['from_month'],
 			'to_year' => $filterState['to_year'],
-			'to_month' => $filterState['to_month']
+			'to_month' => $filterState['to_month'],
+			'totalRecords' => $paging['total_records'],
+			'totalTimesheetHours' => $paging['total_timesheet_hours'],
+			'totalInvoiceHours' => $paging['total_invoice_hours'],
+			'page' => $paging['page'],
+			'per_page' => $paging['per_page'],
+			'total_pages' => $paging['total_pages'],
+			'start_record' => $paging['start_record'],
+			'end_record' => $paging['end_record']
 		);
+	}
+
+	private function build_paging_state($params) {
+		$allowedPerPage = array(10, 20, 50, 100);
+		$perPage = (int)$this->input->get_post('per_page');
+		if (!in_array($perPage, $allowedPerPage)) {
+			$perPage = 20;
+		}
+		$page = (int)$this->input->get_post('page');
+		if ($page < 1) {
+			$page = 1;
+		}
+
+		$totals = $this->management_plan_model->get_management_plan_totals($params);
+		$totalRecords = isset($totals->total_records) ? (int)$totals->total_records : 0;
+		$totalTimesheetHours = isset($totals->total_timesheet_hours) ? (float)$totals->total_timesheet_hours : 0;
+		$totalInvoiceHours = isset($totals->total_invoice_hours) ? (float)$totals->total_invoice_hours : 0;
+		$totalPages = ($totalRecords > 0) ? (int)ceil($totalRecords / $perPage) : 1;
+		if ($page > $totalPages) {
+			$page = $totalPages;
+		}
+		$offset = ($page - 1) * $perPage;
+		if ($offset < 0) {
+			$offset = 0;
+		}
+
+		$queryParams = $params;
+		$queryParams['limit'] = $perPage;
+		$queryParams['offset'] = $offset;
+		$records = $this->management_plan_model->get_management_plan_report($queryParams);
+
+		$startRecord = ($totalRecords > 0) ? ($offset + 1) : 0;
+		$endRecord = ($totalRecords > 0) ? min($offset + count($records), $totalRecords) : 0;
+
+		return array(
+			'records' => $records,
+			'page' => $page,
+			'per_page' => $perPage,
+			'total_records' => $totalRecords,
+			'total_pages' => $totalPages,
+			'start_record' => $startRecord,
+			'end_record' => $endRecord,
+			'total_timesheet_hours' => $totalTimesheetHours,
+			'total_invoice_hours' => $totalInvoiceHours
+		);
+	}
+
+	private function format_grid_row($row, $sno) {
+		$clientName = $this->format_client_name(isset($row->client_name) ? $row->client_name : '');
+		$initial = ($clientName !== '') ? strtoupper(substr($clientName, 0, 1)) : '?';
+		$palette = array('#1d4ed8', '#0f766e', '#b45309', '#6d28d9', '#be123c', '#0369a1');
+		$avatarBg = $palette[ord($initial) % 6];
+		return array(
+			'sno' => (int)$sno,
+			'client_id' => isset($row->client_Id) ? (int)$row->client_Id : 0,
+			'client_name' => $clientName,
+			'client_initial' => $initial,
+			'avatar_bg' => $avatarBg,
+			'month_span' => $this->format_month_span($row),
+			'start_date' => $this->format_date(isset($row->start_date) ? $row->start_date : ''),
+			'end_date' => $this->format_date(isset($row->end_date) ? $row->end_date : '', true),
+			'timesheet_date' => $this->format_date(isset($row->timesheet_date) ? $row->timesheet_date : '', true),
+			'timesheet_hours' => $this->format_hours(isset($row->timesheet_hours) ? $row->timesheet_hours : 0),
+			'timesheet_hours_raw' => (float)(isset($row->timesheet_hours) ? $row->timesheet_hours : 0),
+			'invoice_hours' => $this->format_hours(isset($row->invoice_hours) ? $row->invoice_hours : 0),
+			'invoice_hours_raw' => (float)(isset($row->invoice_hours) ? $row->invoice_hours : 0)
+		);
+	}
+
+	private function format_month_span($row) {
+		$count = isset($row->month_count) ? (int)$row->month_count : 0;
+		if ($count <= 0) {
+			return 'No months';
+		}
+		$countLabel = $count . ($count === 1 ? ' month' : ' months');
+		$minLabel = $this->format_ym_label(isset($row->min_ym) ? $row->min_ym : 0);
+		$maxLabel = $this->format_ym_label(isset($row->max_ym) ? $row->max_ym : 0);
+		if ($minLabel === '' && $maxLabel === '') {
+			return $countLabel;
+		}
+		if ($minLabel === '' || $minLabel === $maxLabel) {
+			return ($maxLabel !== '' ? $maxLabel : $minLabel) . ' (' . $countLabel . ')';
+		}
+		return $minLabel . ' - ' . $maxLabel . ' (' . $countLabel . ')';
+	}
+
+	private function format_ym_label($ym) {
+		$ym = (int)$ym;
+		$year = (int)floor($ym / 100);
+		$month = (int)($ym % 100);
+		if ($year < 1 || $month < 1 || $month > 12) {
+			return '';
+		}
+		return date('M Y', strtotime(sprintf('%04d-%02d-01', $year, $month)));
 	}
 
 	private function build_filter_state() {
@@ -197,16 +352,6 @@ class Management_plan extends CI_Controller {
 		$fromMonth = $this->normalize_filter_values($this->input->get_post('from_month'));
 		$toYear = $this->normalize_filter_values($this->input->get_post('to_year'));
 		$toMonth = $this->normalize_filter_values($this->input->get_post('to_month'));
-
-		$rawFromYear = $this->input->get_post('from_year');
-		$rawToYear = $this->input->get_post('to_year');
-		$isInitialYearLoad = ($rawFromYear === null && $rawToYear === null);
-
-		if (empty($fromYear) && empty($toYear) && $isInitialYearLoad) {
-			$currentYear = (string)date('Y');
-			$fromYear = array($currentYear);
-			$toYear = array($currentYear);
-		}
 
 		$params = array(
 			'client_Id' => $clientId,

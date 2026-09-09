@@ -397,7 +397,136 @@ class Management_plan_model extends CI_Model {
 		";
 	}
 
+	private function client_month_summary_sql($filters) {
+		$excludedClients = $filters['excludedClients'];
+		$generalExclusion = $filters['generalExclusion'];
+		$invoiceDateFilter = $filters['invoiceDateFilter'];
+		$clientIdFilterSql = isset($filters['clientIdFilterSql']) ? $filters['clientIdFilterSql'] : '';
+		$timesheetSql = $this->timesheet_hours_select_sql($filters, true);
+
+		return "
+			SELECT
+				month_keys.client_Id,
+				COUNT(*) AS month_count,
+				MIN(month_keys.year_val * 100 + month_keys.month_val) AS min_ym,
+				MAX(month_keys.year_val * 100 + month_keys.month_val) AS max_ym
+			FROM (
+				SELECT combined.client_Id, combined.year_val, combined.month_val
+				FROM (
+					SELECT p.client_Id,
+						pim.invoice_year AS year_val,
+						pim.invoice_month AS month_val
+					FROM project_invoice_monthly pim
+					INNER JOIN project_details p ON p.project_Id = pim.project_Id
+					WHERE p.client_Id NOT IN ({$excludedClients})
+					{$generalExclusion}
+					{$invoiceDateFilter}
+					{$clientIdFilterSql}
+					GROUP BY p.client_Id, pim.invoice_year, pim.invoice_month
+					UNION
+					SELECT ts.client_Id,
+						ts.year_val,
+						ts.month_val
+					FROM (
+						{$timesheetSql}
+					) ts
+				) combined
+				WHERE combined.year_val > 0
+					AND combined.month_val BETWEEN 1 AND 12
+				GROUP BY combined.client_Id, combined.year_val, combined.month_val
+			) month_keys
+			GROUP BY month_keys.client_Id
+		";
+	}
+
 	public function get_management_plan_report($params) {
+		$filters = $this->prepare_filters($params);
+		$fromDate = $filters['fromDate'];
+		$toDate = $filters['toDate'];
+		$excludedClients = $filters['excludedClients'];
+		$generalExclusion = $filters['generalExclusion'];
+		$invoiceDateFilter = $filters['invoiceDateFilter'];
+		$clientFilterSql = $filters['clientFilterSql'];
+		$timesheetSql = $this->timesheet_hours_select_sql($filters, false);
+		$monthSummarySql = $this->client_month_summary_sql($filters);
+
+		$periodFilterSql = '';
+		if ($fromDate !== '' || $toDate !== '') {
+			$fromEsc = $this->db->escape($fromDate !== '' ? $fromDate : '0001-01-01');
+			$toEsc = $this->db->escape($toDate !== '' ? $toDate : '9999-12-31');
+			$periodFilterSql = "
+				AND (
+					ts.timesheet_date IS NOT NULL
+					OR COALESCE(inv.invoice_hours, 0) > 0
+					OR (
+						dates.client_start_date IS NOT NULL
+						AND dates.client_start_date != '0000-00-00'
+						AND dates.client_start_date <= {$toEsc}
+						AND (
+							dates.client_end_date IS NULL
+							OR dates.client_end_date = '0000-00-00'
+							OR dates.client_end_date >= {$fromEsc}
+						)
+					)
+				)";
+		}
+
+		$sql = "
+			SELECT
+				c.client_Id,
+				c.client_name,
+				dates.client_start_date AS start_date,
+				dates.client_end_date AS end_date,
+				ts.timesheet_date,
+				COALESCE(ts.timesheet_hours, 0) AS timesheet_hours,
+				COALESCE(inv.invoice_hours, 0) AS invoice_hours,
+				COALESCE(msum.month_count, 0) AS month_count,
+				msum.min_ym,
+				msum.max_ym
+			FROM client_details c
+			INNER JOIN (
+				SELECT p.client_Id,
+					MIN(CASE WHEN p.project_start_date IS NOT NULL AND p.project_start_date != '0000-00-00' THEN p.project_start_date END) AS client_start_date,
+					MAX(CASE WHEN p.project_end_date IS NOT NULL AND p.project_end_date != '0000-00-00' THEN p.project_end_date END) AS client_end_date
+				FROM project_details p
+				WHERE p.client_Id NOT IN ({$excludedClients})
+				{$generalExclusion}
+				GROUP BY p.client_Id
+			) dates ON dates.client_Id = c.client_Id
+			LEFT JOIN (
+				{$timesheetSql}
+			) ts ON ts.client_Id = c.client_Id
+			LEFT JOIN (
+				{$monthSummarySql}
+			) msum ON msum.client_Id = c.client_Id
+			LEFT JOIN (
+				SELECT p.client_Id, SUM(pim.invoice_hours) AS invoice_hours
+				FROM project_invoice_monthly pim
+				INNER JOIN project_details p ON p.project_Id = pim.project_Id
+				WHERE p.client_Id NOT IN ({$excludedClients})
+				{$generalExclusion}
+				{$invoiceDateFilter}
+				GROUP BY p.client_Id
+			) inv ON inv.client_Id = c.client_Id
+			WHERE c.client_Id NOT IN ({$excludedClients})
+			{$clientFilterSql}
+			{$periodFilterSql}
+			ORDER BY COALESCE(dates.client_end_date, dates.client_start_date) DESC, c.client_name ASC
+		";
+
+		$limit = isset($params['limit']) ? (int)$params['limit'] : 0;
+		$offset = isset($params['offset']) ? (int)$params['offset'] : 0;
+		if ($limit > 0) {
+			if ($offset < 0) {
+				$offset = 0;
+			}
+			$sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+		}
+
+		return $this->db->query($sql)->result();
+	}
+
+	public function get_management_plan_totals($params) {
 		$filters = $this->prepare_filters($params);
 		$fromDate = $filters['fromDate'];
 		$toDate = $filters['toDate'];
@@ -430,13 +559,9 @@ class Management_plan_model extends CI_Model {
 
 		$sql = "
 			SELECT
-				c.client_Id,
-				c.client_name,
-				dates.client_start_date AS start_date,
-				dates.client_end_date AS end_date,
-				ts.timesheet_date,
-				COALESCE(ts.timesheet_hours, 0) AS timesheet_hours,
-				COALESCE(inv.invoice_hours, 0) AS invoice_hours
+				COUNT(*) AS total_records,
+				COALESCE(SUM(COALESCE(ts.timesheet_hours, 0)), 0) AS total_timesheet_hours,
+				COALESCE(SUM(COALESCE(inv.invoice_hours, 0)), 0) AS total_invoice_hours
 			FROM client_details c
 			INNER JOIN (
 				SELECT p.client_Id,
@@ -462,10 +587,17 @@ class Management_plan_model extends CI_Model {
 			WHERE c.client_Id NOT IN ({$excludedClients})
 			{$clientFilterSql}
 			{$periodFilterSql}
-			ORDER BY COALESCE(dates.client_end_date, dates.client_start_date) DESC, c.client_name ASC
 		";
 
-		return $this->db->query($sql)->result();
+		$row = $this->db->query($sql)->row();
+		if (!$row) {
+			return (object)array(
+				'total_records' => 0,
+				'total_timesheet_hours' => 0,
+				'total_invoice_hours' => 0
+			);
+		}
+		return $row;
 	}
 
 	public function get_month_wise_by_client($params, $clientIds = array()) {
