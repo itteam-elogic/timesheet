@@ -12,6 +12,7 @@
 	$totalRecords = isset($totalRecords) ? (int)$totalRecords : count($records);
 	$totalInvoiceHours = isset($totalInvoiceHours) ? (float)$totalInvoiceHours : 0;
 	$totalTimesheetHours = isset($totalTimesheetHours) ? (float)$totalTimesheetHours : 0;
+	$invoiceYearSpan = isset($invoiceYearSpan) ? $invoiceYearSpan : '';
 	$page = isset($page) ? (int)$page : 1;
 	$perPage = isset($per_page) ? (int)$per_page : 20;
 	$totalPages = isset($total_pages) ? (int)$total_pages : 1;
@@ -179,7 +180,7 @@
 			<div class="mp-summary-icon"><i class="fa fa-file-text-o"></i></div>
 			<div class="mp-summary-copy">
 				<span>Invoice Hours</span>
-				<strong id="mp_stat_invoice"><?php echo htmlspecialchars(management_plan_hours_display($totalInvoiceHours), ENT_QUOTES); ?></strong>
+				<strong id="mp_stat_invoice"><?php echo htmlspecialchars(management_plan_hours_display($totalInvoiceHours), ENT_QUOTES); ?><?php if ($invoiceYearSpan !== ''): ?> <span class="mp-year-span"><?php echo htmlspecialchars($invoiceYearSpan, ENT_QUOTES); ?></span><?php endif; ?></strong>
 			</div>
 		</div>
 	</div>
@@ -543,6 +544,16 @@
 	word-break: break-word;
 }
 .mp-summary-card.is-period strong { font-size: 16px; }
+.mp-summary-card strong .mp-year-span {
+	display: inline;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0;
+	text-transform: none;
+	color: #6f7f90;
+	margin: 0 0 0 6px;
+	vertical-align: middle;
+}
 .mp-summary-icon {
 	width: 46px;
 	height: 46px;
@@ -1174,7 +1185,11 @@ $(document).ready(function() {
 		if (totals) {
 			$('#mp_stat_clients').text(totals.clients || 0);
 			$('#mp_stat_timesheet').text(totals.timesheet_hours || '0');
-			$('#mp_stat_invoice').text(totals.invoice_hours || '0');
+			var invoiceHtml = $('<div/>').text(totals.invoice_hours || '0').html();
+			if (totals.invoice_year_span) {
+				invoiceHtml += ' <span class="mp-year-span">' + $('<div/>').text(totals.invoice_year_span).html() + '</span>';
+			}
+			$('#mp_stat_invoice').html(invoiceHtml);
 		}
 		renderPager();
 	}

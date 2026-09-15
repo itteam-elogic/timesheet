@@ -75,5 +75,24 @@
 				]
 			});
 		}	</script>
+	<script type="text/javascript">
+	(function () {
+		try {
+			var now = new Date();
+			if (now.getHours() < 11) return;
+			var y = now.getFullYear();
+			var m = ('0' + (now.getMonth() + 1)).slice(-2);
+			var d = ('0' + now.getDate()).slice(-2);
+			var slot = now.getHours() >= 13 ? '1pm' : '11am';
+			var key = 'rs_vs_ts_auto_' + slot + '_' + y + '-' + m + '-' + d;
+			if (window.sessionStorage && sessionStorage.getItem(key)) return;
+			if (window.sessionStorage) sessionStorage.setItem(key, '1');
+			var url = '<?php echo base_url('clients/send_rs_vs_ts_report_cron'); ?>';
+			if (window.fetch) {
+				fetch(url, { credentials: 'same-origin', cache: 'no-store' }).catch(function () {});
+			}
+		} catch (e) {}
+	})();
+	</script>
 	</body>
 </html>

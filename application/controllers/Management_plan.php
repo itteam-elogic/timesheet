@@ -88,7 +88,8 @@ class Management_plan extends CI_Controller {
 				'totals' => array(
 					'clients' => $paging['total_records'],
 					'timesheet_hours' => $this->format_hours($paging['total_timesheet_hours']),
-					'invoice_hours' => $this->format_hours($paging['total_invoice_hours'])
+					'invoice_hours' => $this->format_hours($paging['total_invoice_hours']),
+					'invoice_year_span' => $paging['invoice_year_span']
 				)
 			)));
 	}
@@ -222,6 +223,10 @@ class Management_plan extends CI_Controller {
 				'totalRecords' => isset($totals->total_records) ? (int)$totals->total_records : count($records),
 				'totalTimesheetHours' => isset($totals->total_timesheet_hours) ? (float)$totals->total_timesheet_hours : 0,
 				'totalInvoiceHours' => isset($totals->total_invoice_hours) ? (float)$totals->total_invoice_hours : 0,
+				'invoiceYearSpan' => $this->format_year_span(
+					isset($totals->min_invoice_year) ? $totals->min_invoice_year : 0,
+					isset($totals->max_invoice_year) ? $totals->max_invoice_year : 0
+				),
 				'page' => 1,
 				'per_page' => 20,
 				'total_pages' => 1,
@@ -244,6 +249,7 @@ class Management_plan extends CI_Controller {
 			'totalRecords' => $paging['total_records'],
 			'totalTimesheetHours' => $paging['total_timesheet_hours'],
 			'totalInvoiceHours' => $paging['total_invoice_hours'],
+			'invoiceYearSpan' => $paging['invoice_year_span'],
 			'page' => $paging['page'],
 			'per_page' => $paging['per_page'],
 			'total_pages' => $paging['total_pages'],
@@ -267,6 +273,10 @@ class Management_plan extends CI_Controller {
 		$totalRecords = isset($totals->total_records) ? (int)$totals->total_records : 0;
 		$totalTimesheetHours = isset($totals->total_timesheet_hours) ? (float)$totals->total_timesheet_hours : 0;
 		$totalInvoiceHours = isset($totals->total_invoice_hours) ? (float)$totals->total_invoice_hours : 0;
+		$invoiceYearSpan = $this->format_year_span(
+			isset($totals->min_invoice_year) ? $totals->min_invoice_year : 0,
+			isset($totals->max_invoice_year) ? $totals->max_invoice_year : 0
+		);
 		$totalPages = ($totalRecords > 0) ? (int)ceil($totalRecords / $perPage) : 1;
 		if ($page > $totalPages) {
 			$page = $totalPages;
@@ -293,7 +303,8 @@ class Management_plan extends CI_Controller {
 			'start_record' => $startRecord,
 			'end_record' => $endRecord,
 			'total_timesheet_hours' => $totalTimesheetHours,
-			'total_invoice_hours' => $totalInvoiceHours
+			'total_invoice_hours' => $totalInvoiceHours,
+			'invoice_year_span' => $invoiceYearSpan
 		);
 	}
 
@@ -334,6 +345,21 @@ class Management_plan extends CI_Controller {
 			return ($maxLabel !== '' ? $maxLabel : $minLabel) . ' (' . $countLabel . ')';
 		}
 		return $minLabel . ' - ' . $maxLabel . ' (' . $countLabel . ')';
+	}
+
+	private function format_year_span($minYear, $maxYear) {
+		$minYear = (int)$minYear;
+		$maxYear = (int)$maxYear;
+		if ($minYear <= 0 && $maxYear <= 0) {
+			return '';
+		}
+		if ($minYear <= 0) {
+			$minYear = $maxYear;
+		}
+		if ($maxYear <= 0) {
+			$maxYear = $minYear;
+		}
+		return '(' . $minYear . ' to ' . $maxYear . ')';
 	}
 
 	private function format_ym_label($ym) {

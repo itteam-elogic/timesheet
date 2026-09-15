@@ -561,7 +561,9 @@ class Management_plan_model extends CI_Model {
 			SELECT
 				COUNT(*) AS total_records,
 				COALESCE(SUM(COALESCE(ts.timesheet_hours, 0)), 0) AS total_timesheet_hours,
-				COALESCE(SUM(COALESCE(inv.invoice_hours, 0)), 0) AS total_invoice_hours
+				COALESCE(SUM(COALESCE(inv.invoice_hours, 0)), 0) AS total_invoice_hours,
+				MIN(inv.min_invoice_year) AS min_invoice_year,
+				MAX(inv.max_invoice_year) AS max_invoice_year
 			FROM client_details c
 			INNER JOIN (
 				SELECT p.client_Id,
@@ -576,7 +578,10 @@ class Management_plan_model extends CI_Model {
 				{$timesheetSql}
 			) ts ON ts.client_Id = c.client_Id
 			LEFT JOIN (
-				SELECT p.client_Id, SUM(pim.invoice_hours) AS invoice_hours
+				SELECT p.client_Id,
+					SUM(pim.invoice_hours) AS invoice_hours,
+					MIN(CASE WHEN pim.invoice_year > 0 THEN pim.invoice_year END) AS min_invoice_year,
+					MAX(CASE WHEN pim.invoice_year > 0 THEN pim.invoice_year END) AS max_invoice_year
 				FROM project_invoice_monthly pim
 				INNER JOIN project_details p ON p.project_Id = pim.project_Id
 				WHERE p.client_Id NOT IN ({$excludedClients})
@@ -594,7 +599,9 @@ class Management_plan_model extends CI_Model {
 			return (object)array(
 				'total_records' => 0,
 				'total_timesheet_hours' => 0,
-				'total_invoice_hours' => 0
+				'total_invoice_hours' => 0,
+				'min_invoice_year' => 0,
+				'max_invoice_year' => 0
 			);
 		}
 		return $row;

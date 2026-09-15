@@ -526,3 +526,18 @@ $config['rewrite_short_tags'] = FALSE;
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
 $config['proxy_ips'] = '';
+
+/*
+|--------------------------------------------------------------------------
+| RS vs TS daily email notifications
+|--------------------------------------------------------------------------
+|
+| Sent automatically at 11:00 AM and 1:00 PM IST to rs_vs_ts_notify_email.
+| Windows Task Scheduler (or any HTTP cron) should call:
+|   /clients/send_rs_vs_ts_report_cron?key=RS_VS_TS_CRON_KEY&slot=11am
+|   /clients/send_rs_vs_ts_report_cron?key=RS_VS_TS_CRON_KEY&slot=1pm
+|
+*/
+$config['rs_vs_ts_cron_key'] = 'rs-vs-ts-11am-1pm-elogic';
+$config['rs_vs_ts_notify_email'] = 'laxmikanth@elogictech.com';
+$config['rs_vs_ts_cron_slot_prefix'] = 'demo_rs_vs_ts';

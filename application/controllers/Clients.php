@@ -42,8 +42,10 @@ class Clients extends CI_Controller {
         $this->load->model('project_model');
 		
 		$this->load->model('task_model');
-		
-		if(empty($this->session->userdata['logged_in_timesheet'])){
+
+		$method = $this->router->fetch_method();
+		$allowCronWithoutLogin = ($method === 'send_rs_vs_ts_report_cron');
+		if(!$allowCronWithoutLogin && empty($this->session->userdata['logged_in_timesheet'])){
 		
 			redirect('home/login');
 		} 
@@ -1342,27 +1344,56 @@ public function rs_vs_ts(){ // Resource Billability feature
 	}
 
 	/**
-	 * Cron endpoint: run daily at 2:30 PM IST to auto-send RS vs TS report to laxmikanth@elogictech.com
-	 * Call via: GET your-site/index.php/clients/send_rs_vs_ts_report_cron?key=YOUR_CRON_KEY
-	 * Configure key in application/config/config.php as $config['rs_vs_ts_cron_key']
+	 * Cron endpoint: auto-send yesterday's RS vs TS report at 11:00 AM and 1:00 PM IST
+	 * to laxmikanth@elogictech.com (config: rs_vs_ts_notify_email).
+	 * Uses the same default date as the page (previous working day).
+	 * Call via: GET /clients/send_rs_vs_ts_report_cron?key=YOUR_CRON_KEY&slot=11am|1pm
 	 */
 	public function send_rs_vs_ts_report_cron() {
+		date_default_timezone_set('Asia/Kolkata');
+		ignore_user_abort(true);
+		@set_time_limit(180);
+
 		$cronKey = $this->config->item('rs_vs_ts_cron_key');
-		if (!empty($cronKey) && $this->input->get('key') !== $cronKey) {
+		$hasSession = !empty($this->session->userdata['logged_in_timesheet']);
+		$keyOk = !empty($cronKey) && $this->input->get('key') === $cronKey;
+		if (!$hasSession && !$keyOk) {
 			header('HTTP/1.0 403 Forbidden');
 			echo 'Forbidden';
 			return;
 		}
+
+		$this->load->helper('rs_vs_ts');
 		$formDate = null;
-		$toDate   = null;
+		$toDate = null;
 		$this->_set_rs_vs_ts_default_dates($formDate, $toDate);
-		$result = $this->_do_send_rs_vs_ts_report($formDate, $toDate);
-		header('Content-Type: text/plain; charset=utf-8');
-		if ($result['success']) {
-			echo 'Report sent to elogic_pms@elogictech.com at ' . date('Y-m-d H:i:s') . ' (Report dates: ' . $formDate . ' to ' . $toDate . ')';
-		} else {
-			echo 'Failed: ' . $result['message'];
+		$toEmail = $this->config->item('rs_vs_ts_notify_email');
+		if (empty($toEmail)) {
+			$toEmail = 'laxmikanth@elogictech.com';
 		}
+
+		$slots = rs_vs_ts_due_slots($this->input->get('slot'));
+		header('Content-Type: text/plain; charset=utf-8');
+		if (empty($slots)) {
+			echo 'Outside send windows (11:00 AM and 1:00 PM IST).';
+			return;
+		}
+
+		$lines = array();
+		foreach ($slots as $dueSlot) {
+			if (!rs_vs_ts_claim_slot($dueSlot)) {
+				$lines[] = $dueSlot . ': already sent today';
+				continue;
+			}
+			$result = $this->_do_send_rs_vs_ts_report($formDate, $toDate, $toEmail, $dueSlot === '1pm' ? '1:00 PM' : '11:00 AM');
+			if (empty($result['success'])) {
+				rs_vs_ts_unclaim_slot($dueSlot);
+				$lines[] = $dueSlot . ': failed - ' . $result['message'];
+			} else {
+				$lines[] = $dueSlot . ': sent to ' . $toEmail . ' (report date ' . $formDate . ') at ' . date('Y-m-d H:i:s');
+			}
+		}
+		echo implode("\n", $lines);
 	}
 
 	private function _set_rs_vs_ts_default_dates(&$formDate, &$toDate) {
@@ -1378,7 +1409,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 	/**
 	 * Build and email RS vs TS report for the given date range. Returns array('success' => bool, 'message' => string).
 	 */
-	private function _do_send_rs_vs_ts_report($formDate, $toDate) {
+	private function _do_send_rs_vs_ts_report($formDate, $toDate, $toEmail = null, $timeLabel = null) {
 		$this->load->helper('rs_vs_ts');
 		$params = array(
 			'client_Id'  => 'all',
@@ -1643,11 +1674,17 @@ public function rs_vs_ts(){ // Resource Billability feature
 		$emailConfig = array('mailtype' => 'html', 'charset' => 'utf-8');
 		$this->email->initialize($emailConfig);
 		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
-		//$this->email->to('laxmikanth@elogictech.com');
-		$this->email->to('elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
+		if (empty($toEmail)) {
+			$toEmail = 'elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com';
+		}
+		$this->email->to($toEmail);
 		// Use single date label in DD MMM YYYY format for subject/body
 		$reportDateLabel = !empty($formDate) ? date('d M Y', strtotime($formDate)) : date('d M Y');
-		$this->email->subject('Planned vs Actual Hours Report – ' . $reportDateLabel);
+		$subject = 'Planned vs Actual Hours Report – ' . $reportDateLabel;
+		if (!empty($timeLabel)) {
+			$subject .= ' (' . $timeLabel . ')';
+		}
+		$this->email->subject($subject);
 
 		// Department summary table — layout matches billable-hours email style (navy header, alternating rows, #ccc borders)
 		$cellBorder = 'border:1px solid #cccccc;';
@@ -1721,7 +1758,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 	<meta charset="utf-8">
 	<title>Daily Planned vs Actual Hours Report</title>
 </head>
-<image.pngbody style="margin:0; padding:36px 16px; background:#eceff1; font-family: Arial, Helvetica, sans-serif; line-height:1.65; color:#333333;">
+<body style="margin:0; padding:36px 16px; background:#eceff1; font-family: Arial, Helvetica, sans-serif; line-height:1.65; color:#333333;">
 	<div style="margin:0 auto; background:#ffffff; padding:36px 32px 40px 32px; border:1px solid #dde1e4; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
 		<p style="margin:0 0 20px 0; font-size:15px; color:#333333;">Dear Team,</p>
 		<p style="margin:0 0 28px 0; font-size:15px; color:#444444;">Please find attached the Daily <b style="background-color: #f4d03f; padding: 5px 10px; border-radius: 5px;"> Planned vs Actual Hours Report for ' . $reportDateLabel . '</b>. The manager-wise summary is shown in the table below.</p>
