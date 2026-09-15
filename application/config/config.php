@@ -532,7 +532,7 @@ $config['proxy_ips'] = '';
 | RS vs TS daily email notifications
 |--------------------------------------------------------------------------
 |
-| Sent automatically at 11:00 AM and 1:00 PM IST to rs_vs_ts_notify_email.
+| Sent automatically at 11:30 AM and 1:00 PM IST to rs_vs_ts_notify_email.
 | Windows Task Scheduler (or any HTTP cron) should call:
 |   /clients/send_rs_vs_ts_report_cron?key=RS_VS_TS_CRON_KEY&slot=11am
 |   /clients/send_rs_vs_ts_report_cron?key=RS_VS_TS_CRON_KEY&slot=1pm
@@ -541,3 +541,19 @@ $config['proxy_ips'] = '';
 $config['rs_vs_ts_cron_key'] = 'rs-vs-ts-11am-1pm-elogic';
 $config['rs_vs_ts_notify_email'] = 'laxmikanth@elogictech.com';
 $config['rs_vs_ts_cron_slot_prefix'] = 'demo_rs_vs_ts';
+
+/*
+|--------------------------------------------------------------------------
+| Resource Schedule daily email notifications
+|--------------------------------------------------------------------------
+|
+| Same email as the Resource Schedule "Sent" button, sent automatically at
+| 11:30 AM and 1:00 PM IST to resource_schedule_notify_email.
+| Windows Task Scheduler (or any HTTP cron) should call:
+|   /resource_schedule/send_today_resource_schedule_email_cron?key=RESOURCE_SCHEDULE_CRON_KEY&slot=11am
+|   /resource_schedule/send_today_resource_schedule_email_cron?key=RESOURCE_SCHEDULE_CRON_KEY&slot=1pm
+|
+*/
+$config['resource_schedule_cron_key'] = 'rs-vs-ts-11am-1pm-elogic';
+$config['resource_schedule_notify_email'] = 'laxmikanth@elogictech.com';
+$config['resource_schedule_cron_slot_prefix'] = 'demo_resource_schedule';

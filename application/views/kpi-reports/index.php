@@ -147,7 +147,7 @@ endif;
                 <div class="square-icon-box">
                     <i class="fas fa-briefcase"></i>
                 </div>
-                <h3>Management Plan</h3>
+                <h3>Management Report</h3>
                 <div class="square-hover-effect"></div>
             </div>
         </a>

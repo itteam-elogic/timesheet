@@ -138,7 +138,7 @@
 			<div class="mp-page-loader-spinner"></div>
 			<div>
 				<strong>Please wait</strong>
-				<span>Loading management plan...</span>
+				<span>Loading management Report...</span>
 			</div>
 		</div>
 	</div>
@@ -148,7 +148,7 @@
 			<div class="mp-hero-badge"><i class="fa fa-briefcase"></i></div>
 			<div>
 				<p class="mp-kicker">Reports</p>
-				<h1>Management Plan</h1>
+				<h1>Management Report</h1>
 				<p>Client timelines, timesheet hours, and invoice hours in one view. Open a client to see month-wise details.</p>
 			</div>
 		</div>

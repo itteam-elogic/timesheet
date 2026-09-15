@@ -25,18 +25,23 @@ function rs_vs_ts_compare_manager_names($nameA, $nameB)
 }
 
 /**
- * Daily auto-email windows: 11:00 AM and 1:00 PM IST.
+ * Daily auto-email windows: 11:30 AM and 1:00 PM IST.
  */
 function rs_vs_ts_due_slots($requestedSlot = null)
 {
 	$allowed = array('11am', '1pm');
 	$requestedSlot = strtolower(trim((string)$requestedSlot));
+	$hour = (int) date('G');
+	$minute = (int) date('i');
+	$morningReady = ($hour > 11 || ($hour === 11 && $minute >= 30));
 	if ($requestedSlot !== '' && in_array($requestedSlot, $allowed, true)) {
+		if ($requestedSlot === '11am' && !$morningReady) {
+			return array();
+		}
 		return array($requestedSlot);
 	}
-	$hour = (int) date('G');
 	$due = array();
-	if ($hour >= 11) {
+	if ($morningReady) {
 		$due[] = '11am';
 	}
 	if ($hour >= 13) {
@@ -45,10 +50,12 @@ function rs_vs_ts_due_slots($requestedSlot = null)
 	return $due;
 }
 
-function rs_vs_ts_slot_cron_name($slot)
+function rs_vs_ts_slot_cron_name($slot, $prefix = null)
 {
 	$CI =& get_instance();
-	$prefix = $CI->config->item('rs_vs_ts_cron_slot_prefix');
+	if ($prefix === null || $prefix === '') {
+		$prefix = $CI->config->item('rs_vs_ts_cron_slot_prefix');
+	}
 	if (empty($prefix)) {
 		$prefix = 'rs_vs_ts';
 	}
@@ -65,11 +72,11 @@ function rs_vs_ts_ensure_cron_table()
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 }
 
-function rs_vs_ts_claim_slot($slot)
+function rs_vs_ts_claim_slot($slot, $prefix = null)
 {
 	$CI =& get_instance();
 	rs_vs_ts_ensure_cron_table();
-	$name = rs_vs_ts_slot_cron_name($slot);
+	$name = rs_vs_ts_slot_cron_name($slot, $prefix);
 	$today = date('Y-m-d');
 	$row = $CI->db->get_where('app_cron_runs', array('cron_name' => $name))->row();
 	if ($row && substr($row->last_run_at, 0, 10) === $today) {
@@ -87,11 +94,11 @@ function rs_vs_ts_claim_slot($slot)
 	return true;
 }
 
-function rs_vs_ts_unclaim_slot($slot)
+function rs_vs_ts_unclaim_slot($slot, $prefix = null)
 {
 	$CI =& get_instance();
 	rs_vs_ts_ensure_cron_table();
-	$name = rs_vs_ts_slot_cron_name($slot);
+	$name = rs_vs_ts_slot_cron_name($slot, $prefix);
 	$CI->db->where('cron_name', $name)->update('app_cron_runs', array(
 		'last_run_at' => date('Y-m-d H:i:s', strtotime('-1 day'))
 	));

@@ -1344,7 +1344,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 	}
 
 	/**
-	 * Cron endpoint: auto-send yesterday's RS vs TS report at 11:00 AM and 1:00 PM IST
+	 * Cron endpoint: auto-send yesterday's RS vs TS report at 11:30 AM and 1:00 PM IST
 	 * to laxmikanth@elogictech.com (config: rs_vs_ts_notify_email).
 	 * Uses the same default date as the page (previous working day).
 	 * Call via: GET /clients/send_rs_vs_ts_report_cron?key=YOUR_CRON_KEY&slot=11am|1pm
@@ -1375,7 +1375,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 		$slots = rs_vs_ts_due_slots($this->input->get('slot'));
 		header('Content-Type: text/plain; charset=utf-8');
 		if (empty($slots)) {
-			echo 'Outside send windows (11:00 AM and 1:00 PM IST).';
+			echo 'Outside send windows (11:30 AM and 1:00 PM IST).';
 			return;
 		}
 
@@ -1385,7 +1385,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 				$lines[] = $dueSlot . ': already sent today';
 				continue;
 			}
-			$result = $this->_do_send_rs_vs_ts_report($formDate, $toDate, $toEmail, $dueSlot === '1pm' ? '1:00 PM' : '11:00 AM');
+			$result = $this->_do_send_rs_vs_ts_report($formDate, $toDate, $toEmail, $dueSlot === '1pm' ? '1:00 PM' : '11:30 AM');
 			if (empty($result['success'])) {
 				rs_vs_ts_unclaim_slot($dueSlot);
 				$lines[] = $dueSlot . ': failed - ' . $result['message'];

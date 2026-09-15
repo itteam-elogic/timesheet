@@ -47,8 +47,9 @@ class Resource_Schedule extends CI_Controller {
 		
 		 //$this->load->library('email');
         
-		if(empty($this->session->userdata['logged_in_timesheet'])){
-		
+		$method = $this->router->fetch_method();
+		$allowCronWithoutLogin = ($method === 'send_today_resource_schedule_email_cron');
+		if(!$allowCronWithoutLogin && empty($this->session->userdata['logged_in_timesheet'])){
 			redirect('home/login');
 		}
 		
@@ -327,13 +328,12 @@ class Resource_Schedule extends CI_Controller {
 	
    
 	/**
-	 * Build today's resource schedule as Excel and email it to laxmikanth@elogictech.com
-	 * Triggered via AJAX from the Resource Schedule screen.
+	 * Build today's resource schedule as Excel and email it.
+	 * Triggered via AJAX from the Resource Schedule Sent button.
 	 */
 	public function send_today_resource_schedule_email() {
 		header('Content-Type: application/json');
 		
-		// Get today's records in the same way as the index() method (no filters, just today)
 		$userType = isset($this->session->userdata['logged_in_timesheet']['user_type'])
 			? $this->session->userdata['logged_in_timesheet']['user_type']
 			: '';
@@ -345,14 +345,73 @@ class Resource_Schedule extends CI_Controller {
 			));
 			return;
 		}
-		
+
+		echo json_encode($this->_do_send_today_resource_schedule_email($userType));
+	}
+
+	/**
+	 * Cron: same email as the Sent button, 11:30 AM and 1:00 PM IST
+	 * to laxmikanth@elogictech.com.
+	 * Call via: GET /resource_schedule/send_today_resource_schedule_email_cron?key=YOUR_CRON_KEY&slot=11am|1pm
+	 */
+	public function send_today_resource_schedule_email_cron() {
+		date_default_timezone_set('Asia/Kolkata');
+		ignore_user_abort(true);
+		@set_time_limit(180);
+
+		$cronKey = $this->config->item('resource_schedule_cron_key');
+		if (empty($cronKey)) {
+			$cronKey = $this->config->item('rs_vs_ts_cron_key');
+		}
+		$hasSession = !empty($this->session->userdata['logged_in_timesheet']);
+		$keyOk = !empty($cronKey) && $this->input->get('key') === $cronKey;
+		if (!$hasSession && !$keyOk) {
+			header('HTTP/1.0 403 Forbidden');
+			echo 'Forbidden';
+			return;
+		}
+
+		$this->load->helper('rs_vs_ts');
+		$toEmail = $this->config->item('resource_schedule_notify_email');
+		if (empty($toEmail)) {
+			$toEmail = 'laxmikanth@elogictech.com';
+		}
+		$slotPrefix = $this->config->item('resource_schedule_cron_slot_prefix');
+		if (empty($slotPrefix)) {
+			$slotPrefix = 'demo_resource_schedule';
+		}
+
+		$slots = rs_vs_ts_due_slots($this->input->get('slot'));
+		header('Content-Type: text/plain; charset=utf-8');
+		if (empty($slots)) {
+			echo 'Outside send windows (11:30 AM and 1:00 PM IST).';
+			return;
+		}
+
+		$lines = array();
+		foreach ($slots as $dueSlot) {
+			if (!rs_vs_ts_claim_slot($dueSlot, $slotPrefix)) {
+				$lines[] = $dueSlot . ': already sent today';
+				continue;
+			}
+			$result = $this->_do_send_today_resource_schedule_email('manager', $toEmail);
+			if (empty($result['success'])) {
+				rs_vs_ts_unclaim_slot($dueSlot, $slotPrefix);
+				$lines[] = $dueSlot . ': failed - ' . $result['message'];
+			} else {
+				$lines[] = $dueSlot . ': sent to ' . $toEmail . ' at ' . date('Y-m-d H:i:s');
+			}
+		}
+		echo implode("\n", $lines);
+	}
+
+	private function _do_send_today_resource_schedule_email($userType, $toEmail = null) {
 		$records = $this->resourcelog_model->getRecords($userType);
 		if (empty($records)) {
-			echo json_encode(array(
+			return array(
 				'success' => false,
 				'message' => 'No resource schedule data available for today.'
-			));
-			return;
+			);
 		}
 
 		// Build summary metrics (same logic as grid header)
@@ -959,6 +1018,7 @@ class Resource_Schedule extends CI_Controller {
 		
 		// Email the Excel file
 		$this->load->library('email');
+		$this->email->clear(TRUE);
 		$emailConfig = array(
 			'mailtype' => 'html',
 			'charset'  => 'utf-8',
@@ -968,9 +1028,10 @@ class Resource_Schedule extends CI_Controller {
 		);
 		$this->email->initialize($emailConfig);
 		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
-		$this->email->to('elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com');
-
-		//$this->email->to('laxmikanth@elogictech.com');
+		if (empty($toEmail)) {
+			$toEmail = 'elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com';
+		}
+		$this->email->to($toEmail);
 
 		// Use report date label from data (fallback to today) in DD MMM YYYY
 		$reportDate = isset($records[0]->emp_report_dates) && !empty($records[0]->emp_report_dates)
@@ -1130,21 +1191,20 @@ class Resource_Schedule extends CI_Controller {
 		$sent = @$this->email->send();
 		@unlink($tmpPath);
 		
-		if ($sent) {	
-			echo json_encode(array(
+		if ($sent) {
+			return array(
 				'success' => true,
-				'message' => 'Today\'s resource schedule has been emailed to elogic_pms@elogictech.com.'
-			));
-		} else {
-			// Log detailed email error for troubleshooting
-			if (function_exists('log_message')) {
-				log_message('error', 'send_today_resource_schedule_email failed: ' . $this->email->print_debugger(array('headers', 'subject', 'body')));
-			}
-			echo json_encode(array(
-				'success' => false,
-				'message' => 'Failed to send email. Please contact the software team.'
-			));
+				'message' => 'Today\'s resource schedule has been emailed to ' . $toEmail . '.'
+			);
 		}
+
+		if (function_exists('log_message')) {
+			log_message('error', 'send_today_resource_schedule_email failed: ' . $this->email->print_debugger(array('headers', 'subject', 'body')));
+		}
+		return array(
+			'success' => false,
+			'message' => 'Failed to send email. Please contact the software team.'
+		);
 	}
    
 /********************************** Datatable Sort , Search , Pagination For Employee Added Task Report Log  **************************************/	

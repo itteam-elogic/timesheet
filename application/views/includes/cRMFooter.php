@@ -79,17 +79,27 @@
 	(function () {
 		try {
 			var now = new Date();
-			if (now.getHours() < 11) return;
+			if (now.getHours() < 11 || (now.getHours() === 11 && now.getMinutes() < 30)) return;
 			var y = now.getFullYear();
 			var m = ('0' + (now.getMonth() + 1)).slice(-2);
 			var d = ('0' + now.getDate()).slice(-2);
 			var slot = now.getHours() >= 13 ? '1pm' : '11am';
-			var key = 'rs_vs_ts_auto_' + slot + '_' + y + '-' + m + '-' + d;
-			if (window.sessionStorage && sessionStorage.getItem(key)) return;
-			if (window.sessionStorage) sessionStorage.setItem(key, '1');
-			var url = '<?php echo base_url('clients/send_rs_vs_ts_report_cron'); ?>';
-			if (window.fetch) {
-				fetch(url, { credentials: 'same-origin', cache: 'no-store' }).catch(function () {});
+			var fetchOpts = { credentials: 'same-origin', cache: 'no-store' };
+			var rsVsTsKey = 'rs_vs_ts_auto_' + slot + '_' + y + '-' + m + '-' + d;
+			if (!(window.sessionStorage && sessionStorage.getItem(rsVsTsKey))) {
+				if (window.sessionStorage) sessionStorage.setItem(rsVsTsKey, '1');
+				var rsVsTsUrl = '<?php echo base_url('clients/send_rs_vs_ts_report_cron'); ?>';
+				if (window.fetch) {
+					fetch(rsVsTsUrl, fetchOpts).catch(function () {});
+				}
+			}
+			var rsKey = 'resource_schedule_auto_' + slot + '_' + y + '-' + m + '-' + d;
+			if (!(window.sessionStorage && sessionStorage.getItem(rsKey))) {
+				if (window.sessionStorage) sessionStorage.setItem(rsKey, '1');
+				var rsUrl = '<?php echo base_url('resource_schedule/send_today_resource_schedule_email_cron'); ?>';
+				if (window.fetch) {
+					fetch(rsUrl, fetchOpts).catch(function () {});
+				}
 			}
 		} catch (e) {}
 	})();
