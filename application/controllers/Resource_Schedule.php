@@ -1025,9 +1025,10 @@ class Resource_Schedule extends CI_Controller {
 			'wordwrap' => true,
 			'newline'  => "\r\n",
 			'crlf'     => "\r\n",
+			'priority' => 1,
 		);
 		$this->email->initialize($emailConfig);
-		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
+		$this->email->from('info@elogictech.com', 'eLogicTech Solutions');
 		if (empty($toEmail)) {
 			$toEmail = 'elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com';
 		}
@@ -1039,7 +1040,12 @@ class Resource_Schedule extends CI_Controller {
 			: date('Y-m-d');
 		$reportDateLabel = date('d M Y', strtotime($reportDate));
 
-		$this->email->subject('Daily Team Member–Wise Resource Schedule – ' . $reportDateLabel);
+		$this->email->subject('Team Member–Wise Resource Schedule – ' . $reportDateLabel);
+		$this->load->helper('outlook_mail');
+		timesheet_apply_focused_inbox_headers($this->email, array(
+			'alt' => 'Team Member-Wise Resource Schedule for ' . $reportDateLabel . '. Please see the attached Excel file for the detailed allocation.',
+			'thread_topic' => 'Team Member-Wise Resource Schedule'
+		));
 
 		// Helper to format hours nicely
 		$fmtHours = function($value) {
@@ -1108,7 +1114,7 @@ class Resource_Schedule extends CI_Controller {
 		};
 
 		// Body copy unchanged; layout matches planned-vs-actual email style (white card, navy table, gold CTA)
-		$content = '<p style="margin:0 0 20px 0; font-size:16px; color:#333333;">Hi Team,</p>';
+		$content = '<p style="margin:0 0 20px 0; font-size:16px; color:#333333;">Hello,</p>';
 		$content .= '<p style="margin:0 0 28px 0; font-size:16px; color:#444444; line-height:1.65;">Please find below the Team Member–Wise <b style="background-color: #f4d03f; padding: 5px 10px; border-radius: 5px;">Resource Schedule for ' . $reportDateLabel . '</b>.</p>';
 
 		$chartLabels = array('Utilization', 'Available');

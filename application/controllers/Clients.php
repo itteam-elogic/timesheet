@@ -1671,9 +1671,9 @@ public function rs_vs_ts(){ // Resource Billability feature
 
 		// Prepare email
 		$this->load->library('email');
-		$emailConfig = array('mailtype' => 'html', 'charset' => 'utf-8');
+		$emailConfig = array('mailtype' => 'html', 'charset' => 'utf-8', 'newline' => "\r\n", 'crlf' => "\r\n", 'priority' => 1);
 		$this->email->initialize($emailConfig);
-		$this->email->from('info@elogictech.com', 'eLogic Timesheet');
+		$this->email->from('info@elogictech.com', 'eLogicTech Solutions');
 		if (empty($toEmail)) {
 			$toEmail = 'elogic_pms@elogictech.com,rupali@elogictech.com,jaishree@elogictech.com,laxmikanth@elogictech.com';
 		}
@@ -1685,6 +1685,11 @@ public function rs_vs_ts(){ // Resource Billability feature
 			$subject .= ' (' . $timeLabel . ')';
 		}
 		$this->email->subject($subject);
+		$this->load->helper('outlook_mail');
+		timesheet_apply_focused_inbox_headers($this->email, array(
+			'alt' => 'Planned vs Actual Hours Report for ' . $reportDateLabel . '. Please see the attached Excel file for the detailed view.',
+			'thread_topic' => 'Planned vs Actual Hours Report'
+		));
 
 		// Department summary table — layout matches billable-hours email style (navy header, alternating rows, #ccc borders)
 		$cellBorder = 'border:1px solid #cccccc;';
@@ -1760,7 +1765,7 @@ public function rs_vs_ts(){ // Resource Billability feature
 </head>
 <body style="margin:0; padding:36px 16px; background:#eceff1; font-family: Arial, Helvetica, sans-serif; line-height:1.65; color:#333333;">
 	<div style="margin:0 auto; background:#ffffff; padding:36px 32px 40px 32px; border:1px solid #dde1e4; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-		<p style="margin:0 0 20px 0; font-size:15px; color:#333333;">Dear Team,</p>
+		<p style="margin:0 0 20px 0; font-size:15px; color:#333333;">Hello,</p>
 		<p style="margin:0 0 28px 0; font-size:15px; color:#444444;">Please find attached the Daily <b style="background-color: #f4d03f; padding: 5px 10px; border-radius: 5px;"> Planned vs Actual Hours Report for ' . $reportDateLabel . '</b>. The manager-wise summary is shown in the table below.</p>
 		' . $summaryTableHtml . '
 		<p style="margin:28px 0 22px 0; font-size:15px; color:#444444;">Please find the attached file for the detailed view, or click on the button below.</p>
