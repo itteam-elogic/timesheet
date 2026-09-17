@@ -154,12 +154,20 @@ if(
 
  
                   if (in_array($key->department,$departments ) || $this->session->userdata['logged_in_timesheet']['user_type'] == 'admin' ): ?> 
+
                         <li><a href="<?php echo base_url(); ?>kpi_reports/index"><i class="fa fa-folder-open"></i><span>Reports</span></a></li>	
+
                     <?php endif; ?>
-					
+
+					<?php if($this->session->userdata['logged_in_timesheet']['username']!='rupali' ): ?> 
+
 					<li><a href="<?php echo base_url(); ?>resource_schedule"><i class="fa fa-key"></i><span>Resource Schedule</span></a></li>					
                     
                     <li><a href="<?php echo base_url(); ?>defaulter/user_defaulter"><i class="fa fa-envelope-o"></i> Timesheet Defaulter</a></li>
+
+					<li><a href="<?php echo base_url(); ?>quality_error_log"><i class="fa fa-search"></i><span>Quality Error Log</span></a></li>
+
+					<?php endif; ?>
                     
                    <!--  <li><a href="<?php echo base_url(); ?>kpi_reports"><i class="fa fa-calendar"></i> KPI Reports </a></li> -->
                     
@@ -179,21 +187,23 @@ if(
 					<?php if(in_array($this->session->userdata['logged_in_timesheet']['user_type'], array('admin', 'superadmin'))): ?>
                     
 					<!-- <li><a href="<?php echo base_url(); ?>lmsreport"><i class="fa fa-users"></i><span>LMS Report</span></a></li> -->
-					
-                   <li><a href="<?php echo base_url(); ?>quality_error_log"><i class="fa fa-search"></i><span>Quality Error Log</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>employee/employee_list_information"><i class="fa fa-users"></i><span>Employees</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>clients/client_list_information"><i class="fa fa-user-plus"></i><span>Clients</span></a></li>
                     
-                    <li><a href="<?php echo base_url(); ?>projects"><i class="fa fa-clone"></i><span>Project Master Report</span></a></li>
-                    
+                    <li><a href="<?php echo base_url(); ?>projects"><i class="fa fa-clone"></i><span>Project Master Report</span></a></li>					
+
+                    <?php if($this->session->userdata['logged_in_timesheet']['username']!='rupali' ): ?> 
+
 					<li><a href="<?php echo base_url(); ?>task"><i class="fa fa-tasks"></i><span>Task</span></a></li>	
-                    
+
 					<li><a href="<?php echo base_url(); ?>timesheet"><i class="fa fa-clock-o"></i><span>Timesheet Reports</span></a></li>
                     
 					<li><a href="<?php echo base_url(); ?>empreports"><i class="fa fa-indent"></i><span>Timesheet Logs</span></a></li>
-                    
+
+                    <?php endif; ?>
+
 					<li><a href="<?php echo base_url(); ?>empreports/unapproved"><i class="fa fa-ban"></i><span>Unapproved Report Logs</span></a></li>
                     
 					 <?php elseif(in_array($this->session->userdata['logged_in_timesheet']['user_type'], array('business_head'))): ?>

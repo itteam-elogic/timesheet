@@ -93,15 +93,49 @@ $logs = isset($logs) ? $logs : array();
 .da-section {
 	padding: 0 18px 18px;
 }
+.da-tabs {
+	display: flex;
+	gap: 8px;
+	margin: 0 0 16px;
+	flex-wrap: wrap;
+}
+.da-tab {
+	border: 1px solid #c5d5e4;
+	background: #fff;
+	color: #1f5076;
+	border-radius: 8px;
+	padding: 8px 14px;
+	font-weight: 700;
+	cursor: pointer;
+}
+.da-tab.is-active {
+	background: #1f5076;
+	border-color: #1f5076;
+	color: #fff;
+}
+.da-search {
+	max-width: 280px;
+}
+.da-muted {
+	color: #6c757d;
+	font-size: 12px;
+	margin: 0 0 10px;
+}
 </style>
 <div class="content-wrapper">
 	<div class="page-title">
 		<div>
 			<h1>Data Allocation</h1>
-			<p class="da-note">Transfer records by empId from one manager to another: client_details, project_details and task_details. Project manager name (p_manager) is updated with the new manager.</p>
+			<p class="da-note">Transfer records from one manager to another. Use <strong>Allocate by client</strong> to choose specific clients and move those clients plus their related projects and tasks to the selected manager.</p>
 		</div>
 	</div>
 
+	<div class="da-tabs">
+		<button type="button" class="da-tab is-active" data-panel="panelManagerTransfer">Transfer by manager</button>
+		<button type="button" class="da-tab" data-panel="panelClientTransfer">Allocate by client</button>
+	</div>
+
+	<div id="panelManagerTransfer">
 	<div class="card da-card">
 		<div class="da-toolbar">
 			<h3>Transfer manager data</h3>
@@ -235,6 +269,144 @@ $logs = isset($logs) ? $logs : array();
 			</div>
 		</div>
 	</div>
+	</div>
+
+	<div id="panelClientTransfer" class="da-hidden">
+		<div class="card da-card">
+			<div class="da-toolbar">
+				<h3>Allocate by client</h3>
+			</div>
+			<div class="da-section">
+				<p class="da-muted">Choose a from manager, select one or more clients, then allocate those clients and all related projects and tasks to the to manager.</p>
+			</div>
+			<div class="da-form-grid">
+				<div class="da-form-group">
+					<label for="client_from_empId">From Manager</label>
+					<select class="form-control" id="client_from_empId" name="client_from_empId">
+						<option value="">Choose from manager</option>
+						<?php foreach ($managers as $manager): ?>
+							<option value="<?php echo (int)$manager->empId; ?>">
+								<?php echo htmlspecialchars($manager->name); ?>
+								[empId <?php echo (int)$manager->empId; ?>]
+								<?php echo ($manager->status !== 'Active') ? ' ('.$manager->status.')' : ''; ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+				<div class="da-form-group">
+					<label for="client_to_empId">To Manager</label>
+					<select class="form-control" id="client_to_empId" name="client_to_empId">
+						<option value="">Choose to manager</option>
+						<?php foreach ($managers as $manager): ?>
+							<?php if ($manager->status !== 'Active') { continue; } ?>
+							<option value="<?php echo (int)$manager->empId; ?>">
+								<?php echo htmlspecialchars($manager->name); ?>
+								[empId <?php echo (int)$manager->empId; ?>]
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+			</div>
+			<div class="da-actions">
+				<button type="button" class="btn btn-info" id="loadClientAllocation">
+					<i class="fa fa-users"></i> Load Clients
+				</button>
+				<button type="button" class="btn btn-primary" id="previewClientPackage" disabled>
+					<i class="fa fa-search"></i> Preview Related
+				</button>
+				<button type="button" class="btn btn-success" id="transferClientPackage" disabled>
+					<i class="fa fa-exchange"></i> Allocate Selected Clients
+				</button>
+			</div>
+			<div id="clientPreviewSummary" class="da-hidden">
+				<div class="da-count-row">
+					<div class="da-count"><span>Clients</span><strong id="clientCountClients">0</strong></div>
+					<div class="da-count"><span>Related Projects</span><strong id="clientCountProjects">0</strong></div>
+					<div class="da-count"><span>Related Tasks</span><strong id="clientCountTasks">0</strong></div>
+				</div>
+			</div>
+		</div>
+
+		<div id="clientPickCard" class="card da-card da-hidden">
+			<div class="da-toolbar">
+				<h3>Clients</h3>
+				<label><input type="checkbox" id="clientPickAll" checked> Select all</label>
+			</div>
+			<div class="da-section">
+				<input type="text" class="form-control da-search" id="clientPickSearch" placeholder="Search client...">
+			</div>
+			<div class="da-section">
+				<div class="table-responsive">
+					<table class="table table-bordered table-striped da-table" id="clientPickTable">
+						<thead>
+							<tr>
+								<th class="da-center"></th>
+								<th>S.No</th>
+								<th>Client ID</th>
+								<th>Client</th>
+								<th>empId</th>
+								<th>Status</th>
+								<th>Projects</th>
+								<th>Tasks</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+		<div id="clientRelatedTables" class="da-hidden">
+			<div class="card da-card">
+				<div class="da-toolbar">
+					<h3>Related projects</h3>
+				</div>
+				<div class="da-section">
+					<div class="table-responsive">
+						<table class="table table-bordered table-striped da-table" id="clientProjectsTable">
+							<thead>
+								<tr>
+									<th>S.No</th>
+									<th>Project ID</th>
+									<th>Project No</th>
+									<th>Project</th>
+									<th>Client</th>
+									<th>empId</th>
+									<th>PM Name</th>
+									<th>Status</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div class="card da-card">
+				<div class="da-toolbar">
+					<h3>Related tasks</h3>
+				</div>
+				<div class="da-section">
+					<p class="da-muted da-hidden" id="clientTasksTruncated"></p>
+					<div class="table-responsive">
+						<table class="table table-bordered table-striped da-table" id="clientTasksTable">
+							<thead>
+								<tr>
+									<th>S.No</th>
+									<th>Task ID</th>
+									<th>Task</th>
+									<th>Client</th>
+									<th>Project</th>
+									<th>empId</th>
+									<th>Status</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<div class="card da-card">
 		<div class="da-toolbar">
@@ -246,6 +418,7 @@ $logs = isset($logs) ? $logs : array();
 					<thead>
 						<tr>
 							<th>Date</th>
+							<th>Type</th>
 							<th>From</th>
 							<th>To</th>
 							<th>Clients</th>
@@ -257,8 +430,10 @@ $logs = isset($logs) ? $logs : array();
 					<tbody>
 						<?php if (!empty($logs)): ?>
 							<?php foreach ($logs as $log): ?>
+								<?php $logType = (strpos((string)$log->modules, 'by_client') !== false) ? 'By client' : 'By manager'; ?>
 								<tr>
 									<td><?php echo !empty($log->created_at) ? date('d-M-Y h:i A', strtotime($log->created_at)) : '-'; ?></td>
+									<td><?php echo htmlspecialchars($logType); ?></td>
 									<td><?php echo htmlspecialchars($log->from_name); ?></td>
 									<td><?php echo htmlspecialchars($log->to_name); ?></td>
 									<td class="da-center"><?php echo (int)$log->clients_count; ?></td>
@@ -269,7 +444,7 @@ $logs = isset($logs) ? $logs : array();
 							<?php endforeach; ?>
 						<?php else: ?>
 							<tr>
-								<td colspan="7" class="text-center">No transfers yet.</td>
+								<td colspan="8" class="text-center">No transfers yet.</td>
 							</tr>
 						<?php endif; ?>
 					</tbody>
@@ -322,7 +497,19 @@ $logs = isset($logs) ? $logs : array();
 		return $(selector).length > 0 && $(selector + ':checked').length === $(selector).length;
 	}
 
-	$('#from_empId, #to_empId').select2();
+	$('#from_empId, #to_empId, #client_from_empId, #client_to_empId').select2({ width: '100%' });
+
+	$('.da-tab').on('click', function() {
+		var panel = $(this).attr('data-panel');
+		$('.da-tab').removeClass('is-active');
+		$(this).addClass('is-active');
+		$('#panelManagerTransfer, #panelClientTransfer').addClass('da-hidden');
+		$('#' + panel).removeClass('da-hidden');
+		$('#from_empId, #to_empId, #client_from_empId, #client_to_empId').next('.select2-container').css('width', '100%');
+	});
+	if (window.location.hash === '#by-client') {
+		$('.da-tab[data-panel="panelClientTransfer"]').trigger('click');
+	}
 
 	$('#previewAllocation').on('click', function() {
 		var fromEmpId = parseInt($('#from_empId').val(), 10);
@@ -485,6 +672,269 @@ $logs = isset($logs) ? $logs : array();
 			},
 			error: function(xhr) {
 				var msg = 'Failed to transfer data. Please try again.';
+				if (xhr && xhr.responseText) {
+					try {
+						var parsed = JSON.parse(xhr.responseText);
+						if (parsed && parsed.message) {
+							msg = parsed.message;
+						}
+					} catch (e) {
+						var text = String(xhr.responseText).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+						if (text) {
+							msg = text.substring(0, 400);
+						}
+					}
+				}
+				alert(msg);
+			},
+			complete: function() {
+				$btn.prop('disabled', false).html(original);
+			}
+		});
+	});
+
+	function selectedClientIds() {
+		return collectIds('.client-pick');
+	}
+
+	function resetClientPackagePreview() {
+		$('#clientPreviewSummary').addClass('da-hidden');
+		$('#clientRelatedTables').addClass('da-hidden');
+		$('#clientCountClients').text('0');
+		$('#clientCountProjects').text('0');
+		$('#clientCountTasks').text('0');
+		$('#clientProjectsTable tbody').empty();
+		$('#clientTasksTable tbody').empty();
+		$('#clientTasksTruncated').addClass('da-hidden').text('');
+		$('#transferClientPackage').prop('disabled', true);
+	}
+
+	function updateClientPickButtons() {
+		var hasClients = selectedClientIds().length > 0;
+		$('#previewClientPackage').prop('disabled', !hasClients);
+		if (!hasClients) {
+			$('#transferClientPackage').prop('disabled', true);
+		}
+	}
+
+	function renderClientPick(clients) {
+		var rows = '';
+		$.each(clients, function(i, row) {
+			var clientId = parseInt(rowVal(row, ['client_Id', 'client_id']), 10);
+			rows += '<tr>' +
+				'<td class="da-center"><input type="checkbox" class="client-pick" value="' + clientId + '" checked></td>' +
+				'<td class="da-center">' + (i + 1) + '</td>' +
+				'<td class="da-center">' + clientId + '</td>' +
+				'<td>' + escapeHtml(row.client_name) + '</td>' +
+				'<td class="da-center">' + escapeHtml(row.empId) + '</td>' +
+				'<td>' + escapeHtml(row.status) + '</td>' +
+				'<td class="da-center">' + escapeHtml(row.projects_count) + '</td>' +
+				'<td class="da-center">' + escapeHtml(row.tasks_count) + '</td>' +
+				'</tr>';
+		});
+		$('#clientPickTable tbody').html(rows || '<tr><td colspan="8" class="text-center">No clients found for this manager.</td></tr>');
+		$('#clientPickCard').removeClass('da-hidden');
+		$('#clientPickAll').prop('checked', clients.length > 0);
+		$('#clientPickSearch').val('');
+		resetClientPackagePreview();
+		updateClientPickButtons();
+	}
+
+	function renderClientPackage(res) {
+		var clients = res.clients || [];
+		var projects = res.projects || [];
+		var tasks = res.tasks || [];
+		var counts = res.counts || {};
+		$('#clientCountClients').text(counts.clients || clients.length || 0);
+		$('#clientCountProjects').text(counts.projects || projects.length || 0);
+		$('#clientCountTasks').text(counts.tasks || tasks.length || 0);
+		$('#clientPreviewSummary').removeClass('da-hidden');
+		$('#clientRelatedTables').removeClass('da-hidden');
+		$('#transferClientPackage').prop('disabled', clients.length <= 0);
+
+		var projectRows = '';
+		$.each(projects, function(i, row) {
+			var projectId = parseInt(rowVal(row, ['project_Id', 'project_id']), 10);
+			projectRows += '<tr>' +
+				'<td class="da-center">' + (i + 1) + '</td>' +
+				'<td class="da-center">' + projectId + '</td>' +
+				'<td>' + escapeHtml(row.project_number) + '</td>' +
+				'<td>' + escapeHtml(row.project_name) + '</td>' +
+				'<td>' + escapeHtml(row.client_name) + '</td>' +
+				'<td class="da-center">' + escapeHtml(row.empId) + '</td>' +
+				'<td>' + escapeHtml(row.p_manager) + '</td>' +
+				'<td>' + escapeHtml(row.status) + '</td>' +
+				'</tr>';
+		});
+		$('#clientProjectsTable tbody').html(projectRows || '<tr><td colspan="8" class="text-center">No related projects found for the selected clients.</td></tr>');
+
+		var taskRows = '';
+		$.each(tasks, function(i, row) {
+			var taskId = parseInt(rowVal(row, ['task_Id', 'task_id']), 10);
+			taskRows += '<tr>' +
+				'<td class="da-center">' + (i + 1) + '</td>' +
+				'<td class="da-center">' + taskId + '</td>' +
+				'<td>' + escapeHtml(row.task_name) + '</td>' +
+				'<td>' + escapeHtml(row.client_name) + '</td>' +
+				'<td>' + escapeHtml(row.project_name) + '</td>' +
+				'<td class="da-center">' + escapeHtml(row.empId) + '</td>' +
+				'<td>' + escapeHtml(row.status) + '</td>' +
+				'</tr>';
+		});
+		$('#clientTasksTable tbody').html(taskRows || '<tr><td colspan="7" class="text-center">No related tasks found for the selected clients.</td></tr>');
+
+		if (res.tasks_truncated) {
+			$('#clientTasksTruncated').removeClass('da-hidden').text('Showing first ' + (res.preview_limit || tasks.length) + ' of ' + (counts.tasks || 0) + ' related tasks. All related tasks will be allocated.');
+		} else {
+			$('#clientTasksTruncated').addClass('da-hidden').text('');
+		}
+	}
+
+	$('#loadClientAllocation').on('click', function() {
+		var fromEmpId = parseInt($('#client_from_empId').val(), 10);
+		if (!fromEmpId) {
+			alert('Please choose a from manager.');
+			return;
+		}
+		var $btn = $(this);
+		var original = $btn.html();
+		$btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Loading...');
+		$.ajax({
+			url: '<?php echo base_url("data_allocation/preview_clients"); ?>',
+			type: 'POST',
+			dataType: 'json',
+			data: { from_empId: fromEmpId },
+			success: function(res) {
+				if (!res || !res.success) {
+					alert(res && res.message ? res.message : 'Unable to load clients.');
+					return;
+				}
+				renderClientPick(res.clients || []);
+			},
+			error: function() {
+				alert('Failed to load clients. Please try again.');
+			},
+			complete: function() {
+				$btn.prop('disabled', false).html(original);
+			}
+		});
+	});
+
+	$('#client_from_empId').on('change', function() {
+		$('#clientPickCard').addClass('da-hidden');
+		$('#clientPickTable tbody').empty();
+		$('#previewClientPackage').prop('disabled', true);
+		resetClientPackagePreview();
+	});
+
+	$('#clientPickAll').on('change', function() {
+		$('.client-pick').prop('checked', this.checked);
+		resetClientPackagePreview();
+		updateClientPickButtons();
+	});
+
+	$(document).on('change', '.client-pick', function() {
+		var all = $('.client-pick').length;
+		var checked = $('.client-pick:checked').length;
+		$('#clientPickAll').prop('checked', all > 0 && all === checked);
+		resetClientPackagePreview();
+		updateClientPickButtons();
+	});
+
+	$('#clientPickSearch').on('keyup', function() {
+		var q = $.trim($(this).val()).toLowerCase();
+		$('#clientPickTable tbody tr').each(function() {
+			var text = $(this).text().toLowerCase();
+			$(this).toggle(q === '' || text.indexOf(q) !== -1);
+		});
+	});
+
+	$('#previewClientPackage').on('click', function() {
+		var fromEmpId = parseInt($('#client_from_empId').val(), 10);
+		var clientIds = selectedClientIds();
+		if (!fromEmpId) {
+			alert('Please choose a from manager.');
+			return;
+		}
+		if (!clientIds.length) {
+			alert('Please choose at least one client.');
+			return;
+		}
+		var $btn = $(this);
+		var original = $btn.html();
+		$btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Loading...');
+		$.ajax({
+			url: '<?php echo base_url("data_allocation/preview_client_package"); ?>',
+			type: 'POST',
+			dataType: 'json',
+			data: {
+				from_empId: fromEmpId,
+				client_ids: clientIds
+			},
+			success: function(res) {
+				if (!res || !res.success) {
+					alert(res && res.message ? res.message : 'Unable to load related records.');
+					return;
+				}
+				renderClientPackage(res);
+			},
+			error: function() {
+				alert('Failed to load related records. Please try again.');
+			},
+			complete: function() {
+				$btn.prop('disabled', false).html(original);
+				updateClientPickButtons();
+			}
+		});
+	});
+
+	$('#transferClientPackage').on('click', function() {
+		var fromEmpId = parseInt($('#client_from_empId').val(), 10);
+		var toEmpId = parseInt($('#client_to_empId').val(), 10);
+		var clientIds = selectedClientIds();
+		if (!fromEmpId || !toEmpId) {
+			alert('Please choose both from and to managers.');
+			return;
+		}
+		if (fromEmpId === toEmpId) {
+			alert('From manager and to manager must be different.');
+			return;
+		}
+		if (!clientIds.length) {
+			alert('Please choose at least one client.');
+			return;
+		}
+
+		var fromName = $('#client_from_empId option:selected').text().replace(/\s+/g, ' ').trim();
+		var toName = $('#client_to_empId option:selected').text().replace(/\s+/g, ' ').trim();
+		var clientCount = clientIds.length;
+		var projectCount = parseInt($('#clientCountProjects').text(), 10) || 0;
+		var taskCount = parseInt($('#clientCountTasks').text(), 10) || 0;
+		if (!confirm('Allocate ' + clientCount + ' client(s) and related records (' + projectCount + ' project(s), ' + taskCount + ' task(s)) from ' + fromName + ' to ' + toName + '?')) {
+			return;
+		}
+
+		var $btn = $(this);
+		var original = $btn.html();
+		$btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Allocating...');
+		$.ajax({
+			url: '<?php echo base_url("data_allocation/transfer_by_client"); ?>',
+			type: 'POST',
+			dataType: 'json',
+			data: {
+				from_empId: fromEmpId,
+				to_empId: toEmpId,
+				client_ids: clientIds
+			},
+			success: function(res) {
+				alert(res && res.message ? res.message : 'Allocation request completed.');
+				if (res && res.success) {
+					window.location.hash = 'by-client';
+					window.location.reload();
+				}
+			},
+			error: function(xhr) {
+				var msg = 'Failed to allocate selected clients. Please try again.';
 				if (xhr && xhr.responseText) {
 					try {
 						var parsed = JSON.parse(xhr.responseText);

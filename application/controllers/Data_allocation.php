@@ -59,6 +59,35 @@ class Data_allocation extends CI_Controller {
 		$this->jsonOut($this->data_allocation_model->transfer($fromEmpId, $toEmpId, $modules, $selectedIds, $transferAll));
 	}
 
+	public function preview_clients() {
+		$this->jsonStart();
+		$fromEmpId = (int)$this->input->post('from_empId');
+		if ($fromEmpId <= 0) {
+			$this->jsonOut(array('success' => false, 'message' => 'Please choose a from manager.'));
+			return;
+		}
+		$this->jsonOut($this->data_allocation_model->getClientsWithCounts($fromEmpId));
+	}
+
+	public function preview_client_package() {
+		$this->jsonStart();
+		$fromEmpId = (int)$this->input->post('from_empId');
+		$clientIds = $this->input->post('client_ids');
+		if ($fromEmpId <= 0) {
+			$this->jsonOut(array('success' => false, 'message' => 'Please choose a from manager.'));
+			return;
+		}
+		$this->jsonOut($this->data_allocation_model->getClientPackagePreview($fromEmpId, $clientIds));
+	}
+
+	public function transfer_by_client() {
+		$this->jsonStart();
+		$fromEmpId = (int)$this->input->post('from_empId');
+		$toEmpId = (int)$this->input->post('to_empId');
+		$clientIds = $this->input->post('client_ids');
+		$this->jsonOut($this->data_allocation_model->transferByClients($fromEmpId, $toEmpId, $clientIds));
+	}
+
 	private function jsonStart() {
 		while (ob_get_level() > 0) {
 			ob_end_clean();

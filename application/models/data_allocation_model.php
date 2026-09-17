@@ -215,6 +215,179 @@ class Data_allocation_model extends CI_Model {
 		);
 	}
 
+	public function getClientsWithCounts($fromEmpId) {
+		$fromEmpId = (int)$fromEmpId;
+		$fromEmp = $this->getEmployeeById($fromEmpId);
+		if (empty($fromEmp)) {
+			return array('success' => false, 'message' => 'From manager was not found.');
+		}
+
+		$clients = $this->getClientsByEmpId($fromEmpId);
+		$clientIds = $this->idsFromRows($clients, 'client_Id');
+		$projectCounts = $this->countByClientIds('project_details', $clientIds);
+		$taskCounts = $this->countTasksForClients($clientIds);
+
+		foreach ($clients as $client) {
+			$id = (int)$client->client_Id;
+			$client->projects_count = isset($projectCounts[$id]) ? (int)$projectCounts[$id] : 0;
+			$client->tasks_count = isset($taskCounts[$id]) ? (int)$taskCounts[$id] : 0;
+		}
+
+		return array(
+			'success' => true,
+			'from_manager' => $fromEmp,
+			'clients' => $clients,
+			'counts' => array(
+				'clients' => count($clients),
+			),
+		);
+	}
+
+	public function getClientPackagePreview($fromEmpId, $clientIds, $previewLimit = 200) {
+		$fromEmpId = (int)$fromEmpId;
+		$fromEmp = $this->getEmployeeById($fromEmpId);
+		if (empty($fromEmp)) {
+			return array('success' => false, 'message' => 'From manager was not found.');
+		}
+
+		$ownedIds = $this->ownedClientIds($fromEmpId, $clientIds);
+		if (empty($ownedIds)) {
+			return array('success' => false, 'message' => 'Please choose at least one client that belongs to this manager.');
+		}
+
+		$clients = $this->getClientsByIds($ownedIds);
+		$projects = $this->getProjectsByClientIds($ownedIds);
+		$taskTotal = $this->countTasksByClientPackage($ownedIds);
+		$tasks = $this->getTasksByClientPackage($ownedIds, (int)$previewLimit);
+
+		return array(
+			'success' => true,
+			'from_manager' => $fromEmp,
+			'counts' => array(
+				'clients' => count($clients),
+				'projects' => count($projects),
+				'tasks' => $taskTotal,
+			),
+			'clients' => $clients,
+			'projects' => $projects,
+			'tasks' => $tasks,
+			'tasks_truncated' => ($taskTotal > (int)$previewLimit),
+			'preview_limit' => (int)$previewLimit,
+		);
+	}
+
+	public function transferByClients($fromEmpId, $toEmpId, $clientIds) {
+		$fromEmpId = (int)$fromEmpId;
+		$toEmpId = (int)$toEmpId;
+		$fromEmp = $this->getEmployeeById($fromEmpId);
+		$toEmp = $this->getEmployeeById($toEmpId);
+
+		if (empty($fromEmp) || empty($toEmp)) {
+			return array('success' => false, 'message' => 'Please choose a valid from and to manager.');
+		}
+		if ($fromEmpId === $toEmpId) {
+			return array('success' => false, 'message' => 'From manager and to manager must be different.');
+		}
+
+		$ownedIds = $this->ownedClientIds($fromEmpId, $clientIds);
+		if (empty($ownedIds)) {
+			return array('success' => false, 'message' => 'Please choose at least one client that belongs to this manager.');
+		}
+
+		$now = date('Y-m-d H:i:s');
+		$toEmpKey = (string)$toEmpId;
+		$toManagerName = $this->fitManagerName($toEmp->name);
+		$counts = array(
+			'clients' => 0,
+			'projects' => 0,
+			'tasks' => 0,
+		);
+
+		$clientPk = $this->columnName('client_details', array('client_Id', 'client_id'));
+		$projectClientPk = $this->columnName('project_details', array('client_Id', 'client_id'));
+		$taskClientPk = $this->columnName('task_details', array('client_Id', 'client_id'));
+		$taskProjectPk = $this->columnName('task_details', array('project_Id', 'project_id'));
+
+		$this->db->where('empId', $fromEmpId);
+		$this->db->where_in($clientPk, $ownedIds);
+		$ok = $this->db->update('client_details', $this->withTimestamp('client_details', array(
+			'empId' => $toEmpId,
+		), $now));
+		if ($ok === false) {
+			return $this->dbFail('Could not update client_details.');
+		}
+		$counts['clients'] = (int)$this->db->affected_rows();
+
+		$projectIds = $this->getRelatedProjectIds($ownedIds);
+		if (!empty($projectIds)) {
+			$projectData = array(
+				'empId' => $toEmpId,
+				'p_manager' => $toManagerName,
+			);
+			if ($this->db->field_exists('who_allocated_project_empId', 'project_details')) {
+				$projectData['who_allocated_project_empId'] = $toEmpId;
+			}
+			$this->db->where_in($projectClientPk, $ownedIds);
+			$ok = $this->db->update('project_details', $this->withTimestamp('project_details', $projectData, $now));
+			if ($ok === false) {
+				return $this->dbFail('Could not update project_details.');
+			}
+			$counts['projects'] = (int)$this->db->affected_rows();
+		}
+
+		$this->db->group_start();
+		$this->db->where_in($taskClientPk, $ownedIds);
+		if (!empty($projectIds)) {
+			$this->db->or_where_in($taskProjectPk, $projectIds);
+		}
+		$this->db->group_end();
+		$ok = $this->db->update('task_details', $this->withTimestamp('task_details', array(
+			'empId' => $toEmpKey,
+		), $now));
+		if ($ok === false) {
+			return $this->dbFail('Could not update task_details.');
+		}
+		$counts['tasks'] = (int)$this->db->affected_rows();
+
+		$total = $counts['clients'] + $counts['projects'] + $counts['tasks'];
+		if ($total <= 0) {
+			return array('success' => false, 'message' => 'No matching client-related records were transferred.');
+		}
+
+		$transferredBy = '';
+		$sessionUser = $this->session->userdata('logged_in_timesheet');
+		if (!empty($sessionUser['username'])) {
+			$transferredBy = $sessionUser['username'];
+		}
+
+		if ($this->db->table_exists('data_allocation_log')) {
+			$this->db->insert('data_allocation_log', array(
+				'from_empId' => $fromEmpId,
+				'from_name' => $fromEmp->name,
+				'to_empId' => $toEmpId,
+				'to_name' => $toEmp->name,
+				'modules' => 'by_client,clients,projects,tasks',
+				'clients_count' => $counts['clients'],
+				'projects_count' => $counts['projects'],
+				'tasks_count' => $counts['tasks'],
+				'sow_count' => 0,
+				'transferred_by' => $transferredBy,
+				'created_at' => $now,
+			));
+		}
+
+		$clientLabel = $counts['clients'] === 1 ? 'client' : 'clients';
+		return array(
+			'success' => true,
+			'counts' => $counts,
+			'from_name' => $fromEmp->name,
+			'to_name' => $toEmp->name,
+			'message' => 'Allocated ' . $counts['clients'] . ' ' . $clientLabel
+				. ' and related records (' . $counts['projects'] . ' project(s), ' . $counts['tasks'] . ' task(s)) from '
+				. $fromEmp->name . ' to ' . $toEmp->name . '.',
+		);
+	}
+
 	public function getRecentLogs($limit = 20) {
 		if (!$this->db->table_exists('data_allocation_log')) {
 			return array();
@@ -264,6 +437,152 @@ class Data_allocation_model extends CI_Model {
 		$this->db->group_end();
 		$this->db->order_by('t.' . $taskPk, 'desc');
 		return $this->db->get()->result();
+	}
+
+	private function ownedClientIds($fromEmpId, $clientIds) {
+		$clientIds = $this->normalizeIds($clientIds);
+		if (empty($clientIds)) {
+			return array();
+		}
+		$clientPk = $this->columnName('client_details', array('client_Id', 'client_id'));
+		$rows = $this->db->select($clientPk . ' as client_Id')
+			->from('client_details')
+			->where('empId', (int)$fromEmpId)
+			->where_in($clientPk, $clientIds)
+			->get()
+			->result();
+		return $this->idsFromRows($rows, 'client_Id');
+	}
+
+	private function getClientsByIds($clientIds) {
+		if (empty($clientIds)) {
+			return array();
+		}
+		$pk = $this->columnName('client_details', array('client_Id', 'client_id'));
+		return $this->db->select('c.' . $pk . ' as client_Id, c.client_name, c.department, c.status, c.empId, c.created_at')
+			->from('client_details as c')
+			->where_in('c.' . $pk, $clientIds)
+			->order_by('c.client_name', 'asc')
+			->get()
+			->result();
+	}
+
+	private function getProjectsByClientIds($clientIds) {
+		if (empty($clientIds)) {
+			return array();
+		}
+		$projectPk = $this->columnName('project_details', array('project_Id', 'project_id'));
+		$clientPk = $this->columnName('client_details', array('client_Id', 'client_id'));
+		$projectClientPk = $this->columnName('project_details', array('client_Id', 'client_id'));
+		return $this->db->select('p.' . $projectPk . ' as project_Id, p.project_name, p.project_number, p.status, p.p_manager, p.empId, p.who_allocated_project_empId, c.client_name')
+			->from('project_details as p')
+			->join('client_details as c', 'c.' . $clientPk . ' = p.' . $projectClientPk, 'left')
+			->where_in('p.' . $projectClientPk, $clientIds)
+			->order_by('p.project_number', 'desc')
+			->get()
+			->result();
+	}
+
+	private function getRelatedProjectIds($clientIds) {
+		if (empty($clientIds)) {
+			return array();
+		}
+		$projectPk = $this->columnName('project_details', array('project_Id', 'project_id'));
+		$projectClientPk = $this->columnName('project_details', array('client_Id', 'client_id'));
+		$rows = $this->db->select($projectPk . ' as project_Id')
+			->from('project_details')
+			->where_in($projectClientPk, $clientIds)
+			->get()
+			->result();
+		return $this->idsFromRows($rows, 'project_Id');
+	}
+
+	private function getTasksByClientPackage($clientIds, $limit = 200) {
+		if (empty($clientIds)) {
+			return array();
+		}
+		$projectIds = $this->getRelatedProjectIds($clientIds);
+		$taskPk = $this->columnName('task_details', array('task_Id', 'task_id'));
+		$clientPk = $this->columnName('client_details', array('client_Id', 'client_id'));
+		$projectPk = $this->columnName('project_details', array('project_Id', 'project_id'));
+		$taskClientPk = $this->columnName('task_details', array('client_Id', 'client_id'));
+		$taskProjectPk = $this->columnName('task_details', array('project_Id', 'project_id'));
+
+		$this->db->select('t.' . $taskPk . ' as task_Id, t.task_name, t.status, t.empId, t.created_at, c.client_name, p.project_name');
+		$this->db->from('task_details as t');
+		$this->db->join('client_details as c', 'c.' . $clientPk . ' = t.' . $taskClientPk, 'left');
+		$this->db->join('project_details as p', 'p.' . $projectPk . ' = t.' . $taskProjectPk, 'left');
+		$this->applyClientPackageTaskFilter($taskClientPk, $taskProjectPk, $clientIds, $projectIds, 't');
+		$this->db->order_by('t.' . $taskPk, 'desc');
+		$this->db->limit((int)$limit);
+		return $this->db->get()->result();
+	}
+
+	private function countTasksByClientPackage($clientIds) {
+		if (empty($clientIds)) {
+			return 0;
+		}
+		$projectIds = $this->getRelatedProjectIds($clientIds);
+		$taskPk = $this->columnName('task_details', array('task_Id', 'task_id'));
+		$taskClientPk = $this->columnName('task_details', array('client_Id', 'client_id'));
+		$taskProjectPk = $this->columnName('task_details', array('project_Id', 'project_id'));
+		$this->db->select('COUNT(' . $taskPk . ') as total', false);
+		$this->db->from('task_details');
+		$this->applyClientPackageTaskFilter($taskClientPk, $taskProjectPk, $clientIds, $projectIds, '');
+		$row = $this->db->get()->row();
+		return $row ? (int)$row->total : 0;
+	}
+
+	private function applyClientPackageTaskFilter($taskClientPk, $taskProjectPk, $clientIds, $projectIds, $alias) {
+		$clientCol = $alias !== '' ? $alias . '.' . $taskClientPk : $taskClientPk;
+		$projectCol = $alias !== '' ? $alias . '.' . $taskProjectPk : $taskProjectPk;
+		$this->db->group_start();
+		$this->db->where_in($clientCol, $clientIds);
+		if (!empty($projectIds)) {
+			$this->db->or_where_in($projectCol, $projectIds);
+		}
+		$this->db->group_end();
+	}
+
+	private function countByClientIds($table, $clientIds) {
+		$map = array();
+		if (empty($clientIds)) {
+			return $map;
+		}
+		$clientPk = $this->columnName($table, array('client_Id', 'client_id'));
+		$rows = $this->db->select($clientPk . ' as client_Id, COUNT(*) as total')
+			->from($table)
+			->where_in($clientPk, $clientIds)
+			->group_by($clientPk)
+			->get()
+			->result();
+		foreach ($rows as $row) {
+			$map[(int)$row->client_Id] = (int)$row->total;
+		}
+		return $map;
+	}
+
+	private function countTasksForClients($clientIds) {
+		return $this->countByClientIds('task_details', $clientIds);
+	}
+
+	private function idsFromRows($rows, $key) {
+		$ids = array();
+		if (empty($rows)) {
+			return $ids;
+		}
+		foreach ($rows as $row) {
+			$id = 0;
+			if (is_object($row) && isset($row->$key)) {
+				$id = (int)$row->$key;
+			} elseif (is_array($row) && isset($row[$key])) {
+				$id = (int)$row[$key];
+			}
+			if ($id > 0) {
+				$ids[$id] = $id;
+			}
+		}
+		return array_values($ids);
 	}
 
 	private function idsForModule($module, $selectedIds, $transferAll) {
